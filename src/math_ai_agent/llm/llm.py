@@ -203,6 +203,12 @@ async def agent_loop(user_prompt: str) -> str:
         response: ChatCompletion = await llm.create_response(context)
         llm_msg: ChatCompletionMessage = response.choices[0].message
         finish_reason = response.choices[0].finish_reason
+        logger.debug(
+            "Token usage in the current request: prompt=%d completion=%d total=%d",
+            response.usage.prompt_tokens,
+            response.usage.completion_tokens,
+            response.usage.total_tokens,
+        )
 
         match finish_reason:
             case "stop":
