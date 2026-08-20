@@ -46,20 +46,20 @@ a math prompt to the LLM via ``OpenAIClient``.  Run standalone with::
 
 import asyncio
 import logging
-import os
 
-from math_ai_agent.config import configure_logging
+from math_ai_agent.config.config import (
+    configure_logging,
+    get_api_key,
+    get_model,
+    get_model_base_url,
+)
 from math_ai_agent.llm.llm import OpenAIClient
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
-# GitHub Marketplace Model
-_API_KEY = os.environ.get("RUBENS_PAT_TOKEN")
-_BASE_URL = "https://models.github.ai/inference"
-# _MODEL = "openai/gpt-5"
-_MODEL = "openai/gpt-4.1"
+# LLM endpoint, model, and API key env var come from config.yaml.
 
 _SYSTEM_INSTRUCTIONS = """
 You are a careful math assistant tutor helping solve math problems. Always
@@ -93,7 +93,12 @@ async def prompt_llm() -> None:
     logger.info("Starting LLM prompt test")
     messages = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
     tools = await get_mcp_tools()
-    llm = OpenAIClient(_API_KEY, _BASE_URL, _MODEL, tools)
+    llm = OpenAIClient(
+        get_api_key(),
+        get_model_base_url(),
+        get_model(),
+        tools,
+    )
     messages.append({"role": "user", "content": "4+4?"})
     logger.debug("Sending prompt: %s", messages[-1]["content"])
     response = await llm.create_response(messages)

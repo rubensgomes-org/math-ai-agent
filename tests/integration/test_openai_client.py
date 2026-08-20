@@ -48,44 +48,47 @@ OpenAI API.  Run standalone with::
 """
 
 import logging
-import os
 import time
 
 from openai import OpenAI
 
-from math_ai_agent.config import configure_logging
+from math_ai_agent.config.config import (
+    configure_logging,
+    get_api_key,
+    get_model,
+    get_model_base_url,
+)
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
 _SYSTEM_INSTRUCTIONS = "You are a Python expert programmer.\n"
 
+# The active endpoint, model, and API key env var now come from the
+# `llm:` block in config.yaml at the project root (GitHub Marketplace
+# Model by default).  Edit config.yaml to switch providers; the
+# alternatives below are kept for reference.
+#
 # OpenAI API key stored in my secrets. (NOT FREE)
-# _API_KEY = os.environ.get("OPENAI_API_KEY")
-# _BASE_URL = "https://api.openai.com/v1"
-# _MODEL = "gpt-5.2"
-
-# GitHub Marketplace Model
-_API_KEY = os.environ.get("RUBENS_PAT_TOKEN")
-_BASE_URL = "https://models.github.ai/inference"
-# _MODEL = "openai/gpt-5"
-_MODEL = "openai/gpt-4.1"
-
-
+#   model_base_url: "https://api.openai.com/v1"
+#   model: "gpt-5.2"
+#   api_key_env: "OPENAI_API_KEY"
+#
 # Ollama locally running server. Any string works for local Ollama. (FREE)
-# _API_KEY = "ollama"
-# _BASE_URL = "http://localhost:11434/v1"
-# _MODEL = "llama2" # Meta Open-Source 7B size
-# _MODEL = "qwen3.5"  # https://ollama.com/library/qwen3.5
-# _MODEL = "phi"  # https://ollama.com/library/phi
+#   model_base_url: "http://localhost:11434/v1"
+#   model: "llama2"  # Meta Open-Source 7B size
+#   model: "qwen3.5"  # https://ollama.com/library/qwen3.5
+#   model: "phi"  # https://ollama.com/library/phi
 
 
 def run_client() -> None:
     """Connect to LLM and send a prompt."""
-    logger.info("Connecting to %s using model %s", _BASE_URL, _MODEL)
+    base_url = get_model_base_url()
+    model = get_model()
+    logger.info("Connecting to %s using model %s", base_url, model)
     client = OpenAI(
-        api_key=_API_KEY,
-        base_url=_BASE_URL,
+        api_key=get_api_key(),
+        base_url=base_url,
     )
 
     prompt = "How do I check if a Python object is an instance of a class?"
@@ -96,7 +99,7 @@ def run_client() -> None:
     try:
         start = time.perf_counter()
         response = client.chat.completions.create(
-            model=_MODEL,
+            model=model,
             messages=[
                 {"role": "system", "content": _SYSTEM_INSTRUCTIONS},
                 {"role": "user", "content": prompt},
@@ -108,11 +111,11 @@ def run_client() -> None:
         result = response.choices[0].message.content
         logger.debug("Response text: %s", result)
         print(result)
-        print(f"\n[Model: {_MODEL} | API: NEW | " f"Time: {elapsed:.2f}s]\n")
+        print(f"\n[Model: {model} | API: NEW | " f"Time: {elapsed:.2f}s]\n")
     except Exception:
         logger.exception(
             "Failed to get response from model %s via NEW API",
-            _MODEL,
+            model,
         )
     finally:
         logger.debug("========== %s API CALL (END) ==========", "NEW")

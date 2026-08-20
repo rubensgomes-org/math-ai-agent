@@ -8,11 +8,11 @@
 
     - coreutils package
     - dnsutils package
-    - curl 8.5.0 or later
-    - gawk 5.2.1 or later
-    - gh version 2.45.0 or later (GitHub CLI tool)
-    - git version 2.43.0 or later
-    - grep version 3.11 or later
+    - curl 8.7.1 or later
+    - gawk 5.4.1 or later
+    - gh version 2.97.0 or later (GitHub CLI tool)
+    - git version 2.55.0 or later
+    - grep version 3.11, 2.6.0-FreeBSD,  or later
 
 2. Ensure a `release` branch is created in the remote Git repository.
 
@@ -35,13 +35,15 @@ that a `Claude Code` CLI session is started running on an underlying Linux
 
 ## Starting a Release
 
-- Refer to [release-plan.md](.claude/commands/release-plan.md) for the list of
+- Refer to [.claude/commands/release-plan.md](.claude/commands/release-plan.md) for the list of
   commands that are run during a release.
 
 - The release plan is generated/executed within `Claude Code`. You must start
   `Claude Code`, and run the following custom slash command:
 
     ```commandline
+    cd $(git rev-parse --show-toplevel) || exit
+    claude --debug --ide --model opus  --verbose
     # Claude Code edit mode command:
     /release-plan rubensgomes/<proj-name>
     ```

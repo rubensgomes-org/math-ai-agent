@@ -56,15 +56,15 @@ Ubuntu:
 - Install `python` 3.14 as follows:
 
     ```bash
-    # assuming 3.14.3 is the latest python 3.14 release.
-    pyenv install "3.14.3"
+    # assuming 3.14.7 is the latest python 3.14 release.
+    pyenv install "3.14.7"
     ```
 
 - Configure the global `python` version:
 
     ```bash
-    # assuming 3.14.3 is the latest python 3.14 release.
-    pyenv global "3.14.3"
+    # assuming 3.14.7 is the latest python 3.14 release.
+    pyenv global "3.14.7"
     ```
 
 - Check the installed `python` version:

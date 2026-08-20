@@ -67,6 +67,44 @@ ollama pull llama2
 ollama run llama2
 ```
 
+## Using Ollama with this Project
+
+Point the `llm:` block in `config.yaml` at your local Ollama server. No code
+change is needed — the app talks to Ollama through its OpenAI-compatible API.
+
+```yaml
+llm:
+    model_base_url: "http://localhost:11434/v1"
+    model: "phi"              # any model you have pulled
+    api_key_env: "OLLAMA_API_KEY"
+```
+
+Ollama ignores the API key, but the app requires the named variable to be
+non-empty, so set it to any string:
+
+```bash
+export OLLAMA_API_KEY="ollama"
+ollama serve                  # if not already running
+poetry run uvicorn math_ai_agent.app:app --reload
+```
+
+Two caveats for this project specifically:
+
+- The agent loop depends on **tool calling**, which not every Ollama model
+  supports — older and smaller models such as `llama2` and `phi` generally do
+  not. Check the model's page in the [Ollama library](https://ollama.com/library)
+  for a `tools` capability before choosing it. Without tool support the
+  calculator is ignored and the model does arithmetic in its head, which is
+  exactly what this app exists to prevent.
+- Smaller local models follow the plain-text formatting instruction less
+  reliably, so LaTeX may appear in the answer textarea.
+
+Verify with the LLM-only integration test before running the full app:
+
+```bash
+poetry run python tests/integration/test_openai_client.py
+```
+
 ## Removing a Model from Ollama
 
 You can remove models using the `ollama rm` command.

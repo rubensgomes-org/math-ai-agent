@@ -58,7 +58,7 @@ from fastmcp.client.auth import OAuth
 from key_value.aio.stores.disk import DiskStore
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 
-from math_ai_agent.config import (
+from math_ai_agent.config.config import (
     get_callback_port,
     get_token_dir,
     get_url,

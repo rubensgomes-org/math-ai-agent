@@ -1,0 +1,98 @@
+# =============================================================================
+# Server Configuration
+# =============================================================================
+server:
+    calculator_mcp:
+        #    is_oauth: false
+        #    url: "http://127.0.0.1:9000/mcp"
+        is_oauth: true
+        url: "https://rubens-calculator-mcp.fastmcp.app/mcp"
+        # location to store OAuth token
+        token_dir: "/tmp/.fastmcp/oauth-tokens"
+        # fixed port for the OAuth callback server
+        callback_port: 10000
+        # timeout in seconds
+        timeout: 10
+
+# =============================================================================
+# LLM Configuration
+# =============================================================================
+llm:
+    # Base URL of the LLM model inference endpoint
+    # NOTE: This project code is using the previous OpenAI standard (supported
+    # indefinitely) for generating text is the Chat Completions API.
+    model_base_url: "https://openrouter.ai/api/v1"
+    model: "nvidia/nemotron-3-super-120b-a12b:free"
+    # Name of the environment variable holding the API key.
+    # The key value itself is NEVER stored in this file.
+    api_key_env: "OPENROUTER_API_KEY"
+    # Local Ollama alternative (see OLLAMA.md):
+    #   model_base_url: "http://localhost:11434/v1"
+    #   model: "phi"
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logging:
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+        standard:
+            format: "%(asctime)s [%(levelname)s] %(name)s %(filename)s:%(lineno)d: %(message)s"
+    handlers:
+        console:
+            class: logging.StreamHandler
+            formatter: standard
+            stream: ext://sys.stderr
+    loggers:
+        math_ai_agent:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # MCP protocol tracing — set to DEBUG to see full JSON-RPC messages
+        mcp.client.streamable_http:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # HTTP request/response summaries — set to DEBUG for detail
+        httpx:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # OpenAI SDK logging — set to DEBUG for request/response detail
+        openai:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
+        httpcore:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # Server: HTTP request lines (method, path, status)
+        uvicorn.access:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # Integration tests (via pytest)
+        tests:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # Integration tests (run standalone)
+        __main__:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+    root:
+        level: WARNING
+        handlers:
+            - console

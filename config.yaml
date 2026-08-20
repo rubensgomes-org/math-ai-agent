@@ -8,11 +8,27 @@ server:
         is_oauth: true
         url: "https://rubens-calculator-mcp.fastmcp.app/mcp"
         # location to store OAuth token
-        token_dir: "/home/rubens/.fastmcp/oauth-tokens"
+        token_dir: "/tmp/.fastmcp/oauth-tokens"
         # fixed port for the OAuth callback server
         callback_port: 10000
         # timeout in seconds
         timeout: 10
+
+# =============================================================================
+# LLM Configuration
+# =============================================================================
+llm:
+    # Base URL of the LLM model inference endpoint
+    # NOTE: This project code is using the previous OpenAI standard (supported
+    # indefinitely) for generating text is the Chat Completions API.
+    model_base_url: "https://openrouter.ai/api/v1"
+    model: "nvidia/nemotron-3-super-120b-a12b:free"
+    # Name of the environment variable holding the API key.
+    # The key value itself is NEVER stored in this file.
+    api_key_env: "OPENROUTER_API_KEY"
+    # Local Ollama alternative (see OLLAMA.md):
+    #   model_base_url: "http://localhost:11434/v1"
+    #   model: "phi"
 
 # =============================================================================
 # Logging Configuration
@@ -22,7 +38,7 @@ logging:
     disable_existing_loggers: false
     formatters:
         standard:
-            format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+            format: "%(asctime)s [%(levelname)s] %(name)s %(filename)s:%(lineno)d: %(message)s"
     handlers:
         console:
             class: logging.StreamHandler

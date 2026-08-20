@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.16] - 2026-08-20
+
+### Added
+
+- `llm:` configuration block in `config.yaml` with `model_base_url`,
+  `model`, and `api_key_env` settings
+- `get_model_base_url()`, `get_model()`, and `get_api_key()` helpers in
+  `config/config.py`; `get_api_key()` resolves the environment variable named by
+  `llm.api_key_env` and raises `RuntimeError` when it is unset
+- Unit tests in `tests/test_config.py` covering the three new getters and the
+  config-path resolution order
+
+### Changed
+
+- Moved `_API_KEY`, `_BASE_URL`, and `_MODEL` out of `llm/llm.py` into
+  `config.yaml`; `agent_loop()` now builds `OpenAIClient` from the config
+  getters
+- Removed the hardcoded `RUBENS_PAT_TOKEN` check from `agent_loop()` — the
+  equivalent error now comes from `get_api_key()` and names the configured
+  environment variable
+- Integration tests (`test_llm.py`, `test_llm_tool.py`, `test_openai_client.py`)
+  read the endpoint, model, and API key from `config.yaml` instead of their own
+  hardcoded copies
+- Documented the `llm:` settings in `README.md`, `CLAUDE.md`, and `llms.txt`
+- Added a "Using Ollama with this Project" section to `OLLAMA.md` covering the
+  `llm:` config block and the tool-calling requirement
+- Refreshed `README.md`, `CLAUDE.md`, and `llms.txt` for the `config/`
+  sub-package, the project-root `config.yaml`, the log format, and the current
+  provider settings
+- Log format now includes the source file and line number
+  (`%(filename)s:%(lineno)d`)
+- `_SYSTEM_INSTRUCTIONS` now tells the model to answer in plain text, since the
+  web UI renders the answer in a `<textarea>` that cannot display LaTeX or
+  Markdown
+- Moved `config.py` into a new `src/math_ai_agent/config/` sub-package as
+  `config/config.py`, alongside `llm/` and `mcp/`; callers now import from
+  `math_ai_agent.config.config`
+- `config.yaml` is now visible at the project root; a copy remains inside the
+  package as the default that ships in the wheel
+- `_resolve_config_path()` resolves in three steps: `CALCULATOR_MCP_CONFIG`,
+  then `./config.yaml` in the working directory, then the packaged default
+- Raised the Python floor to `>=3.14` and upgraded fastmcp, openai,
+  py-key-value-aio, black, coverage, pytest-asyncio, mypy, and poetry-core
+- Added `pylint` and `isort` to the dev dependency group; dropped the explicit
+  `uvicorn` dev dependency
+- Declared the license via the `license = "MIT"` field instead of the
+  `License :: OSI Approved :: MIT License` classifier
+- Added a `Testing` section to `README.md` covering the unit tests and the
+  ordered sequence of live integration tests, with prerequisites, per-step
+  explanations, and a provider-switching table
+
+### Fixed
+
+- `agent_loop()` guards the optional `response.usage` before logging token
+  counts; previously it raised `AttributeError` against any provider that omits
+  usage
+- Two stale `_MODEL` references in `tests/integration/test_openai_client.py`
+  that raised `NameError` in the success and error paths
+
 ## [0.0.15] - 2026-04-04
 
 ### Changed

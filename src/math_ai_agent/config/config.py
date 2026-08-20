@@ -50,9 +50,15 @@ import yaml
 def _resolve_config_path() -> Path:
     """Return the config.yaml path.
 
-    Uses the ``CALCULATOR_MCP_CONFIG`` environment variable when set;
-    otherwise falls back to the ``config.yaml`` bundled inside the
-    ``math_ai_agent`` package.
+    Resolution order:
+
+    1. The ``CALCULATOR_MCP_CONFIG`` environment variable, when set.
+    2. A ``config.yaml`` in the current working directory — this is
+       the copy at the project root, and is what you edit when
+       running from a clone.
+    3. The ``config.yaml`` bundled inside the
+       ``math_ai_agent.config`` package, which ships in the wheel and
+       serves as the default for installed copies.
 
     Returns:
         The resolved path to config.yaml.
@@ -60,7 +66,10 @@ def _resolve_config_path() -> Path:
     env_path = os.environ.get("CALCULATOR_MCP_CONFIG")
     if env_path:
         return Path(env_path)
-    return Path(str(files("math_ai_agent").joinpath("config.yaml")))
+    cwd_path = Path.cwd() / "config.yaml"
+    if cwd_path.is_file():
+        return cwd_path
+    return Path(str(files("math_ai_agent.config").joinpath("config.yaml")))
 
 
 _CONFIG_PATH = _resolve_config_path()
@@ -146,3 +155,51 @@ def get_callback_port() -> int:
     port: int = config["server"]["calculator_mcp"]["callback_port"]
     logger.info("OAuth callback port: %s", port)
     return port
+
+
+def get_model_base_url() -> str:
+    """Return the LLM model base URL from config.yaml.
+
+    Returns:
+        The model base URL string.
+    """
+    config = _load_config()
+    url: str = config["llm"]["model_base_url"]
+    logger.info("LLM model base URL: %s", url)
+    return url
+
+
+def get_model() -> str:
+    """Return the LLM model identifier from config.yaml.
+
+    Returns:
+        The model identifier string.
+    """
+    config = _load_config()
+    model: str = config["llm"]["model"]
+    logger.info("LLM model: %s", model)
+    return model
+
+
+def get_api_key() -> str:
+    """Return the LLM API key from the environment.
+
+    The config.yaml ``llm.api_key_env`` setting names the environment
+    variable holding the key; the key value itself is never stored in
+    config.yaml.  Only the variable name is logged, never the key.
+
+    Returns:
+        The API key read from the configured environment variable.
+
+    Raises:
+        RuntimeError: If the environment variable is not set or empty.
+    """
+    config = _load_config()
+    env_name: str = config["llm"]["api_key_env"]
+    logger.info("LLM API key environment variable: %s", env_name)
+    api_key = os.environ.get(env_name)
+    if not api_key:
+        error = f"{env_name} environment variable is not set."
+        logger.error(error)
+        raise RuntimeError(error)
+    return api_key

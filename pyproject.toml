@@ -1,21 +1,21 @@
 [project]
 name = "math-ai-agent"
-version = "0.0.15"
+version = "0.0.16"
 description = "Math AI Agent that uses LLM + Rubens calculator-mcp."
 authors = [
     { name = "Rubens Gomes", email = "rubens.s.gomes@gmail.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.12.0,<4.0.0"
+license = "MIT"
+requires-python = ">=3.14.0,<4.0.0"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License"
+    "Programming Language :: Python :: 3"
 ]
 dependencies = [
     "fastapi (>=0.135.3,<1.0.0)",
-    "fastmcp (>=3.2.0,<4.0.0)",
-    "py-key-value-aio[disk] (>=0.4.4,<0.5.0)",
-    "openai (>=2.30.0,<3.0.0)",
+    "fastmcp (>=3.4.7,<4.0.0)",
+    "py-key-value-aio[disk] (>=0.4.5,<0.5.0)",
+    "openai (>=2.54.0,<3.0.0)",
 ]
 
 [project.urls]
@@ -27,7 +27,7 @@ Repository = "https://github.com/rubensgomes/math-ai-agent/"
 packages = [{ include = "math_ai_agent", from = "src" }]
 
 [build-system]
-requires = ["poetry-core>=2.3.1,<3.0.0"]
+requires = ["poetry-core>=2.4.1,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.coverage.run]
@@ -40,13 +40,14 @@ fail_under = 90
 
 [dependency-groups]
 dev = [
-    "black (>=26.3.1,<27.0.0)",
-    "coverage (>=7.13.5,<8.0.0)",
+    "black (>=26.5.1,<27.0.0)",
+    "coverage (>=7.15.4,<8.0.0)",
     "pytest-cov (>=7.1.0,<8.0.0)",
-    "pytest-asyncio (>=1.3.0,<2.0.0)",
-    "types-pyyaml (>=6.0.12.20250915,<7.0.0.0)",
-    "mypy (>=1.19.1,<2.0.0)",
-    "uvicorn (>=0.43.0,<1.0.0)",
+    "pytest-asyncio (>=1.4.0,<2.0.0)",
+    "types-pyyaml (>=6.0.12,<7.0.0.0)",
+    "mypy (>=1.20.2,<2.0.0)",
+    "pylint (>=4.0.6,<5.0.0)",
+    "isort (>=8.0.1,<9.0.0)",
 ]
 
 [tool.black]

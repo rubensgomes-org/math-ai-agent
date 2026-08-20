@@ -27,6 +27,9 @@ poetry run mypy src/
 # Sort imports
 poetry run isort src/ tests/
 
+# Lint
+poetry run pylint src/ tests/
+
 # Format code (line length 80)
 poetry run black src/ tests/
 
@@ -42,14 +45,15 @@ poetry run poe clean
 
 ## Project Conventions
 
-- **Package layout:** `src/math_ai_agent/` with tests in `tests/`
-- **Python version:** >= 3.12
+- **Package layout:** `src/math_ai_agent/` with `config/`, `llm/`, and `mcp/`
+  sub-packages; tests in `tests/`
+- **Python version:** >= 3.14
 - **Line length:** 80 (black + isort)
 - **Formatting:** black with isort (profile "black")
 - **Type checking:** mypy with `ignore_missing_imports = true`
 - **Test framework:** pytest with `asyncio_mode = "auto"`
 - **Coverage:** branch coverage, minimum 90% (`fail_under = 90`)
-- **Build system:** Poetry 2.3+ with `poetry-core` backend
+- **Build system:** Poetry 2.4+ with `poetry-core` backend
 
 ## Source File Headers
 
@@ -59,9 +63,15 @@ must include this same header. Use the `/generate-disclaimer` skill to add it.
 
 ## Configuration
 
-- Config is in `src/math_ai_agent/config.yaml`
-- Override path via `CALCULATOR_MCP_CONFIG` environment variable
+- Config is in `config.yaml` at the project root; the packaged default lives at
+  `src/math_ai_agent/config/config.yaml`
+- Resolution order: `CALCULATOR_MCP_CONFIG` env var, then `./config.yaml` in the
+  cwd, then the packaged default
 - OAuth requires `OAUTH_STORAGE_ENCRYPTION_KEY` (Fernet key)
+- LLM endpoint and model come from the `llm:` block in `config.yaml`
+- The LLM API key is read from the environment variable *named* by
+  `llm.api_key_env` (currently `OPENROUTER_API_KEY`); never put the key itself
+  in `config.yaml`
 
 ## Release Process
 

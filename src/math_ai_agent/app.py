@@ -55,7 +55,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from math_ai_agent.config import configure_logging
+from math_ai_agent.config.config import configure_logging
 from math_ai_agent.llm.llm import agent_loop
 from math_ai_agent.models import Prompt
 
