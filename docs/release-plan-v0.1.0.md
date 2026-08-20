@@ -38,7 +38,7 @@ than another patch.
 - [x] Verify `CHANGELOG.md` exists
 - [x] Update `CHANGELOG.md` with v0.1.0 changes
 - [x] Bump version to 0.1.0 in `pyproject.toml`
-- [ ] Commit all changes, tag, push, and create GitHub release
+- [x] Commit all changes, tag, push, and create GitHub release
 
 ## Notes
 
