@@ -73,7 +73,7 @@ Also includes dependency upgrades, a Python 3.14 floor, a `Testing` section in
 - [x] Verify `CHANGELOG.md` exists
 - [x] Update `CHANGELOG.md` with v0.0.16 changes
 - [x] Bump version to 0.0.16 in `pyproject.toml`
-- [ ] Commit all changes, tag, push, and create GitHub release
+- [x] Commit all changes, tag, push, and create GitHub release
 
 ## Notes
 
