@@ -39,11 +39,12 @@
 """Unit tests for :mod:`math_ai_agent.llm`."""
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from math_ai_agent.llm.llm import OpenAIClient
+from math_ai_agent.llm import llm as llm_module
+from math_ai_agent.llm.llm import OpenAIClient, agent_loop
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -52,6 +53,11 @@ from math_ai_agent.llm.llm import OpenAIClient
 _API_KEY = "test-api-key"
 _BASE_URL = "http://localhost:11434/v1"
 _MODEL = "test-model"
+_USAGE = SimpleNamespace(
+    prompt_tokens=10,
+    completion_tokens=5,
+    total_tokens=15,
+)
 _TOOLS = [
     {
         "type": "function",
@@ -71,7 +77,9 @@ _TOOLS = [
 ]
 
 
-def _make_chat_completion(content="42", tool_calls=None, finish_reason="stop"):
+def _make_chat_completion(
+    content="42", tool_calls=None, finish_reason="stop", usage=_USAGE
+):
     """Build a fake ChatCompletion-like response object."""
     message = SimpleNamespace(
         role="assistant",
@@ -84,7 +92,7 @@ def _make_chat_completion(content="42", tool_calls=None, finish_reason="stop"):
         message=message,
         finish_reason=finish_reason,
     )
-    response = SimpleNamespace(choices=[choice])
+    response = SimpleNamespace(choices=[choice], usage=usage)
 
     def _dump_tool_calls(tc_list):
         if tc_list is None:
@@ -302,3 +310,156 @@ async def test_create_response_multiple_tool_calls():
     result = await client.create_response(messages)
 
     assert len(result.choices[0].message.tool_calls) == 2
+
+
+# ---------------------------------------------------------------------------
+# agent_loop — helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_tool_call(call_id="call-1", name="add", arguments='{"a": 4, "b": 4}'):
+    """Build a fake tool_call object as returned by the OpenAI SDK."""
+    return SimpleNamespace(
+        id=call_id,
+        function=SimpleNamespace(name=name, arguments=arguments),
+    )
+
+
+@pytest.fixture()
+def agent_env():
+    """Patch config getters, MCP tool discovery, and tool dispatch.
+
+    Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
+    one entry per ``create_response`` call, and whose ``call_tool``
+    mock records every dispatched calculator tool call.
+    """
+    env = SimpleNamespace(responses=[], call_tool=AsyncMock(return_value="8"))
+
+    async def _next_response(messages):  # pylint: disable=unused-argument
+        return env.responses.pop(0)
+
+    with (
+        patch.object(
+            llm_module, "get_mcp_tools", AsyncMock(return_value=_TOOLS)
+        ),
+        patch.object(llm_module, "get_api_key", return_value=_API_KEY),
+        patch.object(llm_module, "get_model_base_url", return_value=_BASE_URL),
+        patch.object(llm_module, "get_model", return_value=_MODEL),
+        patch.object(llm_module, "call_tool", env.call_tool),
+        patch.object(
+            OpenAIClient, "create_response", side_effect=_next_response
+        ),
+    ):
+        yield env
+
+
+# ---------------------------------------------------------------------------
+# agent_loop — terminal responses
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_returns_content_on_stop(agent_env):
+    """A "stop" finish_reason returns the assistant message content."""
+    agent_env.responses = [_make_chat_completion(content="The answer is 8")]
+    assert await agent_loop("4+4?") == "The answer is 8"
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_returns_empty_string_for_none_content(agent_env):
+    """A "stop" with no content returns an empty string, not None."""
+    agent_env.responses = [_make_chat_completion(content=None)]
+    assert await agent_loop("4+4?") == ""
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_handles_missing_usage(agent_env):
+    """A response without usage data is logged and does not raise."""
+    agent_env.responses = [_make_chat_completion(content="8", usage=None)]
+    assert await agent_loop("4+4?") == "8"
+
+
+# ---------------------------------------------------------------------------
+# agent_loop — error finish reasons
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_length_raises_runtime_error(agent_env):
+    """A "length" finish_reason raises RuntimeError."""
+    agent_env.responses = [_make_chat_completion(finish_reason="length")]
+    with pytest.raises(RuntimeError, match="Token limit reached"):
+        await agent_loop("4+4?")
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_content_filter_raises_runtime_error(agent_env):
+    """A "content_filter" finish_reason raises RuntimeError."""
+    agent_env.responses = [
+        _make_chat_completion(finish_reason="content_filter")
+    ]
+    with pytest.raises(RuntimeError, match="blocked"):
+        await agent_loop("4+4?")
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_unknown_reason_raises_value_error(agent_env):
+    """An unrecognised finish_reason raises ValueError."""
+    agent_env.responses = [_make_chat_completion(finish_reason="wat")]
+    with pytest.raises(ValueError, match="Unknown finish_reason: wat"):
+        await agent_loop("4+4?")
+
+
+# ---------------------------------------------------------------------------
+# agent_loop — continue branches
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_none_reason_continues(agent_env):
+    """A None finish_reason loops again instead of terminating."""
+    agent_env.responses = [
+        _make_chat_completion(finish_reason=None),
+        _make_chat_completion(content="done"),
+    ]
+    assert await agent_loop("4+4?") == "done"
+    assert agent_env.responses == []
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_dispatches_tool_call(agent_env):
+    """A tool_calls response dispatches to the MCP calculator."""
+    agent_env.responses = [
+        _make_chat_completion(
+            content=None,
+            tool_calls=[_make_tool_call()],
+            finish_reason="tool_calls",
+        ),
+        _make_chat_completion(content="4 + 4 = 8"),
+    ]
+    assert await agent_loop("4+4?") == "4 + 4 = 8"
+    agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_dispatches_multiple_tool_calls(agent_env):
+    """Every tool call in one response is dispatched in order."""
+    agent_env.responses = [
+        _make_chat_completion(
+            content=None,
+            tool_calls=[
+                _make_tool_call(call_id="c1", name="add"),
+                _make_tool_call(
+                    call_id="c2", name="multiply", arguments='{"a": 2, "b": 3}'
+                ),
+            ],
+            finish_reason="tool_calls",
+        ),
+        _make_chat_completion(content="done"),
+    ]
+    assert await agent_loop("compute") == "done"
+    assert agent_env.call_tool.await_count == 2
+    assert [c.args[0] for c in agent_env.call_tool.await_args_list] == [
+        "add",
+        "multiply",
+    ]

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-20
+
+### Added
+
+- Unit tests for `agent_loop()` covering every `finish_reason` branch (`stop`,
+  `length`, `tool_calls`, `content_filter`, `None`, and unknown), single and
+  multiple tool-call dispatch, missing token usage, and empty content
+- Unit tests for the `get_mcp_tools()` and `call_tool()` module helpers in
+  `mcp/calc_client.py`, including error propagation
+- `uvicorn` restored as an explicit dev dependency
+
+### Changed
+
+- Test coverage raised from 74% to 100%, above the configured 90% floor
+- Test count raised from 60 to 73
+- Listed `uvicorn` among the dev tools in `llms.txt`
+
 ## [0.0.16] - 2026-08-20
 
 ### Added

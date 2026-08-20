@@ -1,6 +1,6 @@
 [project]
 name = "math-ai-agent"
-version = "0.0.16"
+version = "0.1.0"
 description = "Math AI Agent that uses LLM + Rubens calculator-mcp."
 authors = [
     { name = "Rubens Gomes", email = "rubens.s.gomes@gmail.com" }
@@ -48,6 +48,7 @@ dev = [
     "mypy (>=1.20.2,<2.0.0)",
     "pylint (>=4.0.6,<5.0.0)",
     "isort (>=8.0.1,<9.0.0)",
+    "uvicorn (>=0.52.0,<0.53.0)",
 ]
 
 [tool.black]

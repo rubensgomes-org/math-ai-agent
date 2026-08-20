@@ -492,3 +492,72 @@ async def test_full_round_trip():
         async with calc:
             result = await calc.call_tool("multiply", {"a": 3, "b": 7})
             assert result == "21"
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers — get_mcp_tools / call_tool
+# ---------------------------------------------------------------------------
+
+
+class _FakeCalcClient:
+    """Stand-in for CalcMCPClient as an async context manager."""
+
+    def __init__(self, tools=None, result=None):
+        self._tools = tools or []
+        self._result = result
+        self.calls = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return None
+
+    async def to_openai_tools(self):
+        return self._tools
+
+    async def call_tool(self, tool_name, args):
+        self.calls.append((tool_name, args))
+        return self._result
+
+
+@pytest.mark.asyncio
+async def test_get_mcp_tools_returns_openai_tools():
+    """get_mcp_tools opens a client and returns its OpenAI tool list."""
+    tools = [{"type": "function", "function": {"name": "add"}}]
+    fake = _FakeCalcClient(tools=tools)
+    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
+        assert await calc_client.get_mcp_tools() == tools
+
+
+@pytest.mark.asyncio
+async def test_get_mcp_tools_empty():
+    """An MCP server exposing no tools yields an empty list."""
+    with patch.object(
+        calc_client, "CalcMCPClient", return_value=_FakeCalcClient(tools=[])
+    ):
+        assert await calc_client.get_mcp_tools() == []
+
+
+@pytest.mark.asyncio
+async def test_call_tool_returns_string_result():
+    """call_tool returns the string form of the tool result data."""
+    result = SimpleNamespace(structured_content={"result": 8}, data=8)
+    fake = _FakeCalcClient(result=result)
+    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
+        assert await calc_client.call_tool("add", {"a": 4, "b": 4}) == "8"
+    assert fake.calls == [("add", {"a": 4, "b": 4})]
+
+
+@pytest.mark.asyncio
+async def test_call_tool_propagates_errors():
+    """A failing MCP tool call propagates to the caller."""
+    fake = _FakeCalcClient()
+
+    async def _boom(tool_name, args):
+        raise RuntimeError("tool exploded")
+
+    fake.call_tool = _boom
+    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
+        with pytest.raises(RuntimeError, match="tool exploded"):
+            await calc_client.call_tool("divide", {"a": 1, "b": 0})

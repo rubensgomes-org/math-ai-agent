@@ -79,5 +79,5 @@ The `logging` section uses Python's `logging.config.dictConfig` format.
 - Poetry 2.4+ with `poetry-core` build backend
 - Python >= 3.14
 - Dev tools: black, mypy, isort, pylint, pytest, pytest-asyncio, pytest-cov,
-  coverage
+  coverage, uvicorn (ASGI server for running the app)
 - Task runner: poethepoet (`poe clean` for cleanup)
