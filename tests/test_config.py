@@ -252,6 +252,44 @@ def test_get_model(tmp_config):
 
 
 # ---------------------------------------------------------------------------
+# get_api_style
+# ---------------------------------------------------------------------------
+
+
+def _rewrite_config(cfg):
+    """Rewrite the patched config.yaml with the given mapping."""
+    config._CONFIG_PATH.write_text(yaml.dump(cfg))
+
+
+def test_get_api_style_defaults_to_chat(tmp_config):
+    """A config without llm.api_style falls back to "chat"."""
+    assert "api_style" not in tmp_config["llm"]
+    assert config.get_api_style() == "chat"
+
+
+def test_get_api_style_responses(tmp_config):
+    """An explicit "responses" style is returned as-is."""
+    tmp_config["llm"]["api_style"] = "responses"
+    _rewrite_config(tmp_config)
+    assert config.get_api_style() == "responses"
+
+
+def test_get_api_style_chat(tmp_config):
+    """An explicit "chat" style is returned as-is."""
+    tmp_config["llm"]["api_style"] = "chat"
+    _rewrite_config(tmp_config)
+    assert config.get_api_style() == "chat"
+
+
+def test_get_api_style_unknown_raises(tmp_config):
+    """An unrecognised style raises ValueError."""
+    tmp_config["llm"]["api_style"] = "wat"
+    _rewrite_config(tmp_config)
+    with pytest.raises(ValueError, match="Unknown llm.api_style: wat"):
+        config.get_api_style()
+
+
+# ---------------------------------------------------------------------------
 # get_api_key
 # ---------------------------------------------------------------------------
 

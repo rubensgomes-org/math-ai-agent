@@ -41,7 +41,7 @@
 Provides the ``CalcMCPClient`` class which extends ``fastmcp.Client``
 to connect to a remote calculator MCP server, cache its tool list,
 and expose inherited ``call_tool()`` / ``list_tools()`` methods.
-Also provides the helper functions ``get_mcp_tools()`` to discover
+Also provides the helper functions ``get_calc_mcp_tools()`` to discover
 available tools and ``call_tool()`` to invoke a tool over a new
 connection.
 """
@@ -177,20 +177,66 @@ class CalcMCPClient(Client):
         )
         return openai_tools
 
+    async def to_responses_tools(self) -> list[dict]:
+        """Convert cached MCP tools to Responses API function schema.
+
+        Calls ``list_tools()`` to retrieve the (cached) tool list and
+        converts each tool to the Responses API function-calling
+        format.  Unlike the Chat Completions format produced by
+        ``to_openai_tools()``, the Responses API uses a flat,
+        internally-tagged shape with no nested ``function`` object.
+
+        Returns:
+            A list of dicts in the Responses tool format::
+
+                [
+                    {
+                        "type": "function",
+                        "name": "add",
+                        "description": "Add two numbers",
+                        "parameters": { ... }
+                    },
+                    ...
+                ]
+        """
+        logger.debug("Converting MCP tools to Responses format")
+        mcp_tools: list[mcp.types.Tool] = await self.list_tools()
+        responses_tools: list[dict] = []
+        for tool in mcp_tools:
+            func: dict = {"type": "function", "name": tool.name}
+            if tool.description:
+                func["description"] = tool.description
+            func["parameters"] = tool.inputSchema
+            responses_tools.append(func)
+        logger.debug(
+            "Converted %d MCP tools to Responses format",
+            len(responses_tools),
+        )
+        return responses_tools
+
 
 # -------------------------------------------------
 # Helper functions
 # -------------------------------------------------
-async def get_mcp_tools() -> list[dict[str, object]]:
+async def get_calc_mcp_tools(
+    api_style: str = "chat",
+) -> list[dict[str, object]]:
     """Discover available tools from the Calculator MCP server.
 
+    Args:
+        api_style: ``"responses"`` for the Responses API tool
+            format, anything else for the Chat Completions format.
+
     Returns:
-        OpenAI-format tool definitions discovered from the
-        MCP server.
+        Tool definitions discovered from the MCP server, in the
+        format matching ``api_style``.
     """
-    logger.debug("Discovering Calculator MCP tools")
+    logger.debug("Discovering Calculator MCP tools (api_style=%s)", api_style)
     async with CalcMCPClient() as calcmcp_client:
-        tools = await calcmcp_client.to_openai_tools()
+        if api_style == "responses":
+            tools = await calcmcp_client.to_responses_tools()
+        else:
+            tools = await calcmcp_client.to_openai_tools()
     logger.debug("Discovered %d MCP tool(s)", len(tools))
     return tools
 

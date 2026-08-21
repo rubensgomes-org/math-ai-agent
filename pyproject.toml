@@ -1,6 +1,6 @@
 [project]
 name = "math-ai-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "Math AI Agent that uses LLM + Rubens calculator-mcp."
 authors = [
     { name = "Rubens Gomes", email = "rubens.s.gomes@gmail.com" }
@@ -15,7 +15,9 @@ dependencies = [
     "fastapi (>=0.135.3,<1.0.0)",
     "fastmcp (>=3.4.7,<4.0.0)",
     "py-key-value-aio[disk] (>=0.4.5,<0.5.0)",
-    "openai (>=2.54.0,<3.0.0)",
+    "openai (>=3.3.1,<4.0.0)",
+    "cryptography (>=50.0.0,<51.0.0)",
+    "key-value (>=0.1.2,<0.2.0)",
 ]
 
 [project.urls]

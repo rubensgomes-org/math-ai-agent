@@ -181,6 +181,31 @@ def get_model() -> str:
     return model
 
 
+def get_api_style() -> str:
+    """Return the OpenAI API style from config.yaml.
+
+    The ``llm.api_style`` setting selects which OpenAI API the LLM
+    client uses: ``"responses"`` for the Responses API
+    (``POST /v1/responses``) or ``"chat"`` for the legacy Chat
+    Completions API (``POST /v1/chat/completions``).  Defaults to
+    ``"chat"`` when the setting is absent.
+
+    Returns:
+        Either ``"responses"`` or ``"chat"``.
+
+    Raises:
+        ValueError: If the configured style is not recognised.
+    """
+    config = _load_config()
+    style: str = config["llm"].get("api_style", "chat")
+    if style not in ("chat", "responses"):
+        error = f"Unknown llm.api_style: {style}"
+        logger.error(error)
+        raise ValueError(error)
+    logger.info("LLM API style: %s", style)
+    return style
+
+
 def get_api_key() -> str:
     """Return the LLM API key from the environment.
 

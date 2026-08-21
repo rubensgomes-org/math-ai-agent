@@ -188,16 +188,25 @@ Ubuntu:
    cd <proj-name>
    ```
 
-## Add Dev Dependencies
+## Add Dependencies
 
-```bash
-poetry add --dev black
-poetry add --dev coverage
-poetry add --dev mypy
-poetry add --dev pytest-asyncio
-poetry add --dev pytest-cov
-poetry add --dev types-pyyaml
-```
+- Add Dependencies to the project
+
+    ```bash
+    # example: key_value
+    poetry add key_value
+    ```
+
+- Add Dev Dependencies
+
+    ```bash
+    poetry add --dev black
+    poetry add --dev coverage
+    poetry add --dev mypy
+    poetry add --dev pytest-asyncio
+    poetry add --dev pytest-cov
+    poetry add --dev types-pyyaml
+    ```
 
 ## Python Virtual Environment
 

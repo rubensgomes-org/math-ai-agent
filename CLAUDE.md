@@ -16,6 +16,9 @@ poetry run uvicorn math_ai_agent.app:app --reload
 
 # Run the MCP integration test client
 poetry run python tests/integration/test_calc_client.py
+
+# Run the Responses agent loop against the live LLM + MCP server
+poetry run python tests/integration/test_llm_responses_tool.py "What is 4 + 4 * 3?"
 ```
 
 ## Code Quality
@@ -47,6 +50,11 @@ poetry run poe clean
 
 - **Package layout:** `src/math_ai_agent/` with `config/`, `llm/`, and `mcp/`
   sub-packages; tests in `tests/`
+- **LLM sub-package split:** `llm/client.py` holds the transports
+  (`ChatCompletionClient`, `ResponsesClient`, sharing `_BaseLLMClient`);
+  `llm/agent.py` holds the system prompt, both agent loops, and MCP tool
+  dispatch. The dependency runs one way — agent imports client, never the
+  reverse. `agent_loop` is re-exported from `math_ai_agent.llm`
 - **Python version:** >= 3.14
 - **Line length:** 80 (black + isort)
 - **Formatting:** black with isort (profile "black")
@@ -69,8 +77,11 @@ must include this same header. Use the `/generate-disclaimer` skill to add it.
   cwd, then the packaged default
 - OAuth requires `OAUTH_STORAGE_ENCRYPTION_KEY` (Fernet key)
 - LLM endpoint and model come from the `llm:` block in `config.yaml`
+- `llm.api_style` selects the OpenAI API: `responses` (the primary API, and the
+  project default) or `chat` (legacy Chat Completions). Defaults to `chat` when
+  the setting is absent
 - The LLM API key is read from the environment variable *named* by
-  `llm.api_key_env` (currently `OPENROUTER_API_KEY`); never put the key itself
+  `llm.api_key_env` (currently `NVIDIA_API_KEY`); never put the key itself
   in `config.yaml`
 
 ## Release Process

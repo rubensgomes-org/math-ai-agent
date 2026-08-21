@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-21
+
+### Added
+
+- `ResponsesClient` in `llm/client.py`, an `AsyncOpenAI` wrapper for the OpenAI
+  Responses API (`POST /v1/responses`), alongside the Chat Completions client.
+  Both now share a `_BaseLLMClient` base holding the constructor validation
+  and client construction
+- `_responses_agent_loop()`, a Responses API agent loop that maps
+  `response.status` and `incomplete_details.reason` to the same errors the
+  Chat Completions loop raises, dispatches `function_call` items to the
+  calculator MCP server, and returns `function_call_output` items. The loop is
+  stateless: it sends `store=False` and replays every output Item back as
+  input, because OpenRouter's Responses API rejects `store: true` and
+  `previous_response_id`
+- `llm.api_style` setting in `config.yaml` (`"responses"` or `"chat"`) and the
+  `get_api_style()` config getter, which defaults to `"chat"` when the setting
+  is absent
+- `CalcMCPClient.to_responses_tools()`, converting MCP tools to the flat
+  Responses function schema (`{"type", "name", "description", "parameters"}`)
+- `tests/integration/test_llm_responses_tool.py`, a standalone integration
+  script that drives the real Responses agent loop against the live LLM
+  endpoint and calculator MCP server
+
+### Changed
+
+- Renamed the `OpenAIClient` class to `ChatCompletionClient`, so both client
+  names say which API they speak
+- Renamed the conversation-history parameter to `history` throughout: both
+  `create_response()` methods and both agent-loop locals previously used three
+  different names (`messages`, `input_items`, `context`) for one concept
+- Split `llm/llm.py` into `llm/client.py` (the `_BaseLLMClient`,
+  `ChatCompletionClient`, and `ResponsesClient` transports) and
+  `llm/agent.py` (the system prompt, both agent loops, and MCP tool
+  dispatch), separating "talk to the endpoint" from "run an agent session"
+- `ResponsesClient.create_response()` now takes `instructions` as a
+  parameter instead of reading the module-level `_SYSTEM_INSTRUCTIONS`
+  constant, so both clients are pure transports and the prompt policy lives
+  only in `agent.py`
+- `agent_loop` is re-exported from `math_ai_agent.llm`; `app.py` now uses
+  `from math_ai_agent.llm import agent_loop`, retiring the
+  `math_ai_agent.llm.llm` stutter
+- Renamed `tests/test_llm.py` to `tests/test_chat_completion.py` and
+  `tests/test_llm_responses.py` to `tests/test_responses.py`
+- `agent_loop()` is now a dispatcher that routes to `_responses_agent_loop()`
+  or `_chat_agent_loop()` based on `llm.api_style`; its signature and the
+  `app.py` call site are unchanged
+- `get_mcp_tools()` was renamed to `get_calc_mcp_tools()` and takes an
+  `api_style` argument (default `"chat"`) selecting the tool schema format
+- Renamed `tests/integration/test_llm_tool.py` to
+  `tests/integration/test_llm_chat_completion_tool.py`, matching the Responses
+  counterpart
+- Both clients now send `store=False` explicitly. The Responses API stores by
+  default and OpenRouter rejects `store: true`; Chat Completions already
+  defaults to `false`, but omitting the field is not reliably the same as
+  sending it, because OpenAI accounts carry a separate data-retention setting
+  that can enable storage when the parameter is absent
+- Renamed the `_BaseLLMClient` constructor parameter `calcmcp_tools` to `tools`
+- Both `create_response()` methods wrap the SDK call in `typing.cast()`. The
+  `create()` overloads are keyed on `stream`, and the loosely typed arguments
+  make some checkers widen the result to include the streaming variant; the
+  cast narrows it back to `ChatCompletion` / `Response`
+- `config.yaml` now defaults to `api_style: "responses"`
+- `config.yaml` now points at NVIDIA's hosted API
+  (`https://integrate.api.nvidia.com/v1`, model
+  `nvidia/nemotron-3-super-120b-a12b`, key `NVIDIA_API_KEY`) instead of
+  OpenRouter, whose free tier caps at 50 requests per day. The OpenRouter
+  settings are retained as commented-out alternatives. Both `api_style` values
+  are verified working against NVIDIA
+- Bumped the `openai` dependency from `>=2.54.0,<3.0.0` to `>=3.3.1,<4.0.0`;
+  both API paths verified live against the new major version
+- Declared `cryptography` and `key-value` as explicit dependencies; they were
+  previously imported but only present transitively
+- Test count raised from 73 to 112, holding 100% coverage
+
 ## [0.1.0] - 2026-08-20
 
 ### Added
@@ -174,7 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Refactored `OpenAIClient` from singleton with class variables to a regular instance-based class
-- Renamed `OpenAIClient.__init__` parameters: removed leading underscores (`_api_key` → `api_key`, `_base_url` → `base_url`, `_model` → `model`, `_calcmcp_tools` → `calcmcp_tools`)
+- Renamed `OpenAIClient.__init__` parameters: removed leading underscores (`_api_key` → `api_key`, `_base_url` → `base_url`, `_model` → `model`, `_calcmcp_tools` → `tools`)
 - Changed `create_response` from `@staticmethod` back to instance method
 - Replaced piecemeal response logging in `create_response` with full JSON dump via `response.model_dump()`
 - Formatted tool definitions debug log as indented JSON for readability

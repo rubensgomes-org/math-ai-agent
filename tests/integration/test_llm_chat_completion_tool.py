@@ -36,13 +36,13 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Integration test for LLM tool calling via the OpenAIClient.
+"""Integration test for LLM tool calling via the ChatCompletionClient.
 
 Connects to the calculator MCP server, discovers tools, then runs
 an agent loop that sends a math prompt to the LLM and dispatches
 tool calls back to the MCP server.  Run standalone with::
 
-    poetry run python tests/integration/test_llm_tool.py
+    poetry run python tests/integration/test_llm_chat_completion_tool.py
 """
 
 import asyncio
@@ -55,7 +55,7 @@ from math_ai_agent.config.config import (
     get_model,
     get_model_base_url,
 )
-from math_ai_agent.llm.llm import OpenAIClient
+from math_ai_agent.llm.client import ChatCompletionClient
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 configure_logging()
@@ -121,7 +121,7 @@ async def prompt_llm() -> None:
     logger.info("Starting LLM prompt test")
     messages = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
     tools = await get_mcp_tools()
-    llm = OpenAIClient(
+    llm = ChatCompletionClient(
         get_api_key(),
         get_model_base_url(),
         get_model(),
@@ -179,7 +179,7 @@ async def prompt_llm() -> None:
 
 async def main() -> None:
     """Entry point for the LLM tool-calling integration test."""
-    logger.info("Running integration test for OpenAIClient")
+    logger.info("Running integration test for ChatCompletionClient")
     await prompt_llm()
     logger.info("Integration test completed")
 

@@ -458,6 +458,112 @@ async def test_to_openai_tools_preserves_input_schema():
 
 
 # ---------------------------------------------------------------------------
+# to_responses_tools
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_to_responses_tools_converts_single_tool():
+    """A single MCP tool converts to the flat Responses schema."""
+    tools = [
+        mcp.types.Tool(
+            name="add",
+            description="Add two numbers",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "a": {"type": "number"},
+                    "b": {"type": "number"},
+                },
+                "required": ["a", "b"],
+            },
+        )
+    ]
+    CalcMCPClient._tools = tools
+    calc = _make_calc()
+    result = await calc.to_responses_tools()
+    assert len(result) == 1
+    assert result[0]["type"] == "function"
+    assert result[0]["name"] == "add"
+    assert result[0]["description"] == "Add two numbers"
+    assert result[0]["parameters"]["type"] == "object"
+    assert "function" not in result[0]
+
+
+@pytest.mark.asyncio
+async def test_to_responses_tools_multiple_tools():
+    """Every MCP tool is converted, in order."""
+    tools = [
+        mcp.types.Tool(
+            name="add",
+            description="Add",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        mcp.types.Tool(
+            name="sqrt",
+            description="Square root",
+            inputSchema={
+                "type": "object",
+                "properties": {"a": {"type": "number"}},
+            },
+        ),
+    ]
+    CalcMCPClient._tools = tools
+    calc = _make_calc()
+    result = await calc.to_responses_tools()
+    assert len(result) == 2
+    assert result[0]["name"] == "add"
+    assert result[1]["name"] == "sqrt"
+
+
+@pytest.mark.asyncio
+async def test_to_responses_tools_empty_list():
+    """An MCP server exposing no tools yields an empty list."""
+    calc = _make_calc()
+    with patch.object(
+        Client,
+        "list_tools",
+        new_callable=AsyncMock,
+        return_value=[],
+    ):
+        result = await calc.to_responses_tools()
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_to_responses_tools_no_description():
+    """A tool without a description omits the description key."""
+    tools = [
+        mcp.types.Tool(
+            name="noop",
+            inputSchema={"type": "object", "properties": {}},
+        )
+    ]
+    CalcMCPClient._tools = tools
+    calc = _make_calc()
+    result = await calc.to_responses_tools()
+    assert "description" not in result[0]
+
+
+@pytest.mark.asyncio
+async def test_to_responses_tools_preserves_input_schema():
+    """The MCP inputSchema is passed through verbatim as parameters."""
+    schema = {
+        "type": "object",
+        "properties": {"a": {"type": "number", "description": "operand"}},
+        "required": ["a"],
+        "additionalProperties": False,
+    }
+    tools = [
+        mcp.types.Tool(name="sqrt", description="root", inputSchema=schema)
+    ]
+    CalcMCPClient._tools = tools
+    calc = _make_calc()
+    result = await calc.to_responses_tools()
+    assert result[0]["parameters"] == schema
+
+
+# ---------------------------------------------------------------------------
 # Full round-trip (context manager + call_tool)
 # ---------------------------------------------------------------------------
 
@@ -495,15 +601,16 @@ async def test_full_round_trip():
 
 
 # ---------------------------------------------------------------------------
-# Module-level helpers — get_mcp_tools / call_tool
+# Module-level helpers — get_calc_mcp_tools / call_tool
 # ---------------------------------------------------------------------------
 
 
 class _FakeCalcClient:
     """Stand-in for CalcMCPClient as an async context manager."""
 
-    def __init__(self, tools=None, result=None):
+    def __init__(self, tools=None, result=None, responses_tools=None):
         self._tools = tools or []
+        self._responses_tools = responses_tools or []
         self._result = result
         self.calls = []
 
@@ -516,27 +623,53 @@ class _FakeCalcClient:
     async def to_openai_tools(self):
         return self._tools
 
+    async def to_responses_tools(self):
+        return self._responses_tools
+
     async def call_tool(self, tool_name, args):
         self.calls.append((tool_name, args))
         return self._result
 
 
 @pytest.mark.asyncio
-async def test_get_mcp_tools_returns_openai_tools():
-    """get_mcp_tools opens a client and returns its OpenAI tool list."""
+async def test_get_calc_mcp_tools_returns_openai_tools():
+    """get_calc_mcp_tools opens a client and returns its OpenAI tool list."""
     tools = [{"type": "function", "function": {"name": "add"}}]
     fake = _FakeCalcClient(tools=tools)
     with patch.object(calc_client, "CalcMCPClient", return_value=fake):
-        assert await calc_client.get_mcp_tools() == tools
+        assert await calc_client.get_calc_mcp_tools() == tools
 
 
 @pytest.mark.asyncio
-async def test_get_mcp_tools_empty():
+async def test_get_calc_mcp_tools_empty():
     """An MCP server exposing no tools yields an empty list."""
     with patch.object(
         calc_client, "CalcMCPClient", return_value=_FakeCalcClient(tools=[])
     ):
-        assert await calc_client.get_mcp_tools() == []
+        assert await calc_client.get_calc_mcp_tools() == []
+
+
+@pytest.mark.asyncio
+async def test_get_calc_mcp_tools_responses_style():
+    """api_style="responses" returns the flat Responses tool list."""
+    chat_tools = [{"type": "function", "function": {"name": "add"}}]
+    responses_tools = [{"type": "function", "name": "add"}]
+    fake = _FakeCalcClient(tools=chat_tools, responses_tools=responses_tools)
+    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
+        assert (
+            await calc_client.get_calc_mcp_tools("responses") == responses_tools
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_calc_mcp_tools_chat_style_is_the_default():
+    """An explicit or omitted "chat" style returns the nested tool list."""
+    chat_tools = [{"type": "function", "function": {"name": "add"}}]
+    responses_tools = [{"type": "function", "name": "add"}]
+    fake = _FakeCalcClient(tools=chat_tools, responses_tools=responses_tools)
+    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
+        assert await calc_client.get_calc_mcp_tools("chat") == chat_tools
+        assert await calc_client.get_calc_mcp_tools() == chat_tools
 
 
 @pytest.mark.asyncio

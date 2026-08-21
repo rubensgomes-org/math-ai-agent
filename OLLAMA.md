@@ -74,6 +74,7 @@ change is needed — the app talks to Ollama through its OpenAI-compatible API.
 
 ```yaml
 llm:
+    api_style: "responses"    # or "chat" -- see below
     model_base_url: "http://localhost:11434/v1"
     model: "phi"              # any model you have pulled
     api_key_env: "OLLAMA_API_KEY"
@@ -87,6 +88,24 @@ export OLLAMA_API_KEY="ollama"
 ollama serve                  # if not already running
 poetry run uvicorn math_ai_agent.app:app --reload
 ```
+
+### Which `api_style` to use
+
+Both values work against Ollama, with one version requirement:
+
+- `chat` — the legacy Chat Completions endpoint (`/v1/chat/completions`).
+  Supported by every Ollama version with OpenAI compatibility.
+- `responses` — the Responses endpoint (`/v1/responses`). Supported since
+  **Ollama v0.13.3**, including tool calling and reasoning. On older versions
+  use `api_style: "chat"`.
+
+Ollama's Responses support is non-stateful — no `previous_response_id` and no
+server-side conversation — which is exactly the same restriction OpenRouter
+has. This project's Responses loop is stateless by design (it sends
+`store=False` and replays the full history each turn), so nothing extra is
+needed to run against either.
+
+### Caveats
 
 Two caveats for this project specifically:
 

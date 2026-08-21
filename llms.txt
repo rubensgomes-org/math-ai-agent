@@ -12,11 +12,11 @@ The application has four main components:
 
 1. **FastAPI web application** (`app.py`) -- serves a static HTML form at `/` and exposes a `POST /prompt/` endpoint that accepts a math question and returns an answer.
 
-2. **LLM sub-package** (`llm/llm.py`) -- provides the `OpenAIClient` class that wraps an `AsyncOpenAI` instance for chat completions, and the `agent_loop()` function that orchestrates a multi-turn conversation between the LLM and the calculator MCP server. The `_SYSTEM_INSTRUCTIONS` constant tells the model to plan first, route every arithmetic operation through a calculator tool call, and answer in plain text (no LaTeX or Markdown) because the web UI renders the answer in a `<textarea>`.
+2. **LLM sub-package** (`llm/client.py` + `llm/agent.py`) -- `client.py` holds the transports: two `AsyncOpenAI` wrappers sharing a `_BaseLLMClient` base: `ResponsesClient` for the Responses API (`POST /v1/responses`, the primary OpenAI API) and `ChatCompletionClient` for the legacy Chat Completions API (`POST /v1/chat/completions`). `agent.py` holds the orchestration: the `agent_loop()` function reads `llm.api_style` from `config.yaml` and dispatches to `_responses_agent_loop()` or `_chat_agent_loop()`, each orchestrating a multi-turn conversation between the LLM and the calculator MCP server. The clients know only how to reach the endpoint -- the system prompt is passed in by the agent, so the dependency runs one way (agent to client). `agent_loop` is re-exported from `math_ai_agent.llm`, so callers use `from math_ai_agent.llm import agent_loop`. The Responses loop is stateless -- it replays every output Item back as input, since OpenRouter's Responses beta rejects `store: true` and `previous_response_id`. Both clients send `store=False` so neither API retains the conversation. The `_SYSTEM_INSTRUCTIONS` constant tells the model to plan first, route every arithmetic operation through a calculator tool call, and answer in plain text (no LaTeX or Markdown) because the web UI renders the answer in a `<textarea>`.
 
-3. **MCP sub-package** (`mcp/calc_client.py`) -- provides the `CalcMCPClient` class extending `fastmcp.Client` to connect to an external calculator MCP server. Supports both plain HTTP and OAuth-authenticated connections. Caches the tool list via `list_tools()`, exposes inherited `call_tool()`, and provides `to_openai_tools()` to convert MCP tools to OpenAI function-calling format. Also provides helper functions `get_mcp_tools()` and `call_tool()`. The calculator server exposes math tools (add, subtract, multiply, divide, power, sqrt, etc.) via MCP.
+3. **MCP sub-package** (`mcp/calc_client.py`) -- provides the `CalcMCPClient` class extending `fastmcp.Client` to connect to an external calculator MCP server. Supports both plain HTTP and OAuth-authenticated connections. Caches the tool list via `list_tools()`, exposes inherited `call_tool()`, and provides `to_openai_tools()` to convert MCP tools to the nested Chat Completions function-calling format and `to_responses_tools()` for the flat Responses format. Also provides helper functions `get_calc_mcp_tools(api_style)` and `call_tool()`. The calculator server exposes math tools (add, subtract, multiply, divide, power, sqrt, etc.) via MCP.
 
-4. **Configuration sub-package** (`config/config.py` + `config/config.yaml`) -- loads YAML-based configuration and sets up Python logging. Provides helper functions for accessing the MCP server URL, OAuth settings, timeouts, and token storage paths, plus the LLM settings from the `llm:` block: `get_model_base_url()`, `get_model()`, and `get_api_key()` (which reads the environment variable named by `llm.api_key_env` rather than storing the key in the file). The config file is resolved in this order: the `CALCULATOR_MCP_CONFIG` environment variable, then `config.yaml` in the current working directory (the project-root copy), then the `config.yaml` bundled inside the `math_ai_agent.config` package.
+4. **Configuration sub-package** (`config/config.py` + `config/config.yaml`) -- loads YAML-based configuration and sets up Python logging. Provides helper functions for accessing the MCP server URL, OAuth settings, timeouts, and token storage paths, plus the LLM settings from the `llm:` block: `get_model_base_url()`, `get_model()`, `get_api_style()` (`"responses"` or `"chat"`, defaulting to `"chat"`), and `get_api_key()` (which reads the environment variable named by `llm.api_key_env` rather than storing the key in the file). The config file is resolved in this order: the `CALCULATOR_MCP_CONFIG` environment variable, then `config.yaml` in the current working directory (the project-root copy), then the `config.yaml` bundled inside the `math_ai_agent.config` package.
 
 ## Project Structure
 
@@ -29,7 +29,8 @@ src/math_ai_agent/
     config.py           # Configuration helpers (loads config.yaml, logging)
     config.yaml         # Packaged default, used when no other is found
   llm/
-    llm.py              # OpenAI client wrapper and agent loop
+    client.py           # LLM transports (Chat Completions, Responses)
+    agent.py            # System prompt, agent loops, tool dispatch
   mcp/
     calc_client.py      # Calculator MCP client and helper functions
   static/
@@ -38,13 +39,15 @@ tests/
   integration/
     test_calc_client.py      # Integration test for the MCP client
     test_openai_client.py    # Integration test for the raw OpenAI SDK
-    test_llm.py              # Integration test for the OpenAIClient wrapper
-    test_llm_tool.py         # Integration test for LLM with tool calling
+    test_llm.py              # Integration test for the ChatCompletionClient
+    test_llm_chat_completion_tool.py  # Chat Completions agent loop
+    test_llm_responses_tool.py  # Integration test for the Responses agent loop
     test_app.py              # FastAPI integration test application
     app_text.txt             # Sample text fixture for integration tests
   test_calc_client.py        # Unit tests for calc_client.py
   test_config.py             # Unit tests for config/config.py
-  test_llm.py                # Unit tests for llm.py
+  test_chat_completion.py    # Unit tests for the Chat Completions path
+  test_responses.py          # Unit tests for the Responses path
   test_app.py                # Unit tests for app.py
 ```
 
@@ -69,7 +72,7 @@ The `logging` section uses Python's `logging.config.dictConfig` format.
 
 - fastapi -- web framework
 - fastmcp -- MCP client/server library
-- openai -- async OpenAI SDK for LLM chat completions
+- openai -- async OpenAI SDK for the Responses and Chat Completions APIs
 - cryptography -- Fernet encryption for OAuth tokens (transitive via fastmcp)
 - key-value -- encrypted disk storage for OAuth tokens (transitive via fastmcp)
 - pyyaml -- YAML configuration parsing (transitive via fastmcp)

@@ -22,7 +22,7 @@ client = OpenAI (timeout=httpx.Timeout (60.0, read=5.0, write=10.0,
 connect=2.0),
 )
 
-## src/math_ai_agent/llm/llm.py
+## src/math_ai_agent/llm/agent.py
 
 - check if the tool requested by the LLM is supported or registered
 - add number of tokens consumed in error log when LLM reaches limit

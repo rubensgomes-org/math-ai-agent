@@ -18,14 +18,30 @@ server:
 # LLM Configuration
 # =============================================================================
 llm:
-    # Base URL of the LLM model inference endpoint
-    # NOTE: This project code is using the previous OpenAI standard (supported
-    # indefinitely) for generating text is the Chat Completions API.
-    model_base_url: "https://openrouter.ai/api/v1"
-    model: "nvidia/nemotron-3-super-120b-a12b:free"
+    # Which OpenAI API the LLM client uses:
+    #   "responses" -> POST /v1/responses         (primary OpenAI API)
+    #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
+    # Both work against NVIDIA; switch to "chat" if the provider's
+    # Responses endpoint misbehaves.
+    api_style: "responses"
+
+    # Base URL of the LLM model inference endpoint (no route suffix).
+    model_base_url: "https://integrate.api.nvidia.com/v1"
+    # Model identifier. NVIDIA's served catalog is public:
+    #   GET https://integrate.api.nvidia.com/v1/models
+    model: "nvidia/nemotron-3-super-120b-a12b"
     # Name of the environment variable holding the API key.
     # The key value itself is NEVER stored in this file.
-    api_key_env: "OPENROUTER_API_KEY"
+    # Get a key from https://build.nvidia.com (keys start with "nvapi-").
+    api_key_env: "NVIDIA_API_KEY"
+
+    # OpenRouter alternative. Its free tier allows only 50 requests per
+    # day, after which requests fail with 429 free-models-per-day. The
+    # ":free" suffix is OpenRouter slug syntax and is not a valid model
+    # id on any other provider.
+    #   model_base_url: "https://openrouter.ai/api/v1"
+    #   model: "nvidia/nemotron-3-super-120b-a12b:free"
+    #   api_key_env: "OPENROUTER_API_KEY"
     # Local Ollama alternative (see OLLAMA.md):
     #   model_base_url: "http://localhost:11434/v1"
     #   model: "phi"

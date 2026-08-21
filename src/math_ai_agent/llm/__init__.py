@@ -36,4 +36,12 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""llm — LLM sub-package for math_ai_agent."""
+"""llm — LLM sub-package for math_ai_agent.
+
+Re-exports ``agent_loop`` so callers can use
+``from math_ai_agent.llm import agent_loop``.
+"""
+
+from math_ai_agent.llm.agent import agent_loop
+
+__all__ = ["agent_loop"]

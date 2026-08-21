@@ -36,15 +36,18 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Unit tests for :mod:`math_ai_agent.llm`."""
+"""Unit tests for the Chat Completions path in
+:mod:`math_ai_agent.llm`.
+"""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from math_ai_agent.llm import llm as llm_module
-from math_ai_agent.llm.llm import OpenAIClient, agent_loop
+from math_ai_agent.llm import agent as llm_module
+from math_ai_agent.llm.agent import agent_loop
+from math_ai_agent.llm.client import ChatCompletionClient
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -126,8 +129,8 @@ def _make_chat_completion(
 
 
 def _make_client():
-    """Create an OpenAIClient instance with test parameters."""
-    return OpenAIClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    """Create an ChatCompletionClient instance with test parameters."""
+    return ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
 
 
 # ---------------------------------------------------------------------------
@@ -137,41 +140,41 @@ def _make_client():
 
 def test_init_sets_instance_attributes():
     """Instantiation sets instance attributes."""
-    client = OpenAIClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    client = ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
     assert client.openai_client is not None
-    assert client.calcmcp_tools is _TOOLS
+    assert client.tools is _TOOLS
     assert client.model == _MODEL
-    assert isinstance(client, OpenAIClient)
+    assert isinstance(client, ChatCompletionClient)
 
 
 def test_init_empty_api_key_raises():
     """Empty api_key raises ValueError."""
     with pytest.raises(ValueError, match="api_key must not be empty"):
-        OpenAIClient("", _BASE_URL, _MODEL, _TOOLS)
+        ChatCompletionClient("", _BASE_URL, _MODEL, _TOOLS)
 
 
 def test_init_empty_base_url_raises():
     """Empty base_url raises ValueError."""
     with pytest.raises(ValueError, match="base_url must not be empty"):
-        OpenAIClient(_API_KEY, "", _MODEL, _TOOLS)
+        ChatCompletionClient(_API_KEY, "", _MODEL, _TOOLS)
 
 
 def test_init_empty_model_raises():
     """Empty model raises ValueError."""
     with pytest.raises(ValueError, match="model must not be empty"):
-        OpenAIClient(_API_KEY, _BASE_URL, "", _TOOLS)
+        ChatCompletionClient(_API_KEY, _BASE_URL, "", _TOOLS)
 
 
 def test_init_empty_tools_raises():
     """Empty tools list raises ValueError."""
-    with pytest.raises(ValueError, match="calcmcp_tools must not be empty"):
-        OpenAIClient(_API_KEY, _BASE_URL, _MODEL, [])
+    with pytest.raises(ValueError, match="tools must not be empty"):
+        ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, [])
 
 
 def test_init_none_api_key_raises():
     """None api_key raises ValueError."""
     with pytest.raises(ValueError, match="api_key must not be empty"):
-        OpenAIClient(None, _BASE_URL, _MODEL, _TOOLS)
+        ChatCompletionClient(None, _BASE_URL, _MODEL, _TOOLS)
 
 
 # ---------------------------------------------------------------------------
@@ -190,15 +193,16 @@ async def test_create_response_returns_completion():
         completions=SimpleNamespace(create=mock_create)
     )
 
-    messages = [{"role": "user", "content": "4+4?"}]
-    result = await client.create_response(messages)
+    history = [{"role": "user", "content": "4+4?"}]
+    result = await client.create_response(history)
 
     assert result is fake_response
     assert result.choices[0].message.content == "The answer is 8"
     mock_create.assert_awaited_once_with(
         model=_MODEL,
-        messages=messages,
+        messages=history,
         tools=_TOOLS,
+        store=False,
     )
 
 
@@ -224,8 +228,8 @@ async def test_create_response_with_tool_calls():
         completions=SimpleNamespace(create=mock_create)
     )
 
-    messages = [{"role": "user", "content": "2+3?"}]
-    result = await client.create_response(messages)
+    history = [{"role": "user", "content": "2+3?"}]
+    result = await client.create_response(history)
 
     assert result is fake_response
     assert result.choices[0].message.content is None
@@ -248,8 +252,8 @@ async def test_create_response_with_none_content_no_tool_calls():
         completions=SimpleNamespace(create=mock_create)
     )
 
-    messages = [{"role": "user", "content": "hello"}]
-    result = await client.create_response(messages)
+    history = [{"role": "user", "content": "hello"}]
+    result = await client.create_response(history)
 
     assert result.choices[0].message.content is None
     assert result.choices[0].message.tool_calls is None
@@ -266,18 +270,19 @@ async def test_create_response_passes_all_messages():
         completions=SimpleNamespace(create=mock_create)
     )
 
-    messages = [
+    history = [
         {"role": "system", "content": "You are a math tutor."},
         {"role": "user", "content": "What is 2+2?"},
         {"role": "assistant", "content": "4"},
         {"role": "user", "content": "And 3+3?"},
     ]
-    await client.create_response(messages)
+    await client.create_response(history)
 
     mock_create.assert_awaited_once_with(
         model=_MODEL,
-        messages=messages,
+        messages=history,
         tools=_TOOLS,
+        store=False,
     )
 
 
@@ -306,8 +311,8 @@ async def test_create_response_multiple_tool_calls():
         completions=SimpleNamespace(create=mock_create)
     )
 
-    messages = [{"role": "user", "content": "(1+2) + (3+4)?"}]
-    result = await client.create_response(messages)
+    history = [{"role": "user", "content": "(1+2) + (3+4)?"}]
+    result = await client.create_response(history)
 
     assert len(result.choices[0].message.tool_calls) == 2
 
@@ -335,19 +340,20 @@ def agent_env():
     """
     env = SimpleNamespace(responses=[], call_tool=AsyncMock(return_value="8"))
 
-    async def _next_response(messages):  # pylint: disable=unused-argument
+    async def _next_response(history):  # pylint: disable=unused-argument
         return env.responses.pop(0)
 
     with (
         patch.object(
-            llm_module, "get_mcp_tools", AsyncMock(return_value=_TOOLS)
+            llm_module, "get_calc_mcp_tools", AsyncMock(return_value=_TOOLS)
         ),
+        patch.object(llm_module, "get_api_style", return_value="chat"),
         patch.object(llm_module, "get_api_key", return_value=_API_KEY),
         patch.object(llm_module, "get_model_base_url", return_value=_BASE_URL),
         patch.object(llm_module, "get_model", return_value=_MODEL),
         patch.object(llm_module, "call_tool", env.call_tool),
         patch.object(
-            OpenAIClient, "create_response", side_effect=_next_response
+            ChatCompletionClient, "create_response", side_effect=_next_response
         ),
     ):
         yield env
@@ -463,3 +469,38 @@ async def test_agent_loop_dispatches_multiple_tool_calls(agent_env):
         "add",
         "multiply",
     ]
+
+
+# ---------------------------------------------------------------------------
+# agent_loop — api_style dispatch
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_dispatches_to_chat_loop():
+    """An api_style of "chat" routes to the Chat Completions loop."""
+    chat = AsyncMock(return_value="chat answer")
+    responses = AsyncMock(return_value="responses answer")
+    with (
+        patch.object(llm_module, "get_api_style", return_value="chat"),
+        patch.object(llm_module, "_chat_agent_loop", chat),
+        patch.object(llm_module, "_responses_agent_loop", responses),
+    ):
+        assert await agent_loop("4+4?") == "chat answer"
+    chat.assert_awaited_once_with("4+4?")
+    responses.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_dispatches_to_responses_loop():
+    """An api_style of "responses" routes to the Responses loop."""
+    chat = AsyncMock(return_value="chat answer")
+    responses = AsyncMock(return_value="responses answer")
+    with (
+        patch.object(llm_module, "get_api_style", return_value="responses"),
+        patch.object(llm_module, "_chat_agent_loop", chat),
+        patch.object(llm_module, "_responses_agent_loop", responses),
+    ):
+        assert await agent_loop("4+4?") == "responses answer"
+    responses.assert_awaited_once_with("4+4?")
+    chat.assert_not_awaited()

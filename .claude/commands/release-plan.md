@@ -1,6 +1,6 @@
 ---
 description: Generate a release plan for the project.
-argument-hint: Git repository name (e.g., rubensgomes/math-ai-agent)
+argument-hint: Git repository name (e.g., rubensgomes-org/math-ai-agent)
 ---
 
 # Generate Release Plan
