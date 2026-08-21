@@ -38,7 +38,7 @@ and the remote calculator MCP server.
 - [x] 6. Ensure `CHANGELOG.md` exists in the project root
 - [x] 7. Update `CHANGELOG.md` with the current release changes
         (promote `[Unreleased]` to `[0.2.0] - 2026-08-21`)
-- [ ] 8. Commit all changes to `main`, create tag `v0.2.0`, push, and create
+- [x] 8. Commit all changes to `main`, create tag `v0.2.0`, push, and create
         the GitHub release
 
 ## Release contents
