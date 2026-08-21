@@ -293,18 +293,26 @@ test_https_connectivity() {
 test_repository_api_access() {
     echo "Test 3: Repository Accessibility (Public API)"
 
-    if curl -s --max-time 10 "${GITHUB_API_URL}" | grep -q "\"full_name\""; then
+    # -L follows redirects: GitHub returns 301 for renamed or transferred
+    # repositories, and the redirect body has no "full_name" field.
+    local repo_info
+    repo_info=$(curl -sL --max-time 10 "${GITHUB_API_URL}")
+
+    if echo "${repo_info}" | grep -q "\"full_name\""; then
         echo -e "${GREEN}✓ PASSED${NC} - Repository accessible via API"
 
-        local repo_info
-        repo_info=$(curl -s "${GITHUB_API_URL}")
-
+        # GitHub renders JSON as '"key": "value"' -- the patterns below
+        # allow the whitespace after the colon.
         local full_name
-        full_name=$(echo "${repo_info}" | grep -o '"full_name":"[^"]*' | cut -d'"' -f4)
+        full_name=$(echo "${repo_info}" \
+            | grep -oE '"full_name"[[:space:]]*:[[:space:]]*"[^"]*"' \
+            | head -1 | cut -d'"' -f4)
         echo "  Repository: ${full_name}"
 
         local is_private
-        is_private=$(echo "${repo_info}" | grep -o '"private":[^,]*' | cut -d':' -f2)
+        is_private=$(echo "${repo_info}" \
+            | grep -oE '"private"[[:space:]]*:[[:space:]]*(true|false)' \
+            | head -1 | awk -F: '{gsub(/[[:space:]]/, "", $2); print $2}')
         echo "  Private: ${is_private}"
 
         record_result 0
@@ -429,14 +437,18 @@ test_api_rate_limits() {
     echo "Test 7: GitHub API Rate Limits"
 
     local rate_limit
-    rate_limit=$(curl -s https://api.github.com/rate_limit)
+    rate_limit=$(curl -sL --max-time 10 https://api.github.com/rate_limit)
 
     if echo "${rate_limit}" | grep -q "\"limit\""; then
         local remaining
-        remaining=$(echo "${rate_limit}" | grep -o '"remaining":[0-9]*' | head -1 | cut -d':' -f2)
+        remaining=$(echo "${rate_limit}" \
+            | grep -oE '"remaining"[[:space:]]*:[[:space:]]*[0-9]+' \
+            | head -1 | awk -F: '{gsub(/[[:space:]]/, "", $2); print $2}')
 
         local limit
-        limit=$(echo "${rate_limit}" | grep -o '"limit":[0-9]*' | head -1 | cut -d':' -f2)
+        limit=$(echo "${rate_limit}" \
+            | grep -oE '"limit"[[:space:]]*:[[:space:]]*[0-9]+' \
+            | head -1 | awk -F: '{gsub(/[[:space:]]/, "", $2); print $2}')
 
         echo -e "${GREEN}✓ PASSED${NC} - API rate limit check successful"
         echo "  Rate limit: ${remaining}/${limit} remaining"
@@ -466,9 +478,14 @@ test_latest_release() {
 
     local releases_url="${GITHUB_API_URL}/releases/latest"
 
-    if curl -s --max-time 10 "${releases_url}" | grep -q "\"tag_name\""; then
+    local release_info
+    release_info=$(curl -sL --max-time 10 "${releases_url}")
+
+    if echo "${release_info}" | grep -q "\"tag_name\""; then
         local latest_tag
-        latest_tag=$(curl -s "${releases_url}" | grep -o '"tag_name":"[^"]*' | cut -d'"' -f4)
+        latest_tag=$(echo "${release_info}" \
+            | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' \
+            | head -1 | cut -d'"' -f4)
 
         echo -e "${GREEN}✓ PASSED${NC} - Latest release accessible"
         echo "  Latest release: ${latest_tag}"

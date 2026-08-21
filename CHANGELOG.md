@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `scripts/test_github.sh` now parses GitHub's JSON correctly. The patterns
+  assumed no whitespace after the colon (`"full_name":"..."`), but the API
+  returns `"full_name": "..."`, so Test 3 printed an empty repository name,
+  Test 7 printed `Rate limit: / remaining`, and Test 8 printed an empty tag
+- `scripts/test_github.sh` follows redirects (`curl -sL`) when querying the
+  API. A renamed or transferred repository returns HTTP 301, whose body has no
+  `full_name` field, so Test 3 failed even though the repository was reachable
+  via `git` and `gh` (both of which follow redirects transparently)
+- `scripts/test_github.sh` fetches each API endpoint once instead of twice,
+  halving its usage of the 60-per-hour unauthenticated rate limit
+
 ## [0.2.0] - 2026-08-21
 
 ### Added
