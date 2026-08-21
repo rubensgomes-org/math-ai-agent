@@ -115,3 +115,6 @@ secrets/
 # IDE
 *.swp
 *.swo
+
+# MISC
+TODO.md
