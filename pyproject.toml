@@ -1,23 +1,62 @@
 [project]
 name = "math-ai-agent"
-version = "0.2.0"
+keywords = ["ai", "math", "llm", "mcp", "agentic"]
+version = "0.0.0"
 description = "Math AI Agent that uses LLM + Rubens calculator-mcp."
 authors = [
     { name = "Rubens Gomes", email = "rubens.s.gomes@gmail.com" }
 ]
+maintainers = [
+  { name = "Rubens Gomes", email = "rubens.s.gomes@gmail.com" }
+]
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.14.0,<4.0.0"
+requires-python = ">=3.14,<4.0.0"
 classifiers = [
-    "Programming Language :: Python :: 3"
+    # How mature is this project? Common values are
+    #   3 - Alpha
+    #   4 - Beta
+    #   5 - Production/Stable
+    "Development Status :: 4 - Beta",
+    # Python versions supported.
+    "Programming Language :: Python :: 3.14"
 ]
 dependencies = [
-    "fastapi (>=0.135.3,<1.0.0)",
-    "fastmcp (>=3.4.7,<4.0.0)",
-    "py-key-value-aio[disk] (>=0.4.5,<0.5.0)",
-    "openai (>=3.3.1,<4.0.0)",
-    "cryptography (>=50.0.0,<51.0.0)",
-    "key-value (>=0.1.2,<0.2.0)",
+    "fastapi (>=0.141.1,<1.0.0)",
+    "fastmcp (>=4.0.7,<5.0.0)",
+    "py-key-value-aio[disk] (>=0.1.4,<1.0.0)",
+    "openai (>=3.19.1,<4.0.0)",
+    "cryptography (>=50.0.1,<51.0.0)",
+    "key-value (>=0.1.2,<1.0.0)",
+]
+
+[build-system]
+requires = ["poetry-core>=2.4,<4.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    # see more executable packages in the project documentation
+    "black (>=26.5.1,<27.0.0)",
+    "httpx2 (>=2.12.0,<3.0.0)",
+    "isort (>=9.0.1,<10.0.0)",
+    "mypy (>=1.20.2,<2.0.0)",
+    "pip-audit (>=2.10.1,<3.0.0)",
+    "poethepoet (>=0.48.0,<1.0.0)",
+    "poetry (>=2.4.3,<3.0.0)",
+    "pylint (>=4.0.8,<5.0.0)",
+    "pysonar (>=1.8.0.5390,<3.0.0)",
+    "types-pyyaml (>=6.0.12.2,<7.0.0.0)",
+    "uv (>=0.12.18,<1.0.0)",
+    "uvicorn (>=0.53.0,<1.0.0)",
+]
+test = [
+    "coverage (>=7.16.0,<8.0.0)",
+    "diskcache (>=5.6.3,<6.0.0)",
+    "pathvalidate (>=3.3.1,<4.00)",
+    "pytest (>=9.1.1,<10.0.0)",
+    "pytest-asyncio (>=1.4.0,<2.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
 ]
 
 [project.urls]
@@ -25,36 +64,20 @@ Homepage = "https://github.com/rubensgomes/math-ai-agent/"
 Documentation = "https://github.com/rubensgomes/math-ai-agent/README.md"
 Repository = "https://github.com/rubensgomes/math-ai-agent/"
 
-[tool.poetry]
-packages = [{ include = "math_ai_agent", from = "src" }]
+################################################################################
+# ---------- >>> Tools <<< -----------------------------------------------------
+################################################################################
 
-[build-system]
-requires = ["poetry-core>=2.4.1,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.coverage.run]
-source = ["math_ai_agent"]
-branch = true
+[tool.black]
+line-length = 80
 
 [tool.coverage.report]
 show_missing = true
 fail_under = 90
 
-[dependency-groups]
-dev = [
-    "black (>=26.5.1,<27.0.0)",
-    "coverage (>=7.15.4,<8.0.0)",
-    "pytest-cov (>=7.1.0,<8.0.0)",
-    "pytest-asyncio (>=1.4.0,<2.0.0)",
-    "types-pyyaml (>=6.0.12,<7.0.0.0)",
-    "mypy (>=1.20.2,<2.0.0)",
-    "pylint (>=4.0.6,<5.0.0)",
-    "isort (>=8.0.1,<9.0.0)",
-    "uvicorn (>=0.52.0,<0.53.0)",
-]
-
-[tool.black]
-line-length = 80
+[tool.coverage.run]
+source = ["calculator_mcp"]
+branch = true
 
 [tool.isort]
 line_length = 80
@@ -64,10 +87,29 @@ profile = "black"
 mypy_path = "src"
 ignore_missing_imports = true
 
+[tool.poetry]
+packages = [{ include = "math_ai_agent", from = "src" }]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
+[tool.sonar]
+# SONAR_TOKEN must be defined as an environment variable
+organization = "rubensgomes-org"
+projectKey = "rubensgomes-org"
+projectName = "math-ai-agent"
+qualitygate.wait = true
+sources = "src/"
+sourceEncoding = "UTF-8"
+
+# ---------- >>> poethepoet tasks <<< -----------------------------------------
+
+# To run a poe task:
+# `poetry run poe <task-name>` OR
+# `poe <task-name` (e.g., poe clean)
+
 [tool.poe.tasks]
+# Poe the Poetry "poethepoet" task runner needs to be installed.
 # Define individual cleanup tasks
 _clean_cache = "poetry cache clear --all"
 _clean_misc = "rm -rf  .mypy_cache dist build"
@@ -75,6 +117,15 @@ _clean_pyc = "find . -name '*.pyc' -delete"
 _clean_pycache = "find . -name '__pycache__' -type d -exec rm -rf {} +"
 _clean_pytest = "rm -rf .pytest_cache"
 _clean_venv = "poetry env remove --all"
-# Combine them into one 'clean' command
-# Run command poetry run poe clean
-clean = { sequence = ["_clean_cache", "_clean_misc", "_clean_pyc", "_clean_pycache", "_clean_pytest", "_clean_venv"], help = "Remove all project artifacts" }
+
+# Combine them into one 'clean' command.  Similar to `make clean`
+[tool.poe.tasks.clean]
+sequence = [
+    "_clean_cache",
+    "_clean_misc",
+    "_clean_pyc",
+    "_clean_pycache",
+    "_clean_pytest",
+    "_clean_venv",
+]
+help = "Remove all project artifacts"

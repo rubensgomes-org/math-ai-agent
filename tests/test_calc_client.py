@@ -104,7 +104,6 @@ def _make_calc(tools=None, call_result="42"):
         calc = CalcMCPClient()
 
     # Mock the inherited async methods
-    calc.ping = AsyncMock()
     calc.call_tool = AsyncMock(return_value=call_result)
 
     # Patch Client's __aenter__/__aexit__ on the instance
@@ -170,11 +169,9 @@ def test_init_oauth_missing_env_raises(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_aenter_pings_and_populates_tools():
-    tools = [
-        SimpleNamespace(name="add", description="Add two numbers"),
-    ]
-    calc = _make_calc(tools=tools)
+async def test_aenter_does_not_ping():
+    calc = _make_calc()
+    calc.ping = AsyncMock()
 
     with (
         patch.object(
@@ -189,15 +186,9 @@ async def test_aenter_pings_and_populates_tools():
             new_callable=AsyncMock,
             return_value=None,
         ),
-        patch.object(
-            Client,
-            "list_tools",
-            new_callable=AsyncMock,
-            return_value=tools,
-        ),
     ):
         async with calc:
-            calc.ping.assert_awaited_once()
+            calc.ping.assert_not_awaited()
 
 
 @pytest.mark.asyncio

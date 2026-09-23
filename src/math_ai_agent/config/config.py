@@ -52,23 +52,17 @@ def _resolve_config_path() -> Path:
 
     Resolution order:
 
-    1. The ``CALCULATOR_MCP_CONFIG`` environment variable, when set.
+    1. The ``MATHAIAGENT_CONFIG`` environment variable, when set.
     2. A ``config.yaml`` in the current working directory — this is
        the copy at the project root, and is what you edit when
        running from a clone.
-    3. The ``config.yaml`` bundled inside the
-       ``math_ai_agent.config`` package, which ships in the wheel and
-       serves as the default for installed copies.
 
     Returns:
         The resolved path to config.yaml.
     """
-    env_path = os.environ.get("CALCULATOR_MCP_CONFIG")
+    env_path = os.environ.get("MATHAIAGENT_CONFIG")
     if env_path:
         return Path(env_path)
-    cwd_path = Path.cwd() / "config.yaml"
-    if cwd_path.is_file():
-        return cwd_path
     return Path(str(files("math_ai_agent.config").joinpath("config.yaml")))
 
 

@@ -72,7 +72,7 @@ class CalcMCPClient(Client):
     """Calculator MCP client extending ``fastmcp.Client``.
 
     Builds the correct transport and auth from ``config.yaml``,
-    pings on connect, and maintains a class-level tool cache.
+    and maintains a class-level tool cache.
 
     Usage::
 
@@ -115,8 +115,6 @@ class CalcMCPClient(Client):
         """Connect to the MCP server and populate the tool cache."""
         logger.debug("Connecting to Calculator MCP server")
         await super().__aenter__()
-        logger.debug("Pinging MCP server")
-        await self.ping()
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:

@@ -3,12 +3,18 @@
 # =============================================================================
 server:
     calculator_mcp:
-        #    is_oauth: false
-        #    url: "http://127.0.0.1:9000/mcp"
-        is_oauth: true
+        # The below calculator_mcp is deployed and running in a FastMCP server
+        # hosted for free at https://www.prefect.io/horizon with url below.
         url: "https://rubens-calculator-mcp.fastmcp.app/mcp"
+        #    url: "http://127.0.0.1:9000/mcp"
+        # The above end-point requires OAuth authentication which is
+        # currently being granted only to Rubens GitHub account.  Prior to
+        # connecting, Rubens should login to his personal GitHub account
+        # github.com/rubensgomes account.
+        is_oauth: true
+        #    is_oauth: false
         # location to store OAuth token
-        token_dir: "/tmp/.fastmcp/oauth-tokens"
+        token_dir: "~/.mathaiagent"
         # fixed port for the OAuth callback server
         callback_port: 10000
         # timeout in seconds
@@ -68,13 +74,13 @@ logging:
             propagate: false
         # MCP protocol tracing — set to DEBUG to see full JSON-RPC messages
         mcp.client.streamable_http:
-            level: INFO
+            level: DEBUG
             handlers:
                 - console
             propagate: false
         # HTTP request/response summaries — set to DEBUG for detail
         httpx:
-            level: INFO
+            level: DEBUG
             handlers:
                 - console
             propagate: false
@@ -86,7 +92,7 @@ logging:
             propagate: false
         # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
         httpcore:
-            level: INFO
+            level: DEBUG
             handlers:
                 - console
             propagate: false
@@ -109,6 +115,6 @@ logging:
                 - console
             propagate: false
     root:
-        level: WARNING
+        level: DEBUG
         handlers:
             - console

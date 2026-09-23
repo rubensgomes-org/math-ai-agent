@@ -151,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `math_ai_agent.config.config`
 - `config.yaml` is now visible at the project root; a copy remains inside the
   package as the default that ships in the wheel
-- `_resolve_config_path()` resolves in three steps: `CALCULATOR_MCP_CONFIG`,
+- `_resolve_config_path()` resolves in three steps: `MATHAIAGENT_CONFIG`,
   then `./config.yaml` in the working directory, then the packaged default
 - Raised the Python floor to `>=3.14` and upgraded fastmcp, openai,
   py-key-value-aio, black, coverage, pytest-asyncio, mypy, and poetry-core

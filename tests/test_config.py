@@ -92,13 +92,13 @@ def tmp_config(tmp_path):
 def test_resolve_config_path_uses_env_var(tmp_path, monkeypatch):
     custom = tmp_path / "custom.yaml"
     custom.touch()
-    monkeypatch.setenv("CALCULATOR_MCP_CONFIG", str(custom))
+    monkeypatch.setenv("MATHAIAGENT_CONFIG", str(custom))
     assert config._resolve_config_path() == custom
 
 
 def test_resolve_config_path_uses_cwd(tmp_path, monkeypatch):
     """A config.yaml in the cwd wins over the packaged default."""
-    monkeypatch.delenv("CALCULATOR_MCP_CONFIG", raising=False)
+    monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
     cwd_cfg = tmp_path / "config.yaml"
     cwd_cfg.touch()
     monkeypatch.chdir(tmp_path)
@@ -107,7 +107,7 @@ def test_resolve_config_path_uses_cwd(tmp_path, monkeypatch):
 
 def test_resolve_config_path_falls_back_to_package(tmp_path, monkeypatch):
     """With no env var and no cwd config, the packaged default is used."""
-    monkeypatch.delenv("CALCULATOR_MCP_CONFIG", raising=False)
+    monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
     monkeypatch.chdir(tmp_path)  # empty dir -- no config.yaml
     result = config._resolve_config_path()
     assert result.name == "config.yaml"
@@ -115,7 +115,7 @@ def test_resolve_config_path_falls_back_to_package(tmp_path, monkeypatch):
 
 
 def test_resolve_config_path_default(monkeypatch):
-    monkeypatch.delenv("CALCULATOR_MCP_CONFIG", raising=False)
+    monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
     result = config._resolve_config_path()
     assert result.name == "config.yaml"
 

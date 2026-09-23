@@ -1,54 +1,59 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE)
+[![AI Assisted](https://img.shields.io/badge/AI--Assisted-Development-007ACC)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
+
 # math-ai-agent
 
-A small FastAPI web app that answers math questions by driving an LLM in a
-tool-calling agent loop against a remote calculator MCP server configured in the
-[config.yaml](config.yaml). The point of the
-design is that the LLM is explicitly forbidden from doing arithmetic itself —
-every operation must go through the MCP calculator tools.
+A web app that answers math questions by driving an LLM through a tool-calling
+agent loop against a remote calculator MCP server configured in
+the [config.yaml](config.yaml). The key design constraint is that the LLM is
+explicitly forbidden from performing arithmetic itself—every operation must go
+through the MCP calculator tools.
 
 ## Features
 
 - **FastAPI web UI** — simple form-based interface for submitting prompts
-- **MCP client** — connects to a remote calculator MCP server via
-  [FastMCP](https://github.com/jlowin/fastmcp), with optional OAuth
-  authentication
+- **MCP client** — connects to a remote calculator MCP server with optional
+  OAuth authentication
 - **Configurable** — MCP server URL, OAuth settings, LLM endpoint and model,
   timeouts, and logging are all driven by `config.yaml`; switching LLM providers
-  needs no code change
+  may not required code change provided the LLM supports the OpenAI API.
 - **Plain-text answers** — the model is instructed to reply without LaTeX or
   Markdown, since the web UI renders answers in a plain `<textarea>`
 
-## Project Structure
+## AI Disclaimer
 
-```
-config.yaml             # Active configuration -- edit this one
-src/math_ai_agent/
-  app.py                # FastAPI application (web UI + /prompt endpoint)
-  models.py             # Pydantic models (Prompt) for request validation
-  config/
-    config.py           # Configuration helpers (loads config.yaml, logging)
-    config.yaml         # Packaged default, used when no other is found
-  llm/
-    client.py           # LLM transports (Chat Completions, Responses)
-    agent.py            # System prompt, agent loops, tool dispatch
-  mcp/
-    calc_client.py      # Calculator MCP client and helper functions
-  static/
-    index.html          # Web UI served at /
-tests/
-  integration/
-    test_calc_client.py      # Integration test for the MCP client
-    test_openai_client.py    # Integration test for the raw OpenAI SDK
-    test_llm.py              # Integration test for the ChatCompletionClient
-    test_llm_chat_completion_tool.py  # Chat Completions agent loop
-    test_llm_responses_tool.py  # Integration test for the Responses agent loop
-    test_app.py              # FastAPI integration test application
-    app_text.txt             # Sample text fixture for integration tests
-  test_calc_client.py        # Unit tests for calc_client.py
-  test_config.py             # Unit tests for config/config.py
-  test_chat_completion.py    # Unit tests for the Chat Completions path
-  test_responses.py          # Unit tests for the Responses path
-  test_app.py                # Unit tests for app.py
+This project includes code and documentation created with the assistance of AI
+tools. For details on usage, limits, and review practices, please see the
+[AI Disclaimer](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md).
+
+## Prerequisites
+
+- Python 3.14+
+- pip 26.2+
+- Web browser (e.g., `Google Chrome`)
+
+## Installation and Usage
+
+### Installation
+
+TODO ....
+
+### Usage
+
+#### Configuration
+
+The server ships with a default `config.yaml` bundled inside the package. To
+override it, set the `MATHAIAGENT_CONFIG` environment variable to the
+absolute path of your custom configuration file:
+
+When `MATHAIAGENT_CONFIG` is not set, the bundled default is used
+automatically. For more information about how to set up the `config.yaml`
+and further documentation, refer
+to 
+[config.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/src/math_ai_agent/config.yaml)
+
+```bash
+export MATHAIAGENT_CONFIG=/path/to/your/config.yaml
 ```
 
 ## Configuration
@@ -75,7 +80,7 @@ All settings live in `config.yaml` at the project root:
 
 The file is located in this order, first match wins:
 
-1. The path in the `CALCULATOR_MCP_CONFIG` environment variable, if set.
+1. The path in the `MATHAIAGENT_CONFIG` environment variable, if set.
 2. `config.yaml` in the current working directory — the copy at the project
    root, which is what you edit when running from a clone.
 3. `src/math_ai_agent/config/config.yaml` — the default bundled into the
@@ -94,16 +99,15 @@ the environment variable to read it from, so set that variable (whatever
 appends `/responses` or `/chat/completions` itself. Use
 `https://api.openai.com/v1`, not `https://api.openai.com/v1/chat/completions` —
 a full route produces requests to `.../chat/completions/chat/completions` and a
-404.
 
 Switching providers is a config-only change. For example:
 
-| Provider             | `model_base_url`             | `model`                      | `api_key_env`                 |
-|----------------------|------------------------------|------------------------------|-------------------------------|
-| NVIDIA (current)     | `https://integrate.api.nvidia.com/v1` | `nvidia/nemotron-3-super-120b-a12b` | `NVIDIA_API_KEY` |
-| OpenRouter           | `https://openrouter.ai/api/v1` | any slug from their catalog | `OPENROUTER_API_KEY`          |
-| OpenAI               | `https://api.openai.com/v1`  | `gpt-5.6`                    | `OPENAI_API_KEY`              |
-| Ollama (local, free) | `http://localhost:11434/v1`  | `phi`                        | any variable set to any value |
+| Provider             | `model_base_url`                      | `model`                             | `api_key_env`                 |
+|----------------------|---------------------------------------|-------------------------------------|-------------------------------|
+| NVIDIA (current)     | `https://integrate.api.nvidia.com/v1` | `nvidia/nemotron-3-super-120b-a12b` | `NVIDIA_API_KEY`              |
+| OpenRouter           | `https://openrouter.ai/api/v1`        | any slug from their catalog         | `OPENROUTER_API_KEY`          |
+| OpenAI               | `https://api.openai.com/v1`           | `gpt-5.6`                           | `OPENAI_API_KEY`              |
+| Ollama (local, free) | `http://localhost:11434/v1`           | `phi`                               | any variable set to any value |
 
 NVIDIA's catalog is public — `GET https://integrate.api.nvidia.com/v1/models`
 lists every served model id without authentication. Get a key from
@@ -125,7 +129,8 @@ experimental — OpenRouter's is beta and strictly stateless (it rejects
 experimental. Both work with this app, as does Ollama v0.13.3+. The Responses
 agent loop replays every output Item back as input on each turn rather than
 relying on server-side state, which is what keeps it portable across all of
-them and unchanged against `https://api.openai.com/v1`. Not every model in a provider's catalog is
+them and unchanged against `https://api.openai.com/v1`. Not every model in a
+provider's catalog is
 necessarily served over its Responses endpoint — if a model 404s or 400s under
 `api_style: "responses"`, either pick a model that supports it or set
 `api_style: "chat"`.
@@ -233,14 +238,14 @@ one-time OAuth authorization in your browser.
 Each step isolates one moving part, so a failure tells you exactly what broke.
 Run all commands from the project root.
 
-| # | Command                                                     | Exercises                                  | LLM | MCP |
-|---|-------------------------------------------------------------|--------------------------------------------|-----|-----|
-| 1 | `poetry run python tests/integration/test_openai_client.py` | API key, base URL, model id                | ✅  | —   |
-| 2 | `poetry run python tests/integration/test_calc_client.py`   | OAuth flow, MCP connection, tool discovery | —   | ✅  |
-| 3 | `poetry run python tests/integration/test_llm.py`           | Tool schemas accepted by the model         | ✅  | ✅  |
-| 4 | `poetry run python tests/integration/test_llm_chat_completion_tool.py` | The Chat Completions agent loop  | ✅  | ✅  |
-| 5 | `poetry run python tests/integration/test_llm_responses_tool.py` | The Responses agent loop              | ✅  | ✅  |
-| 6 | `poetry run uvicorn math_ai_agent.app:app --reload`         | The whole app end to end                   | ✅  | ✅  |
+| # | Command                                                                | Exercises                                  | LLM | MCP |
+|---|------------------------------------------------------------------------|--------------------------------------------|-----|-----|
+| 1 | `poetry run python tests/integration/test_openai_client.py`            | API key, base URL, model id                | ✅  | —   |
+| 2 | `poetry run python tests/integration/test_calc_client.py`              | OAuth flow, MCP connection, tool discovery | —   | ✅  |
+| 3 | `poetry run python tests/integration/test_llm.py`                      | Tool schemas accepted by the model         | ✅  | ✅  |
+| 4 | `poetry run python tests/integration/test_llm_chat_completion_tool.py` | The Chat Completions agent loop            | ✅  | ✅  |
+| 5 | `poetry run python tests/integration/test_llm_responses_tool.py`       | The Responses agent loop                   | ✅  | ✅  |
+| 6 | `poetry run uvicorn math_ai_agent.app:app --reload`                    | The whole app end to end                   | ✅  | ✅  |
 
 **Step 1 — LLM only.** Sends one question straight to the model, no MCP
 involved. The `Connecting to <url> using model <model>` log line echoes exactly
@@ -289,7 +294,8 @@ Initializing ChatCompletionClient with base_url=..., model=..., tool_count=N
 
 (the class name is `ResponsesClient` when `llm.api_style` is `responses`)
 
-Change `llm.model` in `config.yaml`, rerun step 4 or 5, and the line should report
+Change `llm.model` in `config.yaml`, rerun step 4 or 5, and the line should
+report
 the new value with no code change. `config.yaml` sets `DEBUG` for both the
 `math_ai_agent` and `openai` loggers, so full request and response bodies appear
 in the output.
@@ -306,5 +312,8 @@ it does not exercise the agent.
 
 ## License
 
-See the disclaimer headers in each source file for copyright and warranty
-information.
+The project is licensed under
+[MIT License](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE).
+
+---
+Author: [Rubens Gomes](https://rubensgomes.com/)
