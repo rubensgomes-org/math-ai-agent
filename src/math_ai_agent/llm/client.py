@@ -60,9 +60,6 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.responses import Response
 
-from math_ai_agent.config.config import configure_logging
-
-configure_logging()
 logger = logging.getLogger(__name__)
 
 

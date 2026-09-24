@@ -60,7 +60,6 @@ from math_ai_agent.config.config import configure_logging
 from math_ai_agent.llm.agent import _responses_agent_loop
 from math_ai_agent.mcp.calc_client import get_calc_mcp_tools
 
-configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -95,4 +94,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    configure_logging()
     asyncio.run(main())

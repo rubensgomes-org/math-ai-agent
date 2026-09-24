@@ -64,43 +64,36 @@ def _clear_tools_cache():
     CalcMCPClient._tools = []
 
 
+@pytest.fixture(autouse=True)
+def _patch_config(app_config):
+    """Serve the shared test ``AppConfig`` to the client."""
+    with patch.object(calc_client, "get_config", return_value=app_config):
+        yield
+
+
 @pytest.fixture()
 def _patch_no_oauth():
-    """Patch config to disable OAuth and stub Client.__init__."""
-    with (
-        patch.object(Client, "__init__", return_value=None) as mock_init,
-        patch.object(calc_client, "is_oauth", return_value=False),
-        patch.object(calc_client, "get_url", return_value=_URL),
-    ):
+    """Stub Client.__init__; the test config has OAuth disabled."""
+    with patch.object(Client, "__init__", return_value=None) as mock_init:
         yield mock_init
 
 
 @pytest.fixture()
-def _patch_oauth(monkeypatch):
-    """Patch config to enable OAuth and stub Client.__init__."""
+def _patch_oauth(monkeypatch, app_config):
+    """Enable OAuth in the test config and stub Client.__init__ and OAuth."""
     key = Fernet.generate_key().decode()
     monkeypatch.setenv("OAUTH_STORAGE_ENCRYPTION_KEY", key)
+    app_config.server.calculator_mcp.is_oauth = True
     with (
         patch.object(Client, "__init__", return_value=None) as mock_init,
-        patch.object(calc_client, "is_oauth", return_value=True),
-        patch.object(calc_client, "get_url", return_value=_URL),
-        patch.object(
-            calc_client, "get_token_dir", return_value="/tmp/test-tokens"
-        ) as mock_td,
-        patch.object(
-            calc_client, "get_callback_port", return_value=10000
-        ) as mock_port,
+        patch.object(calc_client, "OAuth") as mock_oauth,
     ):
-        yield mock_init, mock_td, mock_port
+        yield mock_init, mock_oauth
 
 
 def _make_calc(tools=None, call_result="42"):
     """Create a ``CalcMCPClient`` with mocked inherited methods."""
-    with (
-        patch.object(Client, "__init__", return_value=None),
-        patch.object(calc_client, "is_oauth", return_value=False),
-        patch.object(calc_client, "get_url", return_value=_URL),
-    ):
+    with patch.object(Client, "__init__", return_value=None):
         calc = CalcMCPClient()
 
     # Mock the inherited async methods
@@ -135,30 +128,20 @@ def test_init_no_oauth(_patch_no_oauth):
 
 
 def test_init_with_oauth(_patch_oauth):
-    mock_init, mock_td, mock_port = _patch_oauth
+    mock_init, mock_oauth = _patch_oauth
     calc = CalcMCPClient()
     assert isinstance(calc, Client)
     mock_init.assert_called_once()
-    mock_td.assert_called_once()
-    mock_port.assert_called_once()
+    assert mock_oauth.call_args.kwargs["callback_port"] == 10000
     # Verify OAuth auth was passed
     _, kwargs = mock_init.call_args
     assert "auth" in kwargs
 
 
-def test_init_oauth_missing_env_raises(monkeypatch):
+def test_init_oauth_missing_env_raises(monkeypatch, app_config):
     monkeypatch.delenv("OAUTH_STORAGE_ENCRYPTION_KEY", raising=False)
-    with (
-        patch.object(Client, "__init__", return_value=None),
-        patch.object(calc_client, "is_oauth", return_value=True),
-        patch.object(calc_client, "get_url", return_value=_URL),
-        patch.object(
-            calc_client,
-            "get_token_dir",
-            return_value="/tmp/test-tokens",
-        ),
-        patch.object(calc_client, "get_callback_port", return_value=10000),
-    ):
+    app_config.server.calculator_mcp.is_oauth = True
+    with patch.object(Client, "__init__", return_value=None):
         with pytest.raises(KeyError):
             CalcMCPClient()
 

@@ -2446,14 +2446,14 @@ test = ["Faker (>=1.0.8)", "allpairspy (>=2)", "click (>=6.2)", "pytest (>=6.0.1
 
 [[package]]
 name = "pbs-installer"
-version = "2026.9.1"
+version = "2026.9.24"
 description = "Installer for Python Build Standalone"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "pbs_installer-2026.9.1-py3-none-any.whl", hash = "sha256:d2c320a11e0313f559f4338fad3f698345d200d0506053c75d266730b2507dcb"},
-    {file = "pbs_installer-2026.9.1.tar.gz", hash = "sha256:b21eb21a53557d197899e1bf3d8b7f4f264feb1c546327106fdfcc967cb3a704"},
+    {file = "pbs_installer-2026.9.24-py3-none-any.whl", hash = "sha256:6786998f8b29899839b48e67fbc28deea29af346cc5108ba7b941dd2eeb4ec3c"},
+    {file = "pbs_installer-2026.9.24.tar.gz", hash = "sha256:094dcf7f4502bb320906942503c69db10f55b5885695df331b50521ed25376f0"},
 ]
 
 [package.dependencies]
@@ -3958,7 +3958,7 @@ version = "0.53.0"
 description = "The lightning-fast ASGI server."
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "dev"]
+groups = ["main"]
 files = [
     {file = "uvicorn-0.53.0-py3-none-any.whl", hash = "sha256:e8dca71ec86dce5f04e333f0d56cdedf942446e6643b9cea1af0d6d3a02cb03e"},
     {file = "uvicorn-0.53.0.tar.gz", hash = "sha256:a9356f0cb89b3b8621529c5d5eebd69bfe154f4c3f68b4cf2de47e45fa855c2e"},
@@ -4263,4 +4263,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.14,<4.0.0"
-content-hash = "dc997d871f0d443dd2f76fce78334bb08e97c220dded292318cd045fefe771d4"
+content-hash = "31a830807832eee586b0bb89f0ceee0445702e63bdc098b3be13b427233a830e"

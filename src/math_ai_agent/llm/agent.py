@@ -55,21 +55,11 @@ from typing import Any
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.responses import Response, ResponseFunctionToolCall
 
-from math_ai_agent.config.config import (
-    configure_logging,
-    get_api_key,
-    get_api_style,
-    get_model,
-    get_model_base_url,
-    get_system_instructions,
-)
+from math_ai_agent.config.config import get_api_key, get_config
 from math_ai_agent.llm.client import ChatCompletionClient, ResponsesClient
 from math_ai_agent.mcp.calc_client import call_tool, get_calc_mcp_tools
 
-configure_logging()
 logger = logging.getLogger(__name__)
-
-_SYSTEM_INSTRUCTIONS = get_system_instructions()
 
 
 # -------------------------------------------------
@@ -96,12 +86,15 @@ async def _chat_agent_loop(user_prompt: str) -> str:
             reason.
     """
     logger.debug("Starting AI LLM agent loop (chat completions)")
-    history: list[Any] = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
+    llm_config = get_config().llm
+    history: list[Any] = [
+        {"role": "system", "content": llm_config.system_instructions}
+    ]
     tools = await get_calc_mcp_tools("chat")
     llm = ChatCompletionClient(
         get_api_key(),
-        get_model_base_url(),
-        get_model(),
+        llm_config.model_base_url,
+        llm_config.model,
         tools,
     )
 
@@ -209,11 +202,12 @@ async def _responses_agent_loop(user_prompt: str) -> str:
             or an unknown incomplete reason.
     """
     logger.debug("Starting AI LLM agent loop (responses)")
+    llm_config = get_config().llm
     tools = await get_calc_mcp_tools("responses")
     llm = ResponsesClient(
         get_api_key(),
-        get_model_base_url(),
-        get_model(),
+        llm_config.model_base_url,
+        llm_config.model,
         tools,
     )
 
@@ -230,7 +224,7 @@ async def _responses_agent_loop(user_prompt: str) -> str:
     # -------------------------
     while True:
         response: Response = await llm.create_response(
-            history, _SYSTEM_INSTRUCTIONS
+            history, llm_config.system_instructions
         )
         logger.debug("LLM response status: %s", response.status)
         usage = response.usage
@@ -349,7 +343,6 @@ async def agent_loop(user_prompt: str) -> str:
     Returns:
         The final text response from the LLM.
     """
-    api_style = get_api_style()
-    if api_style == "responses":
+    if get_config().llm.api_style == "responses":
         return await _responses_agent_loop(user_prompt)
     return await _chat_agent_loop(user_prompt)

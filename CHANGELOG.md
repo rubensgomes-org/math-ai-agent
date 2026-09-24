@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The LLM system prompt moved from `_SYSTEM_INSTRUCTIONS` in `llm/agent.py`
   to the new `llm.system_instructions` setting in `config.yaml`
+- `config.yaml` is parsed once into typed pydantic models by `get_config()`,
+  replacing the `get_*()` and `is_oauth()` getters; an invalid
+  `llm.api_style` now fails validation at startup
+- `models.py` renamed to `prompt.py`
+- Logging is configured once in `app.py` instead of on import of
+  `config.py`, `llm/agent.py`, and `llm/client.py`
 
 ### Removed
 
@@ -27,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `CalcMCPClient` matches the current fastmcp API: `list_tools()` accepts
+  `cache_mode`, and tools are read via `input_schema` instead of the
+  deprecated `inputSchema`
 - `scripts/test_github.sh` now parses GitHub's JSON correctly. The patterns
   assumed no whitespace after the colon (`"full_name":"..."`), but the API
   returns `"full_name": "..."`, so Test 3 printed an empty repository name,
