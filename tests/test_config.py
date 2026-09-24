@@ -58,13 +58,13 @@ def tmp_config(tmp_path):
                 "is_oauth": False,
                 "token_dir": "/tmp/tokens",
                 "callback_port": 12345,
-                "timeout": 30,
             }
         },
         "llm": {
             "model_base_url": "http://localhost:11434/v1",
             "model": "test-model",
             "api_key_env": "TEST_LLM_KEY",
+            "system_instructions": "Test instructions.",
         },
         "logging": {
             "version": 1,
@@ -96,19 +96,19 @@ def test_resolve_config_path_uses_env_var(tmp_path, monkeypatch):
     assert config._resolve_config_path() == custom
 
 
-def test_resolve_config_path_uses_cwd(tmp_path, monkeypatch):
-    """A config.yaml in the cwd wins over the packaged default."""
+def test_resolve_config_path_ignores_cwd(tmp_path, monkeypatch):
+    """A config.yaml in the cwd does not override the packaged default."""
     monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
     cwd_cfg = tmp_path / "config.yaml"
     cwd_cfg.touch()
     monkeypatch.chdir(tmp_path)
-    assert config._resolve_config_path() == cwd_cfg
+    assert config._resolve_config_path() != cwd_cfg
 
 
 def test_resolve_config_path_falls_back_to_package(tmp_path, monkeypatch):
-    """With no env var and no cwd config, the packaged default is used."""
+    """With no env var, the packaged default is used."""
     monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
-    monkeypatch.chdir(tmp_path)  # empty dir -- no config.yaml
+    monkeypatch.chdir(tmp_path)
     result = config._resolve_config_path()
     assert result.name == "config.yaml"
     assert "math_ai_agent" in str(result)
@@ -144,15 +144,6 @@ def test_configure_logging_applies_config(tmp_config):
 
 
 # ---------------------------------------------------------------------------
-# get_timeout
-# ---------------------------------------------------------------------------
-
-
-def test_get_timeout(tmp_config):
-    assert config.get_timeout() == 30
-
-
-# ---------------------------------------------------------------------------
 # is_oauth
 # ---------------------------------------------------------------------------
 
@@ -169,7 +160,6 @@ def test_is_oauth_true(tmp_path):
                 "is_oauth": True,
                 "token_dir": "/tmp/tokens",
                 "callback_port": 10000,
-                "timeout": 10,
             }
         },
         "logging": {
@@ -191,7 +181,6 @@ def test_is_oauth_missing_defaults_false(tmp_path):
                 "url": "http://localhost/mcp",
                 "token_dir": "/tmp/tokens",
                 "callback_port": 10000,
-                "timeout": 10,
             }
         },
         "logging": {
@@ -249,6 +238,15 @@ def test_get_model_base_url(tmp_config):
 
 def test_get_model(tmp_config):
     assert config.get_model() == "test-model"
+
+
+# ---------------------------------------------------------------------------
+# get_system_instructions
+# ---------------------------------------------------------------------------
+
+
+def test_get_system_instructions(tmp_config):
+    assert config.get_system_instructions() == "Test instructions."
 
 
 # ---------------------------------------------------------------------------

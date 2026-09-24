@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Colored log level names in console output via `colorlog`; plain when
+  stderr is not a terminal or `NO_COLOR` is set
+- `uvicorn` logger in `config.yaml`, so server startup and error logs use the
+  project's log format
+
+### Changed
+
+- The LLM system prompt moved from `_SYSTEM_INSTRUCTIONS` in `llm/agent.py`
+  to the new `llm.system_instructions` setting in `config.yaml`
+
+### Removed
+
+- Unused `server.calculator_mcp.timeout` setting and `get_timeout()`
+- `config.yaml` in the working directory is no longer loaded; set
+  `MATHAIAGENT_CONFIG` to use a config other than the packaged default
+
 ### Fixed
 
 - `scripts/test_github.sh` now parses GitHub's JSON correctly. The patterns

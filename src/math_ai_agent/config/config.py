@@ -53,9 +53,8 @@ def _resolve_config_path() -> Path:
     Resolution order:
 
     1. The ``MATHAIAGENT_CONFIG`` environment variable, when set.
-    2. A ``config.yaml`` in the current working directory — this is
-       the copy at the project root, and is what you edit when
-       running from a clone.
+    2. The ``config.yaml`` bundled inside the
+       ``math_ai_agent.config`` package.
 
     Returns:
         The resolved path to config.yaml.
@@ -89,18 +88,6 @@ configure_logging()
 
 logger = logging.getLogger(__name__)
 logger.debug("Config path resolved to %s", _CONFIG_PATH)
-
-
-def get_timeout() -> int:
-    """Return the HTTP client timeout (seconds) from config.yaml.
-
-    Returns:
-        The timeout in seconds.
-    """
-    config = _load_config()
-    timeout: int = config["server"]["calculator_mcp"]["timeout"]
-    logger.info("HTTP client timeout: %s seconds", timeout)
-    return timeout
 
 
 def is_oauth() -> bool:
@@ -173,6 +160,18 @@ def get_model() -> str:
     model: str = config["llm"]["model"]
     logger.info("LLM model: %s", model)
     return model
+
+
+def get_system_instructions() -> str:
+    """Return the LLM system instructions from config.yaml.
+
+    Returns:
+        The system instructions string.
+    """
+    config = _load_config()
+    instructions: str = config["llm"]["system_instructions"]
+    logger.debug("LLM system instructions: %s", instructions)
+    return instructions
 
 
 def get_api_style() -> str:

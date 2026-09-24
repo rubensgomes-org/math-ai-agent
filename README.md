@@ -1,13 +1,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE)
 [![AI Assisted](https://img.shields.io/badge/AI--Assisted-Development-007ACC)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
 
-# math-ai-agent
+# Math AI Agent
 
-A web app that answers math questions by driving an LLM through a tool-calling
-agent loop against a remote calculator MCP server configured in
-the [config.yaml](config.yaml). The key design constraint is that the LLM is
-explicitly forbidden from performing arithmetic itself—every operation must go
-through the MCP calculator tools.
+A prompt chat webapp that drives an LLM call inside an agentic loop using
+`calculator_mcp` MCP server for arithmetic operations. The key constraint is
+that the LLM is given explicit system instructions to use the `calculator_mcp`
+for any arithmetic operations.
 
 ## Features
 
@@ -15,8 +14,7 @@ through the MCP calculator tools.
 - **MCP client** — connects to a remote calculator MCP server with optional
   OAuth authentication
 - **Configurable** — MCP server URL, OAuth settings, LLM endpoint and model,
-  timeouts, and logging are all driven by `config.yaml`; switching LLM providers
-  may not required code change provided the LLM supports the OpenAI API.
+  and logging are all driven by `config.yaml`
 - **Plain-text answers** — the model is instructed to reply without LaTeX or
   Markdown, since the web UI renders answers in a plain `<textarea>`
 
@@ -28,90 +26,111 @@ tools. For details on usage, limits, and review practices, please see the
 
 ## Prerequisites
 
-- Python 3.14+
 - pip 26.2+
-- Web browser (e.g., `Google Chrome`)
+- poetry 2.4+
+- python 3.14+
 
-## Installation and Usage
+## Installation
 
-### Installation
+### Installation Using GitHub Project Clone
 
-TODO ....
+- Clone the project from GitHub:
 
-### Usage
+    ```bash
+    git clone https://github.com/rubensgomes-org/math-ai-agent.git
+    ```
 
-#### Configuration
+- Install depenencies and application into `poetry` virtual environment:
 
-The server ships with a default `config.yaml` bundled inside the package. To
-override it, set the `MATHAIAGENT_CONFIG` environment variable to the
-absolute path of your custom configuration file:
+    ```bash
+    # change to project git local directory
+    cd $(git rev-parse --show-toplevel) || exit
+    poetry install
+    ```
 
-When `MATHAIAGENT_CONFIG` is not set, the bundled default is used
-automatically. For more information about how to set up the `config.yaml`
-and further documentation, refer
-to 
-[config.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/src/math_ai_agent/config.yaml)
+## Configuration
+
+The server ships with a default `config.yaml` bundled inside the PiPY
+package. To override it, set the `MATHAIAGENT_CONFIG` environment
+variable to the absolute path of your custom configuration file:
 
 ```bash
 export MATHAIAGENT_CONFIG=/path/to/your/config.yaml
 ```
 
-## Configuration
+## Running the Math AI Agent Server Using GitHub Cloned Project
 
-All settings live in `config.yaml` at the project root:
+### Calculator MCP Server Running Locally
 
-- **`server.calculator_mcp.url`** — MCP server endpoint
-- **`server.calculator_mcp.is_oauth`** — enable/disable OAuth authentication
-- **`server.calculator_mcp.token_dir`** — directory for storing OAuth tokens
-- **`server.calculator_mcp.callback_port`** — fixed port for the OAuth callback
-- **`server.calculator_mcp.timeout`** — HTTP client timeout in seconds
-- **`llm.api_style`** — which OpenAI API to use: `responses` for the Responses
-  API (`POST /v1/responses`, the primary OpenAI API) or `chat` for the legacy
-  Chat Completions API (`POST /v1/chat/completions`). Defaults to `chat` when
-  the setting is absent
-- **`llm.model_base_url`** — base URL of the LLM model inference endpoint
-- **`llm.model`** — LLM model identifier
-- **`llm.api_key_env`** — *name* of the environment variable holding the LLM API
-  key (currently `NVIDIA_API_KEY`)
-- **`logging`** — Python `logging.config.dictConfig` block. The `standard`
-  formatter includes the source file and line number
-  (`%(filename)s:%(lineno)d`), so log lines point at the code that emitted
-  them
+**NOTE:** requires the `calculator_mcp` running locally as per instructions at
+[calculator-mcp](https://github.com/rubensgomes-org/calculator-mcp)
 
-The file is located in this order, first match wins:
+- Launch the `math-ai-agent` from the local Git repo folder. **NOTE** the
+  project must be previousley installed in `poetry` venv (e.g.,
+  `poetry install`):
 
-1. The path in the `MATHAIAGENT_CONFIG` environment variable, if set.
-2. `config.yaml` in the current working directory — the copy at the project
-   root, which is what you edit when running from a clone.
-3. `src/math_ai_agent/config/config.yaml` — the default bundled into the
-   package, used by `pip`-installed copies.
+    ```bash
+    # change to project git local directory
+    cd $(git rev-parse --show-toplevel) || exit
+    # e.g. export MATHAIAGENT_CONFIG="${HOME}/github/rubens/dev/python/math-ai-agent/config/config_local.yaml"
+    export MATHAIAGENT_CONFIG="/path/to/your/config_local.yaml"
+    # ensure below port does not conflict with locally running MCP server.
+    poetry run uvicorn math_ai_agent.app:app \
+      --host '127.0.0.1' --port '9090' --reload  
+    ```
 
-Because of step 2, run the app from the project root so your edits take effect.
+### Calculator MCP Server Running Remotely - OAuth Authentication
 
-When OAuth is enabled, set `OAUTH_STORAGE_ENCRYPTION_KEY` to a
-Fernet-compatible key.
+**NOTE:** requires OAuth authentication which currently only Rubens is able to
+authorize using his personal GitHub account.
 
-The LLM API key itself is never stored in `config.yaml` — the file only names
-the environment variable to read it from, so set that variable (whatever
-`llm.api_key_env` points at) before starting the server.
+- Launch the `math-ai-agent` from the local Git repo folder. **NOTE** the
+  project must be previousley installed in `poetry` venv (e.g.,
+  `poetry install`):
 
-`llm.model_base_url` must be the API **base** URL, not a full route: the SDK
-appends `/responses` or `/chat/completions` itself. Use
-`https://api.openai.com/v1`, not `https://api.openai.com/v1/chat/completions` —
-a full route produces requests to `.../chat/completions/chat/completions` and a
+    ```bash
+    # change to project git local directory
+    cd $(git rev-parse --show-toplevel) || exit
+    # e.g. export MATHAIAGENT_CONFIG="${HOME}/github/rubens/dev/python/math-ai-agent/config/config_remote.yaml"
+    export MATHAIAGENT_CONFIG="/path/to/your/config_remote.yaml"
+    # clean up previously created OAuth tokens
+    # e.g. rm -fr "~/.calc-mcp-token" 
+    rm -fr <token-dir-from-config>
+    # ensure below port does not conflict with locally running MCP server.
+    poetry run uvicorn math_ai_agent.app:app \
+      --host '127.0.0.1' --port '9090' --reload  
+    ```
 
-Switching providers is a config-only change. For example:
 
-| Provider             | `model_base_url`                      | `model`                             | `api_key_env`                 |
-|----------------------|---------------------------------------|-------------------------------------|-------------------------------|
-| NVIDIA (current)     | `https://integrate.api.nvidia.com/v1` | `nvidia/nemotron-3-super-120b-a12b` | `NVIDIA_API_KEY`              |
-| OpenRouter           | `https://openrouter.ai/api/v1`        | any slug from their catalog         | `OPENROUTER_API_KEY`          |
-| OpenAI               | `https://api.openai.com/v1`           | `gpt-5.6`                           | `OPENAI_API_KEY`              |
-| Ollama (local, free) | `http://localhost:11434/v1`           | `phi`                               | any variable set to any value |
+-
+
+```bash
+# located at project root folder
+export MATHAIAGENT_CONFIG=config/config_local.yaml
+```
+
+2. Ensure `calculator_mcp` running locally - Follow instructions of
+   `calculator_mcp` project.
+
+3.
+
+```bash
+# download dependencies and install code in `poetry` virtual envirnoment
+poetry install
+poetry run uvicorn math_ai_agent.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+- From now on
+
+### Model Notes
+
+#### NVDIDIA
 
 NVIDIA's catalog is public — `GET https://integrate.api.nvidia.com/v1/models`
 lists every served model id without authentication. Get a key from
 <https://build.nvidia.com> (free developer account); keys start with `nvapi-`.
+
+#### OpenRouter
 
 Two provider gotchas worth knowing. OpenRouter's `:free` model variants (for
 example `nvidia/nemotron-3-super-120b-a12b:free`) are capped at 50 requests per
@@ -122,6 +141,8 @@ responds noticeably slower per turn.
 
 Any OpenAI-compatible endpoint works, since the app talks to it through the
 OpenAI SDK. Which SDK surface it uses is controlled by `llm.api_style`.
+
+### Response vs Chat API
 
 **Responses API caveats.** Several providers label `/v1/responses` beta or
 experimental — OpenRouter's is beta and strictly stateless (it rejects
@@ -134,6 +155,8 @@ provider's catalog is
 necessarily served over its Responses endpoint — if a model 404s or 400s under
 `api_style: "responses"`, either pick a model that supports it or set
 `api_style: "chat"`.
+
+### Server-Side Storage
 
 **Server-side storage.** Both clients send `store=False` on every request, so
 neither API retains the conversation. This matters most on the Responses API,

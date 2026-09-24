@@ -61,6 +61,7 @@ from math_ai_agent.config.config import (
     get_api_style,
     get_model,
     get_model_base_url,
+    get_system_instructions,
 )
 from math_ai_agent.llm.client import ChatCompletionClient, ResponsesClient
 from math_ai_agent.mcp.calc_client import call_tool, get_calc_mcp_tools
@@ -68,19 +69,7 @@ from math_ai_agent.mcp.calc_client import call_tool, get_calc_mcp_tools
 configure_logging()
 logger = logging.getLogger(__name__)
 
-# Initial text to provide to the LLM context.
-_SYSTEM_INSTRUCTIONS = (
-    "You are a careful math assistant tutor helping solve math"
-    " problems. Always write a short plan first. Do NOT do"
-    " arithmetic in your head. For every math operation, request"
-    " a tool call to the calculator. After tool results, continue."
-    " Provide final answer with explanation."
-    " Respond in plain text only. Do NOT use LaTeX, Markdown, or"
-    " any other special formatting: no backslashes, no asterisks,"
-    " no dollar-sign or parenthesis math delimiters. Write math"
-    " inline, like 4 x 3 = 12. Your answer is shown in a plain"
-    " text box that cannot render formatting."
-)
+_SYSTEM_INSTRUCTIONS = get_system_instructions()
 
 
 # -------------------------------------------------

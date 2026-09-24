@@ -22,6 +22,30 @@
         rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
         crossorigin="anonymous">
+    <!-- Darker button colors for better white-text contrast -->
+    <style>
+        .btn-primary {
+            --bs-btn-bg: #084298;
+            --bs-btn-border-color: #084298;
+            --bs-btn-hover-bg: #052c65;
+            --bs-btn-hover-border-color: #052c65;
+            --bs-btn-active-bg: #052c65;
+            --bs-btn-active-border-color: #052c65;
+            --bs-btn-disabled-bg: #084298;
+            --bs-btn-disabled-border-color: #084298;
+        }
+
+        .btn-secondary {
+            --bs-btn-bg: #495057;
+            --bs-btn-border-color: #495057;
+            --bs-btn-hover-bg: #343a40;
+            --bs-btn-hover-border-color: #343a40;
+            --bs-btn-active-bg: #343a40;
+            --bs-btn-active-border-color: #343a40;
+            --bs-btn-disabled-bg: #495057;
+            --bs-btn-disabled-border-color: #495057;
+        }
+    </style>
 </head>
 <body>
 <header>
@@ -36,7 +60,6 @@
         </div>
     </noscript>
 </header>
->
 <div class="container">
     <h2>Math AI Agent!</h2>
     <p>Ask a math question. The app will use the MCP calculator for all
@@ -50,10 +73,19 @@
                       name="question"
                       class="form-control"
                       rows="3"></textarea>
+            <div class="invalid-feedback">
+                Please enter a math question.
+            </div>
         </div>
         <div class="col-12">
             <button id="button-submit-id" type="button" class="btn btn-primary">
+                <span id="spinner-submit-id"
+                      class="spinner-border spinner-border-sm d-none"
+                      aria-hidden="true"></span>
                 Submit
+            </button>
+            <button id="button-clear-id" type="button" class="btn btn-secondary">
+                Clear
             </button>
         </div>
     </form>
@@ -67,20 +99,58 @@
                       rows="3"
                       readonly></textarea>
         </div>
+        <div class="col-12">
+            <button id="button-clear-response-id" type="button" class="btn btn-secondary">
+                Clear
+            </button>
+        </div>
     </div>
 
 </div>
 
 <script>
-    document.getElementById("button-submit-id").onclick = async () => {
-        const prompt = document.getElementById("textarea-question-id").value;
-        const res = await fetch("/prompt/", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({text: prompt})
-        });
-        const data = await res.json();
-        document.getElementById("textarea-response-id").value = data.answer;
+    const submitButton = document.getElementById("button-submit-id");
+    const clearButton = document.getElementById("button-clear-id");
+    const submitSpinner = document.getElementById("spinner-submit-id");
+    const questionTextarea = document.getElementById("textarea-question-id");
+
+    questionTextarea.oninput = () => {
+        questionTextarea.classList.remove("is-invalid");
+    };
+
+    function setBusy(isBusy) {
+        submitButton.disabled = isBusy;
+        clearButton.disabled = isBusy;
+        submitSpinner.classList.toggle("d-none", !isBusy);
+    }
+
+    submitButton.onclick = async () => {
+        const prompt = questionTextarea.value;
+        if (prompt.trim() === "") {
+            questionTextarea.classList.add("is-invalid");
+            return;
+        }
+        setBusy(true);
+        try {
+            const res = await fetch("/prompt/", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({text: prompt})
+            });
+            const data = await res.json();
+            document.getElementById("textarea-response-id").value = data.answer;
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    clearButton.onclick = () => {
+        questionTextarea.value = "";
+        questionTextarea.classList.remove("is-invalid");
+    };
+
+    document.getElementById("button-clear-response-id").onclick = () => {
+        document.getElementById("textarea-response-id").value = "";
     };
 </script>
 
