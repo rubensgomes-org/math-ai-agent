@@ -7,8 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Colored log level names in console output via `colorlog`; plain when
+  stderr is not a terminal or `NO_COLOR` is set
+- `uvicorn` logger in `config.yaml`, so server startup and error logs use the
+  project's log format
+
+### Changed
+
+- The LLM system prompt moved from `_SYSTEM_INSTRUCTIONS` in `llm/agent.py`
+  to the new `llm.system_instructions` setting in `config.yaml`
+- `config.yaml` is parsed once into typed pydantic models by `get_config()`,
+  replacing the `get_*()` and `is_oauth()` getters; an invalid
+  `llm.api_style` now fails validation at startup
+- `models.py` renamed to `prompt.py`
+- Logging is configured once in `app.py` instead of on import of
+  `config.py`, `llm/agent.py`, and `llm/client.py`
+
+### Removed
+
+- Unused `server.calculator_mcp.timeout` setting and `get_timeout()`
+- `config.yaml` in the working directory is no longer loaded; set
+  `MATHAIAGENT_CONFIG` to use a config other than the packaged default
+
 ### Fixed
 
+- `CalcMCPClient` matches the current fastmcp API: `list_tools()` accepts
+  `cache_mode`, and tools are read via `input_schema` instead of the
+  deprecated `inputSchema`
 - `scripts/test_github.sh` now parses GitHub's JSON correctly. The patterns
   assumed no whitespace after the colon (`"full_name":"..."`), but the API
   returns `"full_name": "..."`, so Test 3 printed an empty repository name,
@@ -151,7 +178,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `math_ai_agent.config.config`
 - `config.yaml` is now visible at the project root; a copy remains inside the
   package as the default that ships in the wheel
-- `_resolve_config_path()` resolves in three steps: `CALCULATOR_MCP_CONFIG`,
+- `_resolve_config_path()` resolves in three steps: `MATHAIAGENT_CONFIG`,
   then `./config.yaml` in the working directory, then the packaged default
 - Raised the Python floor to `>=3.14` and upgraded fastmcp, openai,
   py-key-value-aio, black, coverage, pytest-asyncio, mypy, and poetry-core

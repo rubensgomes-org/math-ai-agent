@@ -55,11 +55,9 @@ from openai import OpenAI
 from math_ai_agent.config.config import (
     configure_logging,
     get_api_key,
-    get_model,
-    get_model_base_url,
+    get_config,
 )
 
-configure_logging()
 logger = logging.getLogger(__name__)
 
 _SYSTEM_INSTRUCTIONS = "You are a Python expert programmer.\n"
@@ -83,8 +81,8 @@ _SYSTEM_INSTRUCTIONS = "You are a Python expert programmer.\n"
 
 def run_client() -> None:
     """Connect to LLM and send a prompt."""
-    base_url = get_model_base_url()
-    model = get_model()
+    base_url = get_config().llm.model_base_url
+    model = get_config().llm.model
     logger.info("Connecting to %s using model %s", base_url, model)
     client = OpenAI(
         api_key=get_api_key(),
@@ -127,4 +125,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    configure_logging()
     main()

@@ -55,32 +55,11 @@ from typing import Any
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.responses import Response, ResponseFunctionToolCall
 
-from math_ai_agent.config.config import (
-    configure_logging,
-    get_api_key,
-    get_api_style,
-    get_model,
-    get_model_base_url,
-)
+from math_ai_agent.config.config import get_api_key, get_config
 from math_ai_agent.llm.client import ChatCompletionClient, ResponsesClient
 from math_ai_agent.mcp.calc_client import call_tool, get_calc_mcp_tools
 
-configure_logging()
 logger = logging.getLogger(__name__)
-
-# Initial text to provide to the LLM context.
-_SYSTEM_INSTRUCTIONS = (
-    "You are a careful math assistant tutor helping solve math"
-    " problems. Always write a short plan first. Do NOT do"
-    " arithmetic in your head. For every math operation, request"
-    " a tool call to the calculator. After tool results, continue."
-    " Provide final answer with explanation."
-    " Respond in plain text only. Do NOT use LaTeX, Markdown, or"
-    " any other special formatting: no backslashes, no asterisks,"
-    " no dollar-sign or parenthesis math delimiters. Write math"
-    " inline, like 4 x 3 = 12. Your answer is shown in a plain"
-    " text box that cannot render formatting."
-)
 
 
 # -------------------------------------------------
@@ -107,12 +86,15 @@ async def _chat_agent_loop(user_prompt: str) -> str:
             reason.
     """
     logger.debug("Starting AI LLM agent loop (chat completions)")
-    history: list[Any] = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
+    llm_config = get_config().llm
+    history: list[Any] = [
+        {"role": "system", "content": llm_config.system_instructions}
+    ]
     tools = await get_calc_mcp_tools("chat")
     llm = ChatCompletionClient(
         get_api_key(),
-        get_model_base_url(),
-        get_model(),
+        llm_config.model_base_url,
+        llm_config.model,
         tools,
     )
 
@@ -220,11 +202,14 @@ async def _responses_agent_loop(user_prompt: str) -> str:
             or an unknown incomplete reason.
     """
     logger.debug("Starting AI LLM agent loop (responses)")
+    llm_config = get_config().llm
+    # TODO: does the next code cache the MCP tools?
     tools = await get_calc_mcp_tools("responses")
+    # TODO: is llm a singleton instance?
     llm = ResponsesClient(
         get_api_key(),
-        get_model_base_url(),
-        get_model(),
+        llm_config.model_base_url,
+        llm_config.model,
         tools,
     )
 
@@ -232,16 +217,16 @@ async def _responses_agent_loop(user_prompt: str) -> str:
     # parameter, so it is not part of the input items.
     history: list[Any] = [{"role": "user", "content": user_prompt}]
     logger.debug("Sending user prompt: %s", user_prompt)
-    logger.debug("Starting agent loop.")
 
-    final_text = ""
+    logger.debug("==============================================")
+    logger.debug("========== >>> START AGENT LOOP <<< ==========")
 
     # -------------------------
     # Agent Loop
     # -------------------------
     while True:
         response: Response = await llm.create_response(
-            history, _SYSTEM_INSTRUCTIONS
+            history, llm_config.system_instructions
         )
         logger.debug("LLM response status: %s", response.status)
         usage = response.usage
@@ -254,26 +239,32 @@ async def _responses_agent_loop(user_prompt: str) -> str:
                 usage.total_tokens,
             )
         else:
-            logger.debug("No token usage reported in the response.")
+            logger.warning("No token usage reported in the response.")
 
+        logger.debug("response.status: %s", response.status)
         match response.status:
             case "completed":
+                # check if the LLM is asking us to run any tool
                 tool_calls = [
                     item
                     for item in response.output
                     if isinstance(item, ResponseFunctionToolCall)
                 ]
-                if not tool_calls:
-                    final_text = response.output_text
+
+                if tool_calls:
+                    logger.info("LLM is asking us to call tool(s): %s",
+                                tool_calls)
+                else:
                     logger.info(
-                        "Assistant (LLM) response (status=%s): %s",
+                        "LLM is done with final response (status=%s): %s",
                         response.status,
-                        final_text,
+                        response.output_text,
                     )
                     break
 
-                # Stateless replay: echo every output Item back as
-                # input so the model keeps its reasoning context.
+                logger.debug("STATELESS REPLAY: echo every output Item back "
+                             "as input so the model keeps its reasoning "
+                             "context.")
                 history.extend(
                     item.model_dump(exclude_none=True)
                     for item in response.output
@@ -329,6 +320,8 @@ async def _responses_agent_loop(user_prompt: str) -> str:
                     f" (status={response.status})"
                 )
                 logger.error(error)
+                logger.debug("====== >>> END AGENT LOOP W/FAILURE <<< ======")
+                logger.debug("==============================================")
                 raise RuntimeError(error)
 
             case "queued" | "in_progress":
@@ -342,10 +335,14 @@ async def _responses_agent_loop(user_prompt: str) -> str:
             case _:
                 error = f"Unknown response status: {response.status}"
                 logger.error(error)
+                logger.debug("====== >>> END AGENT LOOP W/FAILURE <<< ======")
+                logger.debug("==============================================")
                 raise ValueError(error)
 
     logger.debug("Returning final response message from LLM.")
-    return final_text or ""
+    logger.debug("=========== >>> END AGENT LOOP <<< ===========")
+    logger.debug("==============================================")
+    return response.output_text or ""
 
 
 async def agent_loop(user_prompt: str) -> str:
@@ -360,7 +357,6 @@ async def agent_loop(user_prompt: str) -> str:
     Returns:
         The final text response from the LLM.
     """
-    api_style = get_api_style()
-    if api_style == "responses":
+    if get_config().llm.api_style == "responses":
         return await _responses_agent_loop(user_prompt)
     return await _chat_agent_loop(user_prompt)

@@ -57,13 +57,9 @@ from fastmcp import Client
 from fastmcp.client.auth import OAuth
 from key_value.aio.stores.disk import DiskStore
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
+from mcp.client.caching import CacheMode
 
-from math_ai_agent.config.config import (
-    get_callback_port,
-    get_token_dir,
-    get_url,
-    is_oauth,
-)
+from math_ai_agent.config.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +68,7 @@ class CalcMCPClient(Client):
     """Calculator MCP client extending ``fastmcp.Client``.
 
     Builds the correct transport and auth from ``config.yaml``,
-    pings on connect, and maintains a class-level tool cache.
+    and maintains a class-level tool cache.
 
     Usage::
 
@@ -86,12 +82,13 @@ class CalcMCPClient(Client):
     def __init__(self) -> None:
         """Initialize the calculator MCP client."""
         logger.debug("Instantiating CalcMCPClient")
-        url = get_url()
+        mcp_config = get_config().server.calculator_mcp
+        url = mcp_config.url
         logger.info("Creating HTTP MCP client: %s", url)
 
-        if is_oauth():
+        if mcp_config.is_oauth:
             logger.info("OAuth enabled, using OAuthClient")
-            token_dir = get_token_dir()
+            token_dir = mcp_config.token_dir
             logger.debug(
                 "Creating encrypted disk storage for OAuth tokens: %s",
                 token_dir,
@@ -102,7 +99,7 @@ class CalcMCPClient(Client):
             )
             oauth = OAuth(
                 token_storage=encrypted_storage,
-                callback_port=get_callback_port(),
+                callback_port=mcp_config.callback_port,
                 additional_client_metadata={
                     "token_endpoint_auth_method": ("client_secret_post"),
                 },
@@ -115,8 +112,6 @@ class CalcMCPClient(Client):
         """Connect to the MCP server and populate the tool cache."""
         logger.debug("Connecting to Calculator MCP server")
         await super().__aenter__()
-        logger.debug("Pinging MCP server")
-        await self.ping()
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
@@ -124,11 +119,14 @@ class CalcMCPClient(Client):
         logger.debug("Closing CalcMCPClient")
         await super().__aexit__(exc_type, exc, tb)
 
-    async def list_tools(self, max_pages: int = 0) -> list[mcp.types.Tool]:
+    async def list_tools(
+        self, max_pages: int = 250, *, cache_mode: CacheMode = "use"
+    ) -> list[mcp.types.Tool]:
         """Return cached tools, fetching from the server on first call.
 
         Thread-safe via an ``asyncio.Lock``.  Subsequent calls return
         the cached list without contacting the server.
+        The arguments are forwarded to the first fetch only.
 
         Returns:
             The list of tools available on the MCP server.
@@ -138,7 +136,9 @@ class CalcMCPClient(Client):
                 logger.debug(
                     "CalcMCPClient._tools is empty:" " fetching from MCP server"
                 )
-                CalcMCPClient._tools = await super().list_tools()
+                CalcMCPClient._tools = await super().list_tools(
+                    max_pages, cache_mode=cache_mode
+                )
             return CalcMCPClient._tools
 
     async def to_openai_tools(self) -> list[dict]:
@@ -169,7 +169,7 @@ class CalcMCPClient(Client):
             func: dict = {"name": tool.name}
             if tool.description:
                 func["description"] = tool.description
-            func["parameters"] = tool.inputSchema
+            func["parameters"] = tool.input_schema
             openai_tools.append({"type": "function", "function": func})
         logger.debug(
             "Converted %d MCP tools to OpenAI format",
@@ -206,7 +206,7 @@ class CalcMCPClient(Client):
             func: dict = {"type": "function", "name": tool.name}
             if tool.description:
                 func["description"] = tool.description
-            func["parameters"] = tool.inputSchema
+            func["parameters"] = tool.input_schema
             responses_tools.append(func)
         logger.debug(
             "Converted %d MCP tools to Responses format",

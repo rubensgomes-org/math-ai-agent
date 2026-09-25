@@ -36,12 +36,37 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Pydantic models for request validation."""
+"""Shared pytest fixtures."""
 
-from pydantic import BaseModel
+import pytest
+
+from math_ai_agent.config.config import AppConfig
 
 
-class Prompt(BaseModel):
-    """The text message sent by the user in the web chat."""
-
-    text: str
+@pytest.fixture()
+def app_config() -> AppConfig:
+    """Return a minimal ``AppConfig`` with test values."""
+    return AppConfig.model_validate(
+        {
+            "llm": {
+                "api_style": "chat",
+                "model_base_url": "http://localhost:11434/v1",
+                "model": "test-model",
+                "api_key_env": "TEST_LLM_KEY",
+                "system_instructions": "Test instructions.",
+            },
+            "server": {
+                "calculator_mcp": {
+                    "url": "http://localhost:9000/mcp",
+                    "is_oauth": False,
+                    "token_dir": "/tmp/test-tokens",
+                    "callback_port": 10000,
+                }
+            },
+            "logging": {
+                "version": 1,
+                "disable_existing_loggers": False,
+                "root": {"level": "WARNING"},
+            },
+        }
+    )

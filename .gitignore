@@ -112,9 +112,63 @@ mlruns/
 *.crt
 secrets/
 
+# Local working notes. Kept out of this public repository because they hold
+# host/infrastructure details (VPS addresses, DNS records).
+TODO.md
+
 # IDE
 *.swp
 *.swo
 
-# MISC
-TODO.md
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### AI plan files ###
+misc/tasks/
+
+### ---------- >>> Secrets <<< ---------- ###
+# Core secrets files
+.env.local
+.env.*.local
+
+# API keys and certificates
+*.cer
+*.pub
+*.pfx
+*.p12
+*.keystore
+*.jks
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+jwt.secret
+certs/
+
+###############################################################################
+# Sonar (static analysis built files)
+###############################################################################
+
+# SonarQube scanner files
+.sonar/
+.scannerwork/
+**/.scannerwork/
+
+# SonarLint local files (if using IDE plugins)
+.sonarlint/
+
+# do not added coverage results
+coverage.xml

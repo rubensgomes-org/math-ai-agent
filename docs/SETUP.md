@@ -273,6 +273,10 @@ environment to successfully run the following commands.
 
     # Sort imports
     poetry run isort src/ tests/
+
+    # Run sonar analysis
+    poetry run pytest --cov --cov-branch --cov-report=xml
+    poetry run pysonar --sonar-python-coverage-report-paths=coverage.xml
     ```
 
 - Different commands to run tests:

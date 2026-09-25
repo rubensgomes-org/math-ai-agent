@@ -38,13 +38,51 @@
 
 """Configuration helpers — loads config.yaml and configures logging."""
 
+import functools
 import logging
 import logging.config
 import os
 from importlib.resources import files
 from pathlib import Path
+from typing import Any, Literal
 
 import yaml
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+
+class LLMConfig(BaseModel):
+    """The ``llm`` section of config.yaml."""
+
+    api_style: Literal["chat", "responses"] = "chat"
+    model_base_url: str
+    model: str
+    api_key_env: str
+    system_instructions: str
+
+
+class CalculatorMCPConfig(BaseModel):
+    """The ``server.calculator_mcp`` section of config.yaml."""
+
+    url: str
+    is_oauth: bool = False
+    token_dir: str
+    callback_port: int
+
+
+class ServerConfig(BaseModel):
+    """The ``server`` section of config.yaml."""
+
+    calculator_mcp: CalculatorMCPConfig
+
+
+class AppConfig(BaseModel):
+    """The full config.yaml; ``logging`` is a ``dictConfig`` mapping."""
+
+    llm: LLMConfig
+    server: ServerConfig
+    logging: dict[str, Any]
 
 
 def _resolve_config_path() -> Path:
@@ -52,158 +90,39 @@ def _resolve_config_path() -> Path:
 
     Resolution order:
 
-    1. The ``CALCULATOR_MCP_CONFIG`` environment variable, when set.
-    2. A ``config.yaml`` in the current working directory — this is
-       the copy at the project root, and is what you edit when
-       running from a clone.
-    3. The ``config.yaml`` bundled inside the
-       ``math_ai_agent.config`` package, which ships in the wheel and
-       serves as the default for installed copies.
+    1. The ``MATHAIAGENT_CONFIG`` environment variable, when set.
+    2. The ``config.yaml`` bundled inside the
+       ``math_ai_agent.config`` package.
 
     Returns:
         The resolved path to config.yaml.
     """
-    env_path = os.environ.get("CALCULATOR_MCP_CONFIG")
+    env_path = os.environ.get("MATHAIAGENT_CONFIG")
     if env_path:
         return Path(env_path)
-    cwd_path = Path.cwd() / "config.yaml"
-    if cwd_path.is_file():
-        return cwd_path
     return Path(str(files("math_ai_agent.config").joinpath("config.yaml")))
 
 
-_CONFIG_PATH = _resolve_config_path()
+def load_config(path: Path) -> AppConfig:
+    """Parse and validate the config file at ``path``.
 
-
-def _load_config() -> dict:
-    """Load and return the full config.yaml as a dict.
-
-    Returns:
-        The parsed YAML configuration.
+    Raises:
+        pydantic.ValidationError: If the file does not match the models.
     """
-    with open(_CONFIG_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    with open(path, encoding="utf-8") as f:
+        return AppConfig.model_validate(yaml.safe_load(f))
+
+
+@functools.cache
+def get_config() -> AppConfig:
+    """Return the application config, loaded once on first call."""
+    return load_config(_resolve_config_path())
 
 
 def configure_logging() -> None:
     """Apply the logging configuration from config.yaml."""
-    config = _load_config()
-    logging.config.dictConfig(config["logging"])
-
-
-configure_logging()
-
-logger = logging.getLogger(__name__)
-logger.debug("Config path resolved to %s", _CONFIG_PATH)
-
-
-def get_timeout() -> int:
-    """Return the HTTP client timeout (seconds) from config.yaml.
-
-    Returns:
-        The timeout in seconds.
-    """
-    config = _load_config()
-    timeout: int = config["server"]["calculator_mcp"]["timeout"]
-    logger.info("HTTP client timeout: %s seconds", timeout)
-    return timeout
-
-
-def is_oauth() -> bool:
-    """Return whether OAuth is enabled from config.yaml.
-
-    Returns:
-        True if the calculator_mcp is_oauth setting is true, False otherwise.
-    """
-    config = _load_config()
-    oauth: bool = config["server"]["calculator_mcp"].get("is_oauth", False)
-    logger.info("OAuth enabled: %s", oauth)
-    return oauth
-
-
-def get_url() -> str:
-    """Return the calculator MCP server URL from config.yaml.
-
-    Returns:
-        The MCP server URL string.
-    """
-    config = _load_config()
-    url: str = config["server"]["calculator_mcp"]["url"]
-    logger.info("MCP server URL: %s", url)
-    return url
-
-
-def get_token_dir() -> str:
-    """Return the OAuth token directory from config.yaml.
-
-    Returns:
-        The token directory path string.
-    """
-    config = _load_config()
-    token_dir: str = config["server"]["calculator_mcp"]["token_dir"]
-    logger.info("OAuth token directory: %s", token_dir)
-    return token_dir
-
-
-def get_callback_port() -> int:
-    """Return the OAuth callback server port from config.yaml.
-
-    Returns:
-        The callback port number.
-    """
-    config = _load_config()
-    port: int = config["server"]["calculator_mcp"]["callback_port"]
-    logger.info("OAuth callback port: %s", port)
-    return port
-
-
-def get_model_base_url() -> str:
-    """Return the LLM model base URL from config.yaml.
-
-    Returns:
-        The model base URL string.
-    """
-    config = _load_config()
-    url: str = config["llm"]["model_base_url"]
-    logger.info("LLM model base URL: %s", url)
-    return url
-
-
-def get_model() -> str:
-    """Return the LLM model identifier from config.yaml.
-
-    Returns:
-        The model identifier string.
-    """
-    config = _load_config()
-    model: str = config["llm"]["model"]
-    logger.info("LLM model: %s", model)
-    return model
-
-
-def get_api_style() -> str:
-    """Return the OpenAI API style from config.yaml.
-
-    The ``llm.api_style`` setting selects which OpenAI API the LLM
-    client uses: ``"responses"`` for the Responses API
-    (``POST /v1/responses``) or ``"chat"`` for the legacy Chat
-    Completions API (``POST /v1/chat/completions``).  Defaults to
-    ``"chat"`` when the setting is absent.
-
-    Returns:
-        Either ``"responses"`` or ``"chat"``.
-
-    Raises:
-        ValueError: If the configured style is not recognised.
-    """
-    config = _load_config()
-    style: str = config["llm"].get("api_style", "chat")
-    if style not in ("chat", "responses"):
-        error = f"Unknown llm.api_style: {style}"
-        logger.error(error)
-        raise ValueError(error)
-    logger.info("LLM API style: %s", style)
-    return style
+    logging.config.dictConfig(get_config().logging)
+    logger.debug("Loaded config from %s", _resolve_config_path())
 
 
 def get_api_key() -> str:
@@ -219,8 +138,7 @@ def get_api_key() -> str:
     Raises:
         RuntimeError: If the environment variable is not set or empty.
     """
-    config = _load_config()
-    env_name: str = config["llm"]["api_key_env"]
+    env_name = get_config().llm.api_key_env
     logger.info("LLM API key environment variable: %s", env_name)
     api_key = os.environ.get(env_name)
     if not api_key:

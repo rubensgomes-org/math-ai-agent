@@ -50,7 +50,7 @@ from openai.types.responses import (
 )
 
 from math_ai_agent.llm import agent as llm_module
-from math_ai_agent.llm.agent import _SYSTEM_INSTRUCTIONS, agent_loop
+from math_ai_agent.llm.agent import agent_loop
 from math_ai_agent.llm.client import ResponsesClient
 
 # ---------------------------------------------------------------------------
@@ -60,6 +60,7 @@ from math_ai_agent.llm.client import ResponsesClient
 _API_KEY = "test-api-key"
 _BASE_URL = "http://localhost:11434/v1"
 _MODEL = "test-model"
+_INSTRUCTIONS = "Test instructions."
 _USAGE = SimpleNamespace(
     input_tokens=10,
     output_tokens=5,
@@ -203,7 +204,7 @@ async def test_create_response_returns_response():
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
     history = [{"role": "user", "content": "4+4?"}]
-    result = await client.create_response(history, _SYSTEM_INSTRUCTIONS)
+    result = await client.create_response(history, _INSTRUCTIONS)
 
     assert result is fake_response
     assert result.output_text == "The answer is 8"
@@ -219,13 +220,13 @@ async def test_create_response_sends_expected_arguments():
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
     history = [{"role": "user", "content": "4+4?"}]
-    await client.create_response(history, _SYSTEM_INSTRUCTIONS)
+    await client.create_response(history, _INSTRUCTIONS)
 
     mock_create.assert_awaited_once_with(
         model=_MODEL,
         input=history,
         tools=_TOOLS,
-        instructions=_SYSTEM_INSTRUCTIONS,
+        instructions=_INSTRUCTIONS,
         store=False,
     )
 
@@ -240,7 +241,7 @@ async def test_create_response_with_function_call():
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
     result = await client.create_response(
-        [{"role": "user", "content": "4+4?"}], _SYSTEM_INSTRUCTIONS
+        [{"role": "user", "content": "4+4?"}], _INSTRUCTIONS
     )
 
     assert result.output_text == ""
@@ -253,8 +254,8 @@ async def test_create_response_with_function_call():
 
 
 @pytest.fixture()
-def agent_env():
-    """Patch config getters, MCP tool discovery, and tool dispatch.
+def agent_env(app_config):
+    """Patch config, MCP tool discovery, and tool dispatch.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
     one entry per ``create_response`` call, whose ``histories`` list
@@ -263,6 +264,7 @@ def agent_env():
     and whose ``call_tool`` mock records every dispatched calculator
     tool call.
     """
+    app_config.llm.api_style = "responses"
     env = SimpleNamespace(
         responses=[],
         histories=[],
@@ -279,10 +281,8 @@ def agent_env():
         patch.object(
             llm_module, "get_calc_mcp_tools", AsyncMock(return_value=_TOOLS)
         ),
-        patch.object(llm_module, "get_api_style", return_value="responses"),
+        patch.object(llm_module, "get_config", return_value=app_config),
         patch.object(llm_module, "get_api_key", return_value=_API_KEY),
-        patch.object(llm_module, "get_model_base_url", return_value=_BASE_URL),
-        patch.object(llm_module, "get_model", return_value=_MODEL),
         patch.object(llm_module, "call_tool", env.call_tool),
         patch.object(
             ResponsesClient, "create_response", side_effect=_next_response
@@ -330,8 +330,8 @@ async def test_agent_loop_passes_system_instructions(agent_env):
     ]
     await agent_loop("4+4?")
     assert agent_env.instructions == [
-        _SYSTEM_INSTRUCTIONS,
-        _SYSTEM_INSTRUCTIONS,
+        _INSTRUCTIONS,
+        _INSTRUCTIONS,
     ]
 
 

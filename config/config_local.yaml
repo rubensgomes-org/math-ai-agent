@@ -1,50 +1,44 @@
 # =============================================================================
-# Server Configuration
-# =============================================================================
-server:
-    calculator_mcp:
-        #    is_oauth: false
-        #    url: "http://127.0.0.1:9000/mcp"
-        is_oauth: true
-        url: "https://rubens-calculator-mcp.fastmcp.app/mcp"
-        # location to store OAuth token
-        token_dir: "/tmp/.fastmcp/oauth-tokens"
-        # fixed port for the OAuth callback server
-        callback_port: 10000
-        # timeout in seconds
-        timeout: 10
-
-# =============================================================================
 # LLM Configuration
 # =============================================================================
 llm:
-    # Which OpenAI API the LLM client uses:
+    # OpenAI API the LLM client uses:
     #   "responses" -> POST /v1/responses         (primary OpenAI API)
     #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
-    # Both work against NVIDIA; switch to "chat" if the provider's
-    # Responses endpoint misbehaves.
+    # Both work against NVIDIA nemotron models
     api_style: "responses"
-
-    # Base URL of the LLM model inference endpoint (no route suffix).
+    # Base NVIDIA LLM models URL
     model_base_url: "https://integrate.api.nvidia.com/v1"
-    # Model identifier. NVIDIA's served catalog is public:
-    #   GET https://integrate.api.nvidia.com/v1/models
+    # Nemotron frontier NVIDIA models for agentic workflows, coding and tool use
+    # see list of NVIDIA models: https://integrate.api.nvidia.com/v1/models
     model: "nvidia/nemotron-3-super-120b-a12b"
     # Name of the environment variable holding the API key.
-    # The key value itself is NEVER stored in this file.
     # Get a key from https://build.nvidia.com (keys start with "nvapi-").
     api_key_env: "NVIDIA_API_KEY"
+    # System prompt sent to the **stateless** LLM on every request.
+    system_instructions: >-
+        You are a careful math assistant tutor helping solve math problems.
+        Always write a short plan first. Do NOT do arithmetic in your head.
+        For every math operation, request a tool call to the calculator.
+        After tool results, continue. Provide final answer with explanation.
+        Respond in plain text only. Do NOT use LaTeX, Markdown, or any other
+        special formatting: no backslashes, no asterisks, no dollar-sign or
+        parenthesis math delimiters. Write math inline, like 4 x 3 = 12.
+        Your answer is shown in a plain text box that cannot render
+        formatting.
 
-    # OpenRouter alternative. Its free tier allows only 50 requests per
-    # day, after which requests fail with 429 free-models-per-day. The
-    # ":free" suffix is OpenRouter slug syntax and is not a valid model
-    # id on any other provider.
-    #   model_base_url: "https://openrouter.ai/api/v1"
-    #   model: "nvidia/nemotron-3-super-120b-a12b:free"
-    #   api_key_env: "OPENROUTER_API_KEY"
-    # Local Ollama alternative (see OLLAMA.md):
-    #   model_base_url: "http://localhost:11434/v1"
-    #   model: "phi"
+# =============================================================================
+# Calculator MCP Server Configuration
+# =============================================================================
+server:
+    calculator_mcp:
+        # URL of the "local" Calculator MCP Server End-Point
+        url: "http://127.0.0.1:8080/mcp"
+        is_oauth: false
+        # token_dir not needed when OAuth is not used.
+        token_dir: ""
+        # callback_port not needed when OAuth is not used.
+        callback_port: 0
 
 # =============================================================================
 # Logging Configuration
@@ -53,8 +47,19 @@ logging:
     version: 1
     disable_existing_loggers: false
     formatters:
+        # Colors level name and message; plain if stderr is not a TTY or NO_COLOR
+        # set environment variable NO_COLOR=true for plain text with no color.
         standard:
-            format: "%(asctime)s [%(levelname)s] %(name)s %(filename)s:%(lineno)d: %(message)s"
+            (): colorlog.ColoredFormatter
+            fmt: "%(asctime)s %(log_color)s[%(levelname)s]%(reset)s %(fg_147)s%(name)s %(filename)s:%(lineno)d%(reset)s: %(log_color)s%(message)s%(reset)s"
+            datefmt: "%H:%M:%S"
+            log_colors:
+                DEBUG: cyan
+                INFO: light_green
+                WARNING: yellow
+                ERROR: red
+                CRITICAL: bold_red
+            stream: ext://sys.stderr
     handlers:
         console:
             class: logging.StreamHandler
@@ -80,12 +85,18 @@ logging:
             propagate: false
         # OpenAI SDK logging — set to DEBUG for request/response detail
         openai:
-            level: DEBUG
+            level: INFO
             handlers:
                 - console
             propagate: false
         # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
         httpcore:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # Server: startup, shutdown, and errors
+        uvicorn:
             level: INFO
             handlers:
                 - console

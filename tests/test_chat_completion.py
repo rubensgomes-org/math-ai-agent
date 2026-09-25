@@ -331,8 +331,8 @@ def _make_tool_call(call_id="call-1", name="add", arguments='{"a": 4, "b": 4}'):
 
 
 @pytest.fixture()
-def agent_env():
-    """Patch config getters, MCP tool discovery, and tool dispatch.
+def agent_env(app_config):
+    """Patch config, MCP tool discovery, and tool dispatch.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
     one entry per ``create_response`` call, and whose ``call_tool``
@@ -347,10 +347,8 @@ def agent_env():
         patch.object(
             llm_module, "get_calc_mcp_tools", AsyncMock(return_value=_TOOLS)
         ),
-        patch.object(llm_module, "get_api_style", return_value="chat"),
+        patch.object(llm_module, "get_config", return_value=app_config),
         patch.object(llm_module, "get_api_key", return_value=_API_KEY),
-        patch.object(llm_module, "get_model_base_url", return_value=_BASE_URL),
-        patch.object(llm_module, "get_model", return_value=_MODEL),
         patch.object(llm_module, "call_tool", env.call_tool),
         patch.object(
             ChatCompletionClient, "create_response", side_effect=_next_response
@@ -477,12 +475,13 @@ async def test_agent_loop_dispatches_multiple_tool_calls(agent_env):
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_dispatches_to_chat_loop():
+async def test_agent_loop_dispatches_to_chat_loop(app_config):
     """An api_style of "chat" routes to the Chat Completions loop."""
     chat = AsyncMock(return_value="chat answer")
+    app_config.llm.api_style = "chat"
     responses = AsyncMock(return_value="responses answer")
     with (
-        patch.object(llm_module, "get_api_style", return_value="chat"),
+        patch.object(llm_module, "get_config", return_value=app_config),
         patch.object(llm_module, "_chat_agent_loop", chat),
         patch.object(llm_module, "_responses_agent_loop", responses),
     ):
@@ -492,12 +491,13 @@ async def test_agent_loop_dispatches_to_chat_loop():
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_dispatches_to_responses_loop():
+async def test_agent_loop_dispatches_to_responses_loop(app_config):
     """An api_style of "responses" routes to the Responses loop."""
     chat = AsyncMock(return_value="chat answer")
+    app_config.llm.api_style = "responses"
     responses = AsyncMock(return_value="responses answer")
     with (
-        patch.object(llm_module, "get_api_style", return_value="responses"),
+        patch.object(llm_module, "get_config", return_value=app_config),
         patch.object(llm_module, "_chat_agent_loop", chat),
         patch.object(llm_module, "_responses_agent_loop", responses),
     ):

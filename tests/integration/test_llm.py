@@ -50,13 +50,11 @@ import logging
 from math_ai_agent.config.config import (
     configure_logging,
     get_api_key,
-    get_model,
-    get_model_base_url,
+    get_config,
 )
 from math_ai_agent.llm.client import ChatCompletionClient
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 
-configure_logging()
 logger = logging.getLogger(__name__)
 
 # LLM endpoint, model, and API key env var come from config.yaml.
@@ -95,8 +93,8 @@ async def prompt_llm() -> None:
     tools = await get_mcp_tools()
     llm = ChatCompletionClient(
         get_api_key(),
-        get_model_base_url(),
-        get_model(),
+        get_config().llm.model_base_url,
+        get_config().llm.model,
         tools,
     )
     messages.append({"role": "user", "content": "4+4?"})
@@ -113,4 +111,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    configure_logging()
     asyncio.run(main())

@@ -39,32 +39,39 @@
 """Unit tests for :mod:`math_ai_agent.config.config`."""
 
 import logging
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from math_ai_agent.config import config
 
 
+@pytest.fixture(autouse=True)
+def _clear_config_cache():
+    """Isolate each test from the cached ``get_config()`` result."""
+    config.get_config.cache_clear()
+    yield
+    config.get_config.cache_clear()
+
+
 @pytest.fixture()
-def tmp_config(tmp_path):
-    """Write a minimal config.yaml and patch _CONFIG_PATH to point at it."""
-    cfg = {
+def cfg():
+    """Return a minimal config.yaml mapping."""
+    return {
         "server": {
             "calculator_mcp": {
                 "url": "http://localhost:9000/mcp",
                 "is_oauth": False,
                 "token_dir": "/tmp/tokens",
                 "callback_port": 12345,
-                "timeout": 30,
             }
         },
         "llm": {
             "model_base_url": "http://localhost:11434/v1",
             "model": "test-model",
             "api_key_env": "TEST_LLM_KEY",
+            "system_instructions": "Test instructions.",
         },
         "logging": {
             "version": 1,
@@ -78,10 +85,20 @@ def tmp_config(tmp_path):
             "root": {"level": "WARNING", "handlers": ["console"]},
         },
     }
-    cfg_path = tmp_path / "config.yaml"
-    cfg_path.write_text(yaml.dump(cfg))
-    with patch.object(config, "_CONFIG_PATH", cfg_path):
-        yield cfg
+
+
+def _write(tmp_path, mapping):
+    """Write ``mapping`` as YAML and return the file path."""
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.dump(mapping))
+    return path
+
+
+@pytest.fixture()
+def env_config(tmp_path, monkeypatch, cfg):
+    """Point ``MATHAIAGENT_CONFIG`` at a written copy of ``cfg``."""
+    monkeypatch.setenv("MATHAIAGENT_CONFIG", str(_write(tmp_path, cfg)))
+    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -92,44 +109,99 @@ def tmp_config(tmp_path):
 def test_resolve_config_path_uses_env_var(tmp_path, monkeypatch):
     custom = tmp_path / "custom.yaml"
     custom.touch()
-    monkeypatch.setenv("CALCULATOR_MCP_CONFIG", str(custom))
+    monkeypatch.setenv("MATHAIAGENT_CONFIG", str(custom))
     assert config._resolve_config_path() == custom
 
 
-def test_resolve_config_path_uses_cwd(tmp_path, monkeypatch):
-    """A config.yaml in the cwd wins over the packaged default."""
-    monkeypatch.delenv("CALCULATOR_MCP_CONFIG", raising=False)
+def test_resolve_config_path_ignores_cwd(tmp_path, monkeypatch):
+    """A config.yaml in the cwd does not override the packaged default."""
+    monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
     cwd_cfg = tmp_path / "config.yaml"
     cwd_cfg.touch()
     monkeypatch.chdir(tmp_path)
-    assert config._resolve_config_path() == cwd_cfg
+    assert config._resolve_config_path() != cwd_cfg
 
 
 def test_resolve_config_path_falls_back_to_package(tmp_path, monkeypatch):
-    """With no env var and no cwd config, the packaged default is used."""
-    monkeypatch.delenv("CALCULATOR_MCP_CONFIG", raising=False)
-    monkeypatch.chdir(tmp_path)  # empty dir -- no config.yaml
+    """With no env var, the packaged default is used."""
+    monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
+    monkeypatch.chdir(tmp_path)
     result = config._resolve_config_path()
     assert result.name == "config.yaml"
     assert "math_ai_agent" in str(result)
 
 
 def test_resolve_config_path_default(monkeypatch):
-    monkeypatch.delenv("CALCULATOR_MCP_CONFIG", raising=False)
+    monkeypatch.delenv("MATHAIAGENT_CONFIG", raising=False)
     result = config._resolve_config_path()
     assert result.name == "config.yaml"
 
 
 # ---------------------------------------------------------------------------
-# _load_config
+# load_config
 # ---------------------------------------------------------------------------
 
 
-def test_load_config_returns_dict(tmp_config):
-    result = config._load_config()
-    assert isinstance(result, dict)
-    assert "server" in result
-    assert "logging" in result
+def test_load_config_parses_values(tmp_path, cfg):
+    result = config.load_config(_write(tmp_path, cfg))
+    assert result.llm.model == "test-model"
+    assert result.llm.model_base_url == "http://localhost:11434/v1"
+    assert result.llm.system_instructions == "Test instructions."
+    assert result.server.calculator_mcp.url == "http://localhost:9000/mcp"
+    assert result.server.calculator_mcp.token_dir == "/tmp/tokens"
+    assert result.server.calculator_mcp.callback_port == 12345
+    assert result.logging["version"] == 1
+
+
+def test_load_config_api_style_defaults_to_chat(tmp_path, cfg):
+    assert config.load_config(_write(tmp_path, cfg)).llm.api_style == "chat"
+
+
+def test_load_config_api_style_responses(tmp_path, cfg):
+    cfg["llm"]["api_style"] = "responses"
+    result = config.load_config(_write(tmp_path, cfg))
+    assert result.llm.api_style == "responses"
+
+
+def test_load_config_unknown_api_style_raises(tmp_path, cfg):
+    cfg["llm"]["api_style"] = "wat"
+    with pytest.raises(ValidationError, match="api_style"):
+        config.load_config(_write(tmp_path, cfg))
+
+
+def test_load_config_is_oauth_true(tmp_path, cfg):
+    cfg["server"]["calculator_mcp"]["is_oauth"] = True
+    result = config.load_config(_write(tmp_path, cfg))
+    assert result.server.calculator_mcp.is_oauth is True
+
+
+def test_load_config_is_oauth_missing_defaults_false(tmp_path, cfg):
+    del cfg["server"]["calculator_mcp"]["is_oauth"]
+    result = config.load_config(_write(tmp_path, cfg))
+    assert result.server.calculator_mcp.is_oauth is False
+
+
+def test_load_config_missing_section_raises(tmp_path, cfg):
+    del cfg["llm"]
+    with pytest.raises(ValidationError, match="llm"):
+        config.load_config(_write(tmp_path, cfg))
+
+
+# ---------------------------------------------------------------------------
+# get_config
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.usefixtures("env_config")
+def test_get_config_reads_env_path():
+    assert config.get_config().llm.model == "test-model"
+
+
+@pytest.mark.usefixtures("env_config")
+def test_get_config_is_cached(monkeypatch):
+    first = config.get_config()
+    monkeypatch.delenv("MATHAIAGENT_CONFIG")
+    assert config.get_config() is first
 
 
 # ---------------------------------------------------------------------------
@@ -137,156 +209,10 @@ def test_load_config_returns_dict(tmp_config):
 # ---------------------------------------------------------------------------
 
 
-def test_configure_logging_applies_config(tmp_config):
+@pytest.mark.usefixtures("env_config")
+def test_configure_logging_applies_config():
     config.configure_logging()
-    root = logging.getLogger()
-    assert root.level == logging.WARNING
-
-
-# ---------------------------------------------------------------------------
-# get_timeout
-# ---------------------------------------------------------------------------
-
-
-def test_get_timeout(tmp_config):
-    assert config.get_timeout() == 30
-
-
-# ---------------------------------------------------------------------------
-# is_oauth
-# ---------------------------------------------------------------------------
-
-
-def test_is_oauth_false(tmp_config):
-    assert config.is_oauth() is False
-
-
-def test_is_oauth_true(tmp_path):
-    cfg = {
-        "server": {
-            "calculator_mcp": {
-                "url": "http://localhost/mcp",
-                "is_oauth": True,
-                "token_dir": "/tmp/tokens",
-                "callback_port": 10000,
-                "timeout": 10,
-            }
-        },
-        "logging": {
-            "version": 1,
-            "disable_existing_loggers": False,
-            "root": {"level": "WARNING"},
-        },
-    }
-    cfg_path = tmp_path / "config.yaml"
-    cfg_path.write_text(yaml.dump(cfg))
-    with patch.object(config, "_CONFIG_PATH", cfg_path):
-        assert config.is_oauth() is True
-
-
-def test_is_oauth_missing_defaults_false(tmp_path):
-    cfg = {
-        "server": {
-            "calculator_mcp": {
-                "url": "http://localhost/mcp",
-                "token_dir": "/tmp/tokens",
-                "callback_port": 10000,
-                "timeout": 10,
-            }
-        },
-        "logging": {
-            "version": 1,
-            "disable_existing_loggers": False,
-            "root": {"level": "WARNING"},
-        },
-    }
-    cfg_path = tmp_path / "config.yaml"
-    cfg_path.write_text(yaml.dump(cfg))
-    with patch.object(config, "_CONFIG_PATH", cfg_path):
-        assert config.is_oauth() is False
-
-
-# ---------------------------------------------------------------------------
-# get_url
-# ---------------------------------------------------------------------------
-
-
-def test_get_url(tmp_config):
-    assert config.get_url() == "http://localhost:9000/mcp"
-
-
-# ---------------------------------------------------------------------------
-# get_token_dir
-# ---------------------------------------------------------------------------
-
-
-def test_get_token_dir(tmp_config):
-    assert config.get_token_dir() == "/tmp/tokens"
-
-
-# ---------------------------------------------------------------------------
-# get_callback_port
-# ---------------------------------------------------------------------------
-
-
-def test_get_callback_port(tmp_config):
-    assert config.get_callback_port() == 12345
-
-
-# ---------------------------------------------------------------------------
-# get_model_base_url
-# ---------------------------------------------------------------------------
-
-
-def test_get_model_base_url(tmp_config):
-    assert config.get_model_base_url() == "http://localhost:11434/v1"
-
-
-# ---------------------------------------------------------------------------
-# get_model
-# ---------------------------------------------------------------------------
-
-
-def test_get_model(tmp_config):
-    assert config.get_model() == "test-model"
-
-
-# ---------------------------------------------------------------------------
-# get_api_style
-# ---------------------------------------------------------------------------
-
-
-def _rewrite_config(cfg):
-    """Rewrite the patched config.yaml with the given mapping."""
-    config._CONFIG_PATH.write_text(yaml.dump(cfg))
-
-
-def test_get_api_style_defaults_to_chat(tmp_config):
-    """A config without llm.api_style falls back to "chat"."""
-    assert "api_style" not in tmp_config["llm"]
-    assert config.get_api_style() == "chat"
-
-
-def test_get_api_style_responses(tmp_config):
-    """An explicit "responses" style is returned as-is."""
-    tmp_config["llm"]["api_style"] = "responses"
-    _rewrite_config(tmp_config)
-    assert config.get_api_style() == "responses"
-
-
-def test_get_api_style_chat(tmp_config):
-    """An explicit "chat" style is returned as-is."""
-    tmp_config["llm"]["api_style"] = "chat"
-    _rewrite_config(tmp_config)
-    assert config.get_api_style() == "chat"
-
-
-def test_get_api_style_unknown_raises(tmp_config):
-    """An unrecognised style raises ValueError."""
-    tmp_config["llm"]["api_style"] = "wat"
-    _rewrite_config(tmp_config)
-    with pytest.raises(ValueError, match="Unknown llm.api_style: wat"):
-        config.get_api_style()
+    assert logging.getLogger().level == logging.WARNING
 
 
 # ---------------------------------------------------------------------------
@@ -294,18 +220,21 @@ def test_get_api_style_unknown_raises(tmp_config):
 # ---------------------------------------------------------------------------
 
 
-def test_get_api_key(tmp_config, monkeypatch):
+@pytest.mark.usefixtures("env_config")
+def test_get_api_key(monkeypatch):
     monkeypatch.setenv("TEST_LLM_KEY", "secret-key")
     assert config.get_api_key() == "secret-key"
 
 
-def test_get_api_key_missing_raises(tmp_config, monkeypatch):
+@pytest.mark.usefixtures("env_config")
+def test_get_api_key_missing_raises(monkeypatch):
     monkeypatch.delenv("TEST_LLM_KEY", raising=False)
     with pytest.raises(RuntimeError, match="TEST_LLM_KEY"):
         config.get_api_key()
 
 
-def test_get_api_key_empty_raises(tmp_config, monkeypatch):
+@pytest.mark.usefixtures("env_config")
+def test_get_api_key_empty_raises(monkeypatch):
     monkeypatch.setenv("TEST_LLM_KEY", "")
     with pytest.raises(RuntimeError, match="TEST_LLM_KEY"):
         config.get_api_key()
