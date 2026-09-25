@@ -38,6 +38,9 @@
 
 """Unit tests for :mod:`math_ai_agent.mcp.calc_client`."""
 
+# Tests inspect and reset the client's private tool cache.
+# pylint: disable=protected-access
+
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -72,17 +75,18 @@ def _patch_config(app_config):
 
 
 @pytest.fixture()
-def _patch_no_oauth():
+def patch_no_oauth():
     """Stub Client.__init__; the test config has OAuth disabled."""
     with patch.object(Client, "__init__", return_value=None) as mock_init:
         yield mock_init
 
 
 @pytest.fixture()
-def _patch_oauth(monkeypatch, app_config):
+def patch_oauth(monkeypatch, app_config, tmp_path):
     """Enable OAuth in the test config and stub Client.__init__ and OAuth."""
     key = Fernet.generate_key().decode()
     monkeypatch.setenv("OAUTH_STORAGE_ENCRYPTION_KEY", key)
+    app_config.server.calculator_mcp.token_dir = str(tmp_path)
     app_config.server.calculator_mcp.is_oauth = True
     with (
         patch.object(Client, "__init__", return_value=None) as mock_init,
@@ -91,22 +95,12 @@ def _patch_oauth(monkeypatch, app_config):
         yield mock_init, mock_oauth
 
 
-def _make_calc(tools=None, call_result="42"):
-    """Create a ``CalcMCPClient`` with mocked inherited methods."""
+def _make_calc(call_result="42"):
+    """Create a ``CalcMCPClient`` with a mocked ``call_tool``."""
     with patch.object(Client, "__init__", return_value=None):
         calc = CalcMCPClient()
 
-    # Mock the inherited async methods
     calc.call_tool = AsyncMock(return_value=call_result)
-
-    # Patch Client's __aenter__/__aexit__ on the instance
-    _original_aenter = Client.__aenter__
-    _original_aexit = Client.__aexit__
-    calc._super_aenter = AsyncMock(return_value=calc)
-    calc._super_aexit = AsyncMock(return_value=None)
-
-    # Mock super().list_tools via Client.list_tools
-    calc._parent_list_tools = AsyncMock(return_value=tools or [])
     return calc
 
 
@@ -115,8 +109,8 @@ def _make_calc(tools=None, call_result="42"):
 # ---------------------------------------------------------------------------
 
 
-def test_init_no_oauth(_patch_no_oauth):
-    mock_init = _patch_no_oauth
+def test_init_no_oauth(patch_no_oauth):
+    mock_init = patch_no_oauth
     calc = CalcMCPClient()
     assert isinstance(calc, Client)
     mock_init.assert_called_once_with(_URL)
@@ -127,8 +121,8 @@ def test_init_no_oauth(_patch_no_oauth):
 # ---------------------------------------------------------------------------
 
 
-def test_init_with_oauth(_patch_oauth):
-    mock_init, mock_oauth = _patch_oauth
+def test_init_with_oauth(patch_oauth):
+    mock_init, mock_oauth = patch_oauth
     calc = CalcMCPClient()
     assert isinstance(calc, Client)
     mock_init.assert_called_once()
@@ -138,12 +132,19 @@ def test_init_with_oauth(_patch_oauth):
     assert "auth" in kwargs
 
 
-def test_init_oauth_missing_env_raises(monkeypatch, app_config):
+def test_init_oauth_missing_env_raises(monkeypatch, app_config, tmp_path):
     monkeypatch.delenv("OAUTH_STORAGE_ENCRYPTION_KEY", raising=False)
     app_config.server.calculator_mcp.is_oauth = True
+    app_config.server.calculator_mcp.token_dir = str(tmp_path)
     with patch.object(Client, "__init__", return_value=None):
         with pytest.raises(KeyError):
             CalcMCPClient()
+
+
+def test_create_token_store_expands_home_and_creates_dir(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    calc_client._create_token_store("~/tokens")
+    assert (tmp_path / "tokens").is_dir()
 
 
 # ---------------------------------------------------------------------------
@@ -198,9 +199,8 @@ async def test_aenter_returns_self():
             return_value=None,
         ),
     ):
-        returned = await calc.__aenter__()
-        assert returned is calc
-        await calc.__aexit__(None, None, None)
+        async with calc as returned:
+            assert returned is calc
 
 
 @pytest.mark.asyncio
@@ -547,7 +547,7 @@ async def test_full_round_trip():
     tools = [
         SimpleNamespace(name="multiply", description="Multiply"),
     ]
-    calc = _make_calc(tools=tools, call_result="21")
+    calc = _make_calc(call_result="21")
 
     with (
         patch.object(

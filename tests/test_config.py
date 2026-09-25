@@ -38,6 +38,9 @@
 
 """Unit tests for :mod:`math_ai_agent.config.config`."""
 
+# Tests exercise the private config path resolver directly.
+# pylint: disable=protected-access
+
 import logging
 
 import pytest

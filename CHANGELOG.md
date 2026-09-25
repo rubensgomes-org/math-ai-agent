@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stderr is not a terminal or `NO_COLOR` is set
 - `uvicorn` logger in `config.yaml`, so server startup and error logs use the
   project's log format
+- `build-verify` GitHub workflow (manual dispatch) running mypy, pylint,
+  pip-audit, test coverage, and an optional SonarCloud quality gate
 
 ### Changed
 
@@ -33,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `pip-audit` failure on `diskcache` (PYSEC-2026-2447): OAuth tokens are
+  stored in a `FileTreeStore` instead of a `DiskStore`, and the `diskcache`
+  and `pathvalidate` test dependencies are removed. Existing tokens are not
+  migrated, so the first run after upgrading repeats the OAuth login
 - `CalcMCPClient` matches the current fastmcp API: `list_tools()` accepts
   `cache_mode`, and tools are read via `input_schema` instead of the
   deprecated `inputSchema`

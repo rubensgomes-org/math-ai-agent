@@ -50,18 +50,40 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 
 import mcp.types
 from cryptography.fernet import Fernet
 from fastmcp import Client
 from fastmcp.client.auth import OAuth
-from key_value.aio.stores.disk import DiskStore
+from key_value.aio.stores.filetree import (
+    FileTreeStore,
+    FileTreeV1CollectionSanitizationStrategy,
+    FileTreeV1KeySanitizationStrategy,
+)
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 from mcp.client.caching import CacheMode
 
 from math_ai_agent.config.config import get_config
 
 logger = logging.getLogger(__name__)
+
+
+def _create_token_store(token_dir: str) -> FileTreeStore:
+    """Create a JSON file store for OAuth tokens under ``token_dir``.
+
+    The sanitization strategies keep OAuth keys, which contain URL
+    characters, valid as file and directory names.
+    """
+    directory = Path(token_dir).expanduser()
+    directory.mkdir(parents=True, exist_ok=True)
+    return FileTreeStore(
+        data_directory=directory,
+        key_sanitization_strategy=FileTreeV1KeySanitizationStrategy(directory),
+        collection_sanitization_strategy=(
+            FileTreeV1CollectionSanitizationStrategy(directory)
+        ),
+    )
 
 
 class CalcMCPClient(Client):
@@ -90,11 +112,11 @@ class CalcMCPClient(Client):
             logger.info("OAuth enabled, using OAuthClient")
             token_dir = mcp_config.token_dir
             logger.debug(
-                "Creating encrypted disk storage for OAuth tokens: %s",
+                "Creating encrypted file storage for OAuth tokens: %s",
                 token_dir,
             )
             encrypted_storage = FernetEncryptionWrapper(
-                key_value=DiskStore(directory=token_dir),
+                key_value=_create_token_store(token_dir),
                 fernet=Fernet(os.environ["OAUTH_STORAGE_ENCRYPTION_KEY"]),
             )
             oauth = OAuth(

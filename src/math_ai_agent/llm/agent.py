@@ -252,8 +252,9 @@ async def _responses_agent_loop(user_prompt: str) -> str:
                 ]
 
                 if tool_calls:
-                    logger.info("LLM is asking us to call tool(s): %s",
-                                tool_calls)
+                    logger.info(
+                        "LLM is asking us to call tool(s): %s", tool_calls
+                    )
                 else:
                     logger.info(
                         "LLM is done with final response (status=%s): %s",
@@ -262,9 +263,11 @@ async def _responses_agent_loop(user_prompt: str) -> str:
                     )
                     break
 
-                logger.debug("STATELESS REPLAY: echo every output Item back "
-                             "as input so the model keeps its reasoning "
-                             "context.")
+                logger.debug(
+                    "STATELESS REPLAY: echo every output Item back "
+                    "as input so the model keeps its reasoning "
+                    "context."
+                )
                 history.extend(
                     item.model_dump(exclude_none=True)
                     for item in response.output

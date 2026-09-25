@@ -943,18 +943,6 @@ graph = ["objgraph (>=1.7.2)"]
 profile = ["gprof2dot (>=2022.7.29)"]
 
 [[package]]
-name = "diskcache"
-version = "5.6.3"
-description = "Disk Cache -- Disk and file backed persistent cache."
-optional = false
-python-versions = ">=3"
-groups = ["main", "test"]
-files = [
-    {file = "diskcache-5.6.3-py3-none-any.whl", hash = "sha256:5e31b2d5fbad117cc363ebaf6b689474db18a1f6438bc82358b024abd4c2ca19"},
-    {file = "diskcache-5.6.3.tar.gz", hash = "sha256:2c3a3fa2743d8535d832ec61c2054a1641f41775aa7c556758a109941e33e4fc"},
-]
-
-[[package]]
 name = "distlib"
 version = "0.4.3"
 description = "Distribution utilities"
@@ -2428,23 +2416,6 @@ optional = ["typing-extensions (>=4)"]
 re2 = ["google-re2 (>=1.1)"]
 
 [[package]]
-name = "pathvalidate"
-version = "3.3.1"
-description = "pathvalidate is a Python library to sanitize/validate a string such as filenames/file-paths/etc."
-optional = false
-python-versions = ">=3.9"
-groups = ["main", "test"]
-files = [
-    {file = "pathvalidate-3.3.1-py3-none-any.whl", hash = "sha256:5263baab691f8e1af96092fa5137ee17df5bdfbd6cff1fcac4d6ef4bc2e1735f"},
-    {file = "pathvalidate-3.3.1.tar.gz", hash = "sha256:b18c07212bfead624345bb8e1d6141cdcf15a39736994ea0b94035ad2b1ba177"},
-]
-
-[package.extras]
-docs = ["Sphinx (>=2.4)", "sphinx_rtd_theme (>=1.2.2)", "urllib3 (<2)"]
-readme = ["path (>=13,<18)", "readmemaker (>=1.2.0)"]
-test = ["Faker (>=1.0.8)", "allpairspy (>=2)", "click (>=6.2)", "pytest (>=6.0.1)", "pytest-md-report (>=0.6.2)"]
-
-[[package]]
 name = "pbs-installer"
 version = "2026.9.24"
 description = "Installer for Python Build Standalone"
@@ -2668,9 +2639,7 @@ aiofile = {version = ">=3.12.3", optional = true, markers = "python_full_version
 anyio = {version = ">=4.4.0", optional = true, markers = "extra == \"filetree\""}
 beartype = ">=0.20.0"
 cachetools = {version = ">=5.0.0", optional = true, markers = "extra == \"memory\""}
-diskcache = {version = ">=5.0.0", optional = true, markers = "extra == \"disk\""}
 keyring = {version = ">=25.6.0", optional = true, markers = "extra == \"keyring\""}
-pathvalidate = {version = ">=3.3.1", optional = true, markers = "extra == \"disk\""}
 typing-extensions = ">=4.15.0"
 
 [package.extras]
@@ -4263,4 +4232,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.14,<4.0.0"
-content-hash = "31a830807832eee586b0bb89f0ceee0445702e63bdc098b3be13b427233a830e"
+content-hash = "ad7883a086faf2880c80f5ea003bd944294fd602232c655498c8581db053f8e8"

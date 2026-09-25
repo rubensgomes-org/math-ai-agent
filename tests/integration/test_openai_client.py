@@ -50,7 +50,7 @@ OpenAI API.  Run standalone with::
 import logging
 import time
 
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 from math_ai_agent.config.config import (
     configure_logging,
@@ -110,7 +110,7 @@ def run_client() -> None:
         logger.debug("Response text: %s", result)
         print(result)
         print(f"\n[Model: {model} | API: NEW | " f"Time: {elapsed:.2f}s]\n")
-    except Exception:
+    except OpenAIError:
         logger.exception(
             "Failed to get response from model %s via NEW API",
             model,

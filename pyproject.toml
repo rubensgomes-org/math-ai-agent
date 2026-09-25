@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "fastapi (>=0.141.1,<1.0.0)",
     "fastmcp (>=4.0.9,<5.0.0)",
-    "py-key-value-aio[disk] (>=0.1.4,<1.0.0)",
+    "py-key-value-aio (>=0.4.6,<1.0.0)",
     "openai (>=3.19.1,<4.0.0)",
     "cryptography (>=50.0.1,<51.0.0)",
     "key-value (>=0.1.2,<1.0.0)",
@@ -56,8 +56,6 @@ dev = [
 ]
 test = [
     "coverage (>=7.16.0,<8.0.0)",
-    "diskcache (>=5.6.3,<6.0.0)",
-    "pathvalidate (>=3.3.1,<4.00)",
     "pytest (>=9.1.1,<10.0.0)",
     "pytest-asyncio (>=1.4.0,<2.0.0)",
     "pytest-cov (>=7.1.0,<8.0.0)",
@@ -97,6 +95,7 @@ packages = [{ include = "math_ai_agent", from = "src" }]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--cov --cov-report=term-missing --cov-report=xml"
 
 [tool.sonar]
 # SONAR_TOKEN must be defined as an environment variable
@@ -106,7 +105,7 @@ projectName = "math-ai-agent"
 qualitygate.wait = true
 sources = "src/"
 sourceEncoding = "UTF-8"
-python.version = 3.14
+python.version = "3.14"
 
 # ---------- >>> poethepoet tasks <<< -----------------------------------------
 
