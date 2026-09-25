@@ -397,6 +397,18 @@ After previous steps go to GitHub remote repo and create a "release" branch.
 `scripts/initvars.sh` deletes and recreates these secrets from the current
 shell environment (`-n` for a dry run).
 
+### PYPI_API_TOKEN
+
+The `release` workflow reads an Action secret named `PYPI_API_TOKEN` to
+publish the package to PyPI.
+
+- Create an Action repository secret in this repository and name it
+  PYPI_API_TOKEN storing the PyPI API token:
+
+    ```text
+    Repo's Settings -- Secrets and variables -- Actions -- New repository secret
+    ```
+
 ### SONAR_TOKEN
 
 The `build-verify` workflow reads an Action secret named `SONAR_TOKEN`, used

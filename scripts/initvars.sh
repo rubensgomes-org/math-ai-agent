@@ -98,10 +98,12 @@ source "${HOME}/lib/sh-lib/sh_lib.sh" || exit
 ## ACTION_SECRET_ORDER fixes a presentation order.
 #####################################################################
 declare -Ar ACTION_SECRETS=(
+  [PYPI_API_TOKEN]="${PYPI_API_TOKEN:-}"
   [SONAR_TOKEN]="${SONAR_TOKEN:-}"
 )
 
 declare -ar ACTION_SECRET_ORDER=(
+  PYPI_API_TOKEN
   SONAR_TOKEN
 )
 
@@ -110,6 +112,7 @@ declare -ar ACTION_SECRET_ORDER=(
 declare -ar RETIRED_ACTION_SECRETS=()
 
 declare -Ar REQUIRED_SECRET_SOURCES=(
+  [PYPI_API_TOKEN]="PYPI_API_TOKEN"
   [SONAR_TOKEN]="SONAR_TOKEN"
 )
 

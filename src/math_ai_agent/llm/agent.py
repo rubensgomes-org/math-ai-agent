@@ -263,6 +263,10 @@ async def _responses_agent_loop(user_prompt: str) -> str:
                     )
                     break
 
+                # ---------- >>> STATELESS REPLAY <<< ---------
+                # Every output item is added back to history, so the model
+                # keeps its context. This is required because the model is
+                # Stateless.
                 logger.debug(
                     "STATELESS REPLAY: echo every output Item back "
                     "as input so the model keeps its reasoning "

@@ -1,0 +1,296 @@
+# =============================================================================
+# release
+#
+# Runs the same checks as build-verify (the verify job must pass before
+# anything is pushed or published), then resolves the version from
+# pyproject.toml, verifies CHANGELOG.md has a matching section, builds the
+# package, publishes it to PyPI, publishes a GitHub Release with the
+# CHANGELOG section as its notes, then bumps pyproject.toml to the next
+# patch version for the next development cycle.
+# Dispatch-only: run it once the release version, CHANGELOG, and tag are
+# already committed and pushed to main.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-sonar:
+        description: 'Run the SonarCloud analysis and quality gate.'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # Same reusable workflow as build-verify.yml, so a release runs exactly
+  # the checks and tests that build-verify runs.
+  verify:
+    uses: rubensgomes-org/azure-workflows/.github/workflows/poetry-build-verify.yml@v0
+    with:
+      run-sonar: ${{ inputs.run-sonar }}
+    secrets:
+      sonar-token: ${{ secrets.SONAR_TOKEN }}
+
+  release:
+    name: release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          # Full history: SonarCloud needs blame data to attribute New Code.
+          fetch-depth: 0
+
+      - name: Resolve the version and tag
+        id: resolve
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the version and tag"
+          echo "=============================================================="
+          set -euo pipefail
+
+          file='pyproject.toml'
+          raw="$(sed -n 's/^version = "\(.*\)"$/\1/p' "${file}" | head -n1)"
+
+          if [ -z "${raw}" ]; then
+            echo "::error::No 'version = \"...\"' found in ${file}."
+            exit 1
+          fi
+
+          version="${raw}"
+          tag="v${version}"
+
+          if ! printf '%s' "${tag}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'${tag}' is not vMAJOR.MINOR.PATCH."
+            exit 1
+          fi
+
+          # PyPI rejects re-uploading a filename it has already seen, so a
+          # stale pyproject.toml version must fail here, not deep inside
+          # 'poetry publish'. fetch-depth: 0 above brings every tag along.
+          if git rev-parse "${tag}" >/dev/null 2>&1; then
+            echo "::error::Tag '${tag}' already exists -- ${version} was" \
+                 "already released."
+            echo "Bump the version in pyproject.toml, then re-run." >&2
+            exit 1
+          fi
+
+          echo "Version : ${version}"
+          echo "Tag     : ${tag}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}"         >> "$GITHUB_OUTPUT"
+
+      # Automates the manual step documented in CHANGELOG.md: renaming
+      # [Unreleased] to the version being released and pushing a fresh empty
+      # [Unreleased] above it, so a release run no longer needs a prior
+      # manual commit.
+      - name: Rename [Unreleased] to the release version
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Rename [Unreleased] to the release version"
+          echo "=============================================================="
+          set -euo pipefail
+
+          if grep -q "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "CHANGELOG.md already has a '## [${VERSION}]' section;" \
+                 "leaving it as-is."
+            exit 0
+          fi
+
+          unreleased="$(awk '
+            $0 == "## [Unreleased]" { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md)"
+
+          if ! printf '%s\n' "${unreleased}" \
+              | grep -qE '^[[:space:]]*[^[:space:]#]'; then
+            echo "::error::CHANGELOG.md's '[Unreleased]' section is empty --" \
+                 "nothing to rename."
+            echo "Write what changed under it, commit, then re-run." >&2
+            exit 1
+          fi
+
+          release_date="$(date -u +%Y-%m-%d)"
+
+          awk -v ver="${VERSION}" -v rdate="${release_date}" '
+            $0 == "## [Unreleased]" {
+              print "## [Unreleased]"
+              print ""
+              print "### Added"
+              print ""
+              print "### Changed"
+              print ""
+              print "### Fixed"
+              print ""
+              print "## [" ver "] - " rdate
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.md.new
+          mv CHANGELOG.md.new CHANGELOG.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add CHANGELOG.md
+          git commit -m "docs: release ${VERSION} changelog section"
+          git push origin "HEAD:${BRANCH}"
+
+      - name: Verify the CHANGELOG section exists and is not empty
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Verify the CHANGELOG section exists and is not empty"
+          echo "=============================================================="
+          set -euo pipefail
+
+          if ! grep -q "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [${VERSION}]' section."
+            echo "Rename [Unreleased] to ${VERSION}, add a fresh empty" >&2
+            echo "[Unreleased] above it, commit to main, then re-run." >&2
+            exit 1
+          fi
+
+          content="$(awk -v ver="${VERSION}" '
+            $0 == "## [" ver "]" ||
+              index($0, "## [" ver "] ") == 1 { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md)"
+
+          pattern='^[[:space:]]*[^[:space:]#]'
+          if ! printf '%s\n' "${content}" | grep -qE "${pattern}"; then
+            echo "::error::The '## [${VERSION}]' section has no content --" \
+                 "only blank lines and empty sub-headings."
+            echo "Write what changed under it, commit, then re-run." >&2
+            exit 1
+          fi
+
+      - name: Build release notes from CHANGELOG
+        shell: bash
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Build release notes from CHANGELOG"
+          echo "=============================================================="
+          set -euo pipefail
+
+          awk -v ver="${VERSION}" '
+            $0 == "## [" ver "]" ||
+              index($0, "## [" ver "] ") == 1 { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md > release-notes.md
+
+          echo "----- release notes -----"
+          cat release-notes.md
+
+      - name: Set up Python and Poetry
+        uses: rubensgomes-org/azure-workflows/.github/actions/setup-python-poetry@v0
+
+      - name: Install tools and dependencies
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Install tools and dependencies"
+          echo "=============================================================="
+          set -euo pipefail
+
+          poetry --no-cache -v install
+
+      - name: Build the package
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Build the package"
+          echo "=============================================================="
+          set -euo pipefail
+
+          export SOURCE_DATE_EPOCH
+          SOURCE_DATE_EPOCH="$(date +%s)"
+          poetry build -v
+
+      - name:  Configure Poetry pypi-token
+        shell: bash
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Configure Poetry pypi-token"
+          echo "=============================================================="
+          set -euo pipefail
+
+          poetry config pypi-token.pypi "$PYPI_API_TOKEN"
+
+      - name:  Publish PyPI Release
+        shell: bash
+        run: |
+          echo "=============================================================="
+          echo " STEP: Publish PyPI Release"
+          echo "=============================================================="
+          set -euo pipefail
+
+          poetry publish -v
+
+      - name:  Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Publish GitHub Release"
+          echo "=============================================================="
+          set -euo pipefail
+
+          gh release create "${RELEASE_TAG}" \
+            --title "${RELEASE_TAG}" \
+            --notes-file release-notes.md
+
+      - name: Bump the version for the next development cycle
+        shell: bash
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Bump the version for the next development cycle"
+          echo "=============================================================="
+          set -euo pipefail
+
+          poetry version patch
+          next_version="$(poetry version -s)"
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add pyproject.toml
+          git commit -m "Bump version to ${next_version}"
+          git push origin "HEAD:${BRANCH}"
