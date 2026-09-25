@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.1] - 2026-09-25
+
+### Added
+
 - Colored log level names in console output via `colorlog`; plain when
   stderr is not a terminal or `NO_COLOR` is set
 - `uvicorn` logger in `config.yaml`, so server startup and error logs use the
