@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   project's log format
 - `build-verify` GitHub workflow (manual dispatch) running mypy, pylint,
   pip-audit, test coverage, and an optional SonarCloud quality gate
+- `scripts/initvars.sh` resets the repository's GitHub Actions secrets
+  (`SONAR_TOKEN`) from the current shell environment
 
 ### Changed
 

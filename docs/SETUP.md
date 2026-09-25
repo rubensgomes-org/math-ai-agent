@@ -392,6 +392,23 @@ Once the above "Edit Configurations in PyCharm" are configure:
 
 After previous steps go to GitHub remote repo and create a "release" branch.
 
+## GitHub Actions Secrets
+
+`scripts/initvars.sh` deletes and recreates these secrets from the current
+shell environment (`-n` for a dry run).
+
+### SONAR_TOKEN
+
+The `build-verify` workflow reads an Action secret named `SONAR_TOKEN`, used
+during the SonarCloud analysis.
+
+- Create an Action repository secret in this repository and name it
+  SONAR_TOKEN storing the SonarCloud authentication token:
+
+    ```text
+    Repo's Settings -- Secrets and variables -- Actions -- New repository secret
+    ```
+
 ## Deploy MCP Server
 
 - For more information: <https://docs.prefect.io/v3/get-started>
