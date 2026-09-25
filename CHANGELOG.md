@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pip-audit, test coverage, and an optional SonarCloud quality gate
 - `scripts/initvars.sh` resets the repository's GitHub Actions secrets
   (`SONAR_TOKEN`) from the current shell environment
+- Dependabot daily version updates for Poetry dependencies and GitHub
+  Actions, grouping Python minor and patch updates into one pull request
 
 ### Changed
 
