@@ -203,7 +203,9 @@ async def _responses_agent_loop(user_prompt: str) -> str:
     """
     logger.debug("Starting AI LLM agent loop (responses)")
     llm_config = get_config().llm
+    # TODO: does the next code cache the MCP tools?
     tools = await get_calc_mcp_tools("responses")
+    # TODO: is llm a singleton instance?
     llm = ResponsesClient(
         get_api_key(),
         llm_config.model_base_url,
@@ -215,9 +217,9 @@ async def _responses_agent_loop(user_prompt: str) -> str:
     # parameter, so it is not part of the input items.
     history: list[Any] = [{"role": "user", "content": user_prompt}]
     logger.debug("Sending user prompt: %s", user_prompt)
-    logger.debug("Starting agent loop.")
 
-    final_text = ""
+    logger.debug("==============================================")
+    logger.debug("========== >>> START AGENT LOOP <<< ==========")
 
     # -------------------------
     # Agent Loop
@@ -237,26 +239,32 @@ async def _responses_agent_loop(user_prompt: str) -> str:
                 usage.total_tokens,
             )
         else:
-            logger.debug("No token usage reported in the response.")
+            logger.warning("No token usage reported in the response.")
 
+        logger.debug("response.status: %s", response.status)
         match response.status:
             case "completed":
+                # check if the LLM is asking us to run any tool
                 tool_calls = [
                     item
                     for item in response.output
                     if isinstance(item, ResponseFunctionToolCall)
                 ]
-                if not tool_calls:
-                    final_text = response.output_text
+
+                if tool_calls:
+                    logger.info("LLM is asking us to call tool(s): %s",
+                                tool_calls)
+                else:
                     logger.info(
-                        "Assistant (LLM) response (status=%s): %s",
+                        "LLM is done with final response (status=%s): %s",
                         response.status,
-                        final_text,
+                        response.output_text,
                     )
                     break
 
-                # Stateless replay: echo every output Item back as
-                # input so the model keeps its reasoning context.
+                logger.debug("STATELESS REPLAY: echo every output Item back "
+                             "as input so the model keeps its reasoning "
+                             "context.")
                 history.extend(
                     item.model_dump(exclude_none=True)
                     for item in response.output
@@ -312,6 +320,8 @@ async def _responses_agent_loop(user_prompt: str) -> str:
                     f" (status={response.status})"
                 )
                 logger.error(error)
+                logger.debug("====== >>> END AGENT LOOP W/FAILURE <<< ======")
+                logger.debug("==============================================")
                 raise RuntimeError(error)
 
             case "queued" | "in_progress":
@@ -325,10 +335,14 @@ async def _responses_agent_loop(user_prompt: str) -> str:
             case _:
                 error = f"Unknown response status: {response.status}"
                 logger.error(error)
+                logger.debug("====== >>> END AGENT LOOP W/FAILURE <<< ======")
+                logger.debug("==============================================")
                 raise ValueError(error)
 
     logger.debug("Returning final response message from LLM.")
-    return final_text or ""
+    logger.debug("=========== >>> END AGENT LOOP <<< ===========")
+    logger.debug("==============================================")
+    return response.output_text or ""
 
 
 async def agent_loop(user_prompt: str) -> str:
