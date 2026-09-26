@@ -45,7 +45,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from math_ai_agent.app import Prompt, app
+from math_ai_agent.app import Prompt, app, main
 
 
 @pytest.mark.asyncio
@@ -91,6 +91,17 @@ async def test_root_contains_form_elements():
         assert "textarea-question-id" in response.text
         assert "button-submit-id" in response.text
         assert "textarea-response-id" in response.text
+
+
+@pytest.mark.asyncio
+async def test_health_returns_ok():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.get("/health")
+        assert response.status_code == 200
+        assert response.text == "OK"
 
 
 @pytest.mark.asyncio
@@ -191,3 +202,14 @@ def test_math_question_model():
 def test_math_question_model_requires_question():
     with pytest.raises(Exception):
         Prompt()
+
+
+@patch("math_ai_agent.app.uvicorn.run")
+@patch("math_ai_agent.app.get_config")
+def test_main_runs_uvicorn_with_configured_host_and_port(
+    mock_get_config, mock_run
+):
+    mock_get_config.return_value.web.host = "0.0.0.0"
+    mock_get_config.return_value.web.port = 1234
+    main()
+    mock_run.assert_called_once_with(app, host="0.0.0.0", port=1234)

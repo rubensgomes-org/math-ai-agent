@@ -1,7 +1,7 @@
 # Using LangChain with the NVIDIA Nemotron Model
 
-**Date:** 2026-09-11
-**Status:** Research notes / design sketch — not yet implemented
+**Date:** 2026-09-11 **Status:** Research notes / design sketch — not yet
+implemented
 
 Notes on whether the LangChain APIs can drive the
 `nvidia/nemotron-3-super-120b-a12b` model configured in `config.yaml`, and
@@ -18,10 +18,10 @@ why `src/math_ai_agent/llm/client.py` can point `AsyncOpenAI` at it. LangChain's
 
 ## Choosing the Model Class
 
-| Class | Package (latest on PyPI) | Notes |
-| --- | --- | --- |
-| `ChatOpenAI` | `langchain-openai` 1.6.2 | Drives either `/v1/chat/completions` or `/v1/responses` (`use_responses_api=True`), so the existing `llm.api_style` setting keeps its meaning. |
-| `ChatNVIDIA` | `langchain-nvidia-ai-endpoints` 1.4.3 | NVIDIA-native, but Chat Completions only — `api_style: "responses"` would become dead config. |
+| Class        | Package (latest on PyPI)              | Notes                                                                                                                                          |
+|--------------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ChatOpenAI` | `langchain-openai` 1.6.2              | Drives either `/v1/chat/completions` or `/v1/responses` (`use_responses_api=True`), so the existing `llm.api_style` setting keeps its meaning. |
+| `ChatNVIDIA` | `langchain-nvidia-ai-endpoints` 1.4.3 | NVIDIA-native, but Chat Completions only — `api_style: "responses"` would become dead config.                                                  |
 
 **Recommendation:** `ChatOpenAI`. It preserves the `api_style` switch already
 built into the project.
@@ -88,11 +88,11 @@ async def _build_tools() -> list[StructuredTool]:
 async def lc_agent_loop(user_prompt: str) -> str:
     """Run the agent loop via LangChain's create_agent."""
     model = ChatOpenAI(
-        model=get_model(),              # nvidia/nemotron-3-super-120b-a12b
+        model=get_model(),  # nvidia/nemotron-3-super-120b-a12b
         base_url=get_model_base_url(),  # https://integrate.api.nvidia.com/v1
-        api_key=get_api_key(),          # from NVIDIA_API_KEY
+        api_key=get_api_key(),  # from NVIDIA_API_KEY
         use_responses_api=(get_api_style() == "responses"),
-        store=False,                    # keep the no-retention stance
+        store=False,  # keep the no-retention stance
         temperature=0,
     )
 

@@ -77,11 +77,19 @@ class ServerConfig(BaseModel):
     calculator_mcp: CalculatorMCPConfig
 
 
+class WebConfig(BaseModel):
+    """The ``web`` section of config.yaml: where the app listens."""
+
+    host: str = "127.0.0.1"
+    port: int = 9090
+
+
 class AppConfig(BaseModel):
     """The full config.yaml; ``logging`` is a ``dictConfig`` mapping."""
 
     llm: LLMConfig
     server: ServerConfig
+    web: WebConfig = WebConfig()
     logging: dict[str, Any]
 
 

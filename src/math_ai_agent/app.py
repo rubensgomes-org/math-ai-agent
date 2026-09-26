@@ -40,22 +40,24 @@
 
 Launches a FastAPI web server with the following endpoints:
     - `GET /` returns the index.html page.
+    - `GET /health` returns 200 with plain text `OK`.
     - `POST /prompt/` submits user prompt and returns AI response.
 
 From the project root folder run::
 
-    poetry run uvicorn math_ai_agent.app:app --reload
+    poetry run math-ai-agent
 """
 
 import json
 import logging
 from pathlib import Path
 
+import uvicorn
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from math_ai_agent.config.config import configure_logging
+from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm import agent_loop
 from math_ai_agent.prompt import Prompt
 
@@ -86,6 +88,12 @@ async def root() -> str:
     return (_STATIC_DIR / "index.html").read_text()
 
 
+@app.get("/health", response_class=PlainTextResponse)
+async def health() -> str:
+    """Report that the server is up."""
+    return "OK"
+
+
 @app.post("/prompt/")
 async def prompt(payload: Prompt) -> dict[str, str]:
     """Accept a prompt text from the user and return an answer.
@@ -107,3 +115,9 @@ async def prompt(payload: Prompt) -> dict[str, str]:
     output = await agent_loop(prompt_text)
     logger.debug("Output:\n%s", json.dumps(output, indent=2))
     return {"answer": output}
+
+
+def main() -> None:
+    """Run the web app with uvicorn on the configured host and port."""
+    web = get_config().web
+    uvicorn.run(app, host=web.host, port=web.port)

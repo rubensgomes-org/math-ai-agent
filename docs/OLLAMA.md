@@ -2,7 +2,7 @@
 
 This file describes the steps to install and run Ollama with open source (FREE)
 LLM models locally. For more information about `Ollama` go
-to [Ollama](https://ollama.ai/).
+to [Ollama](https://ollama.com/).
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ to [Ollama](https://ollama.ai/).
 
 ```bash
 # Download and run models
-ollama pull llama2          # LLaMA 2 7B
+ollama pull llama2         # LLaMA 2 7B
 ollama pull mistral        # Mistral 7B
 ollama pull phi            # Phi 2.7B
 ollama pull phi3           # Phi 3
@@ -194,7 +194,7 @@ NAME    ID          SIZE    MODIFIED
 ## Check Available Models
 
 ```bash
-# See all available models online
+# List locally downloaded models
 ollama list
 
 # Search for specific models

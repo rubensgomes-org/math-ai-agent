@@ -90,8 +90,8 @@ source "${HOME}/lib/sh-lib/sh_lib.sh" || exit
 ## MANAGED GITHUB ACTIONS SECRETS ####################################
 ##
 ## Keys are Actions secret names exactly as they appear in the
-## repository settings and in docs/SETUP.md. Values are resolved
-## from the shell environment. Secret values are never printed or
+## repository settings. Values are resolved from the shell
+## environment. Secret values are never printed or
 ## logged -- see print_planned_secrets() and create_action_secrets().
 ##
 ## Bash does not preserve associative-array order, so
@@ -158,9 +158,9 @@ General Non Argument Options:
   -v, --verbose        adds extra details to messages
   -x, --trace           traces commands
 
-By default, every Actions secret listed in docs/SETUP.md is
-deleted and recreated from the current shell environment. Pass
--o/--delete-only to delete them without recreating them.
+By default, every managed Actions secret is deleted and recreated
+from the current shell environment. Pass -o/--delete-only to delete
+them without recreating them.
 EOF
 }
 
@@ -401,7 +401,6 @@ validate_secret_values() {
     msg::error "  %-38s <- %s\n" "${name}" \
       "${REQUIRED_SECRET_SOURCES[${name}]:-${name}}"
   done
-  msg::error "See docs/SETUP.md for each value's source.\n"
 
   return 1
 }

@@ -1,50 +1,45 @@
 # Release Process
 
-**Currently, only Rubens Gomes is authorized to push a release**
+The release is run from the `release.yml` GitHub Actions workflow. Prior to
+running the `release` workflow, several GitHub Actions secrets must be
+provisioned in this project's GitHub Actions settings.
+
+**Currently, only Rubens Gomes is authorized to push a release.**
 
 ## Prerequisites
 
-1. Ensure the following packages and tools are installed:
+- GitHub account
+- gh 2.97+
 
-    - coreutils package
-    - dnsutils package
-    - curl 8.7.1 or later
-    - gawk 5.4.1 or later
-    - gh version 2.97.0 or later (GitHub CLI tool)
-    - git version 2.55.0 or later
-    - grep version 3.11, 2.6.0-FreeBSD,  or later
+## GitHub Actions Settings
 
-2. Ensure a `release` branch is created in the remote Git repository.
+**NOTE:** the environment variables below must be defined in the
+user's environment first.
 
-3. Ensure the `scripts/test_github.sh` is executed prior to running
-   a release to ensure connectivity to GitHub remote repository.
+```text
+GitHub environment
+------------------
+  GH_HOST
+  GITHUB_USER
+  GIT_AUTHOR_EMAIL
+  GIT_COMMITTER_EMAIL
+  GIT_AUTHOR_NAME
 
-## Environment Variables
+Actions secrets to delete and recreate (2):
+  PYPI_API_TOKEN
+  SONAR_TOKEN
+```
 
-The release process is done on a Linux machine using a "Claude Code" custom
-slash command `.claude/commands/release-plan.md`. Therefore, it is expected
-that a `Claude Code` CLI session is started running on an underlying Linux
-`bash` shell with the following environment variables set:
+- Set up the GitHub Actions secrets
 
-- GIT_AUTHOR_NAME
-- GIT_AUTHOR_EMAIL
-- GIT_COMMITTER_EMAIL
-- GITHUB_USER
-- GITHUB_TOKEN
-- GH_TOKEN (should be same as GITHUB_TOKEN)
+    ```bash
+    cd $(git rev-parse --show-toplevel) || exit
+    ./scripts/initvars.sh -dv
+    ```
 
 ## Starting a Release
 
-- Refer to [.claude/commands/release-plan.md](.claude/commands/release-plan.md) for the list of
-  commands that are run during a release.
+- From the project `GitHub Actions` page run the `release` workflow.
 
-- The release plan is generated/executed within `Claude Code`. You must start
-  `Claude Code`, and run the following custom slash command:
-
-    ```commandline
-    cd $(git rev-parse --show-toplevel) || exit
-    claude --debug --ide --model opus  --verbose
-    # Claude Code edit mode command:
-    /release-plan rubensgomes/<proj-name>
-    ```
-
+---
+Author: [Rubens Gomes](https://rubensgomes.com/)
