@@ -47,7 +47,9 @@ from openai.types.responses import (
     ResponseFunctionToolCall,
     ResponseOutputMessage,
     ResponseOutputText,
+    ResponseReasoningItem,
 )
+from openai.types.responses.response_reasoning_item import Content, Summary
 
 from math_ai_agent.llm.agent import Agent
 from math_ai_agent.llm.client import ResponsesClient
@@ -94,6 +96,25 @@ def _make_message(text="42"):
         status="completed",
         type="message",
     )
+
+
+def _make_reasoning(summaries=(), texts=None):
+    """Build a Responses ``reasoning`` output item."""
+    return ResponseReasoningItem(
+        id="rs-1",
+        summary=[Summary(text=text, type="summary_text") for text in summaries],
+        content=(
+            None
+            if texts is None
+            else [Content(text=text, type="reasoning_text") for text in texts]
+        ),
+        type="reasoning",
+    )
+
+
+def _answer(final="(none)", reasoning="(none)"):
+    """Build the expected formatted answer returned by ``Agent.run``."""
+    return f"reasoning:\n{reasoning}\n\nfinal response:\n{final}"
 
 
 def _make_function_call(
@@ -300,14 +321,14 @@ async def test_agent_run_returns_output_text_on_completed(agent_env):
     agent_env.responses = [
         _make_response(output=[_make_message("The answer is 8")])
     ]
-    assert await agent_env.agent.run("4+4?") == "The answer is 8"
+    assert await agent_env.agent.run("4+4?") == _answer("The answer is 8")
 
 
 @pytest.mark.asyncio
-async def test_agent_run_returns_empty_string_for_no_output(agent_env):
-    """A "completed" status with no output items returns an empty string."""
+async def test_agent_run_shows_none_for_no_output(agent_env):
+    """A "completed" status with no output items shows (none) everywhere."""
     agent_env.responses = [_make_response(output=[])]
-    assert await agent_env.agent.run("4+4?") == ""
+    assert await agent_env.agent.run("4+4?") == _answer()
 
 
 @pytest.mark.asyncio
@@ -316,7 +337,7 @@ async def test_agent_run_handles_missing_usage(agent_env):
     agent_env.responses = [
         _make_response(output=[_make_message("8")], usage=None)
     ]
-    assert await agent_env.agent.run("4+4?") == "8"
+    assert await agent_env.agent.run("4+4?") == _answer("8")
 
 
 @pytest.mark.asyncio
@@ -438,7 +459,7 @@ async def test_agent_run_in_progress_continues(agent_env):
         _make_response(status="in_progress"),
         _make_response(output=[_make_message("done")]),
     ]
-    assert await agent_env.agent.run("4+4?") == "done"
+    assert await agent_env.agent.run("4+4?") == _answer("done")
     assert agent_env.responses == []
 
 
@@ -449,7 +470,7 @@ async def test_agent_run_queued_continues(agent_env):
         _make_response(status="queued"),
         _make_response(output=[_make_message("done")]),
     ]
-    assert await agent_env.agent.run("4+4?") == "done"
+    assert await agent_env.agent.run("4+4?") == _answer("done")
     assert agent_env.responses == []
 
 
@@ -460,7 +481,7 @@ async def test_agent_run_dispatches_tool_call(agent_env):
         _make_response(output=[_make_function_call()]),
         _make_response(output=[_make_message("4 + 4 = 8")]),
     ]
-    assert await agent_env.agent.run("4+4?") == "4 + 4 = 8"
+    assert await agent_env.agent.run("4+4?") == _answer("4 + 4 = 8")
     agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
 
 
@@ -478,7 +499,7 @@ async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
         ),
         _make_response(output=[_make_message("done")]),
     ]
-    assert await agent_env.agent.run("compute") == "done"
+    assert await agent_env.agent.run("compute") == _answer("done")
     assert agent_env.call_tool.await_count == 2
     assert [c.args[0] for c in agent_env.call_tool.await_args_list] == [
         "add",
@@ -505,3 +526,64 @@ async def test_agent_run_replays_output_items_and_tool_output(agent_env):
         "call_id": "call-1",
         "output": "8",
     }
+
+
+# ---------------------------------------------------------------------------
+# Agent.run — reasoning sections
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_agent_run_includes_reasoning_from_every_turn(agent_env):
+    """Reasoning text from all turns is joined in order."""
+    agent_env.responses = [
+        _make_response(
+            output=[
+                _make_reasoning(["Plan: add."], ["Need 4 + 4."]),
+                _make_function_call(),
+            ]
+        ),
+        _make_response(
+            output=[
+                _make_reasoning(["Report."], ["Tool said 8."]),
+                _make_message("4 + 4 = 8"),
+            ]
+        ),
+    ]
+    assert await agent_env.agent.run("4+4?") == _answer(
+        final="4 + 4 = 8", reasoning="Need 4 + 4.\nTool said 8."
+    )
+
+
+@pytest.mark.asyncio
+async def test_agent_run_strips_blank_lines_from_answer(agent_env):
+    """Whitespace around each text adds no extra blank lines."""
+    agent_env.responses = [
+        _make_response(
+            output=[
+                _make_reasoning(texts=["\nUse divide tool.\n\n", "  \n"]),
+                _make_function_call(),
+            ]
+        ),
+        _make_response(
+            output=[
+                _make_reasoning(texts=["\n\nProvide answer.\n"]),
+                _make_message("\nThe result is 97.39.\n\n"),
+            ]
+        ),
+    ]
+    assert await agent_env.agent.run("4+4?") == (
+        "reasoning:\nUse divide tool.\nProvide answer.\n\n"
+        "final response:\nThe result is 97.39."
+    )
+
+
+@pytest.mark.asyncio
+async def test_agent_run_ignores_reasoning_summary(agent_env):
+    """A reasoning item with only a summary leaves reasoning as (none)."""
+    agent_env.responses = [
+        _make_response(
+            output=[_make_reasoning(["Short plan."]), _make_message("8")]
+        )
+    ]
+    assert await agent_env.agent.run("4+4?") == _answer(final="8")

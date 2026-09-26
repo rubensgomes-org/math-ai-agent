@@ -230,7 +230,9 @@ def test_main_runs_uvicorn_with_configured_host_and_port(
     mock_get_config.return_value.web.host = "0.0.0.0"
     mock_get_config.return_value.web.port = 1234
     main()
-    mock_run.assert_called_once_with(app, host="0.0.0.0", port=1234)
+    mock_run.assert_called_once_with(
+        app, host="0.0.0.0", port=1234, log_config=None
+    )
 
 
 @pytest.mark.asyncio

@@ -41,15 +41,22 @@
 """
 
 import asyncio
+import json
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from openai.types.chat import ChatCompletionMessage
 
 from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
 from math_ai_agent.llm import agent as llm_module
 from math_ai_agent.llm.agent import Agent, AgentBusyError
-from math_ai_agent.llm.client import ChatCompletionClient, ResponsesClient
+from math_ai_agent.llm.client import (
+    ChatCompletionClient,
+    ResponsesClient,
+    _to_json,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -148,6 +155,17 @@ def test_init_sets_instance_attributes():
     assert client.tools is _TOOLS
     assert client.model == _MODEL
     assert isinstance(client, ChatCompletionClient)
+
+
+def test_to_json_dumps_sdk_objects_and_falls_back_to_str():
+    """SDK objects use model_dump; other unencodable values use str."""
+    message = ChatCompletionMessage(role="assistant", content="4 + 4 = 8")
+    history = [{"role": "user", "content": "4+4?"}, message, date(2026, 9, 26)]
+    assert json.loads(_to_json(history)) == [
+        {"role": "user", "content": "4+4?"},
+        {"role": "assistant", "content": "4 + 4 = 8"},
+        "2026-09-26",
+    ]
 
 
 def test_init_uses_default_timeout():

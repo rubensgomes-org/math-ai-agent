@@ -152,8 +152,10 @@ class CalcMCPClient(Client):
                     ...
                 ]
         """
-        logger.debug("Converting MCP tools to OpenAI format")
+        logger.debug("Calling Calculator MCP Server to list tools")
         mcp_tools: list[mcp.types.Tool] = await self.list_tools()
+        logger.debug("mcp_tools: %s", mcp_tools)
+        logger.debug("Converting %d MCP tools to OpenAI format", len(mcp_tools))
         openai_tools: list[dict] = []
         for tool in mcp_tools:
             func: dict = {"name": tool.name}
@@ -189,8 +191,12 @@ class CalcMCPClient(Client):
                     ...
                 ]
         """
-        logger.debug("Converting MCP tools to Responses format")
+        logger.debug("Calling Calculator MCP Server to list tools")
         mcp_tools: list[mcp.types.Tool] = await self.list_tools()
+        logger.debug("mcp_tools: %s", mcp_tools)
+        logger.debug(
+            "Converting %d MCP tools to Responses format", len(mcp_tools)
+        )
         responses_tools: list[dict] = []
         for tool in mcp_tools:
             func: dict = {"type": "function", "name": tool.name}

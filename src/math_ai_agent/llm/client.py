@@ -65,6 +65,21 @@ from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
 logger = logging.getLogger(__name__)
 
 
+def _to_json(value: Any) -> str:
+    """Format a request payload as indented JSON for logging.
+
+    SDK objects, such as ``ChatCompletionMessage``, are converted with
+    ``model_dump``; anything else that JSON cannot encode uses ``str``.
+    """
+
+    def _encode(item: Any) -> Any:
+        if hasattr(item, "model_dump"):
+            return item.model_dump(exclude_none=True)
+        return str(item)
+
+    return json.dumps(value, indent=2, default=_encode)
+
+
 class _BaseLLMClient:
     """Shared validation and ``AsyncOpenAI`` construction.
 
@@ -107,14 +122,14 @@ class _BaseLLMClient:
             logger.error("tools is empty or None")
             raise ValueError("tools must not be empty")
         logger.info(
-            "Initializing %s with base_url=%s, model=%s, tool_count=%d",
+            "Initializing LLM %s with base_url=%s, model=%s, tool_count=%d",
             type(self).__name__,
             base_url,
             model,
             len(tools),
         )
         logger.debug(
-            "Tool definitions:\n%s",
+            "Tool definitions being set on the LLM client:\n%s",
             json.dumps(tools, indent=2),
         )
         self.openai_client = AsyncOpenAI(
@@ -142,9 +157,13 @@ class ChatCompletionClient(_BaseLLMClient):
             The ``ChatCompletion`` from the configured model.
         """
         logger.debug(
-            "Sending %d message(s) to model %s",
+            "LLM client sending %d message(s) to model %s\n"
+            "Messages:\n%s\n"
+            "Tools:\n%s",
             len(history),
             self.model,
+            _to_json(history),
+            _to_json(self.tools),
         )
         # ``create()`` is overloaded on ``stream``; because the
         # arguments below are loosely typed, some type checkers widen
@@ -197,10 +216,24 @@ class ResponsesClient(_BaseLLMClient):
         Returns:
             The ``Response`` from the configured model.
         """
+        # The LLM is stateless: it keeps nothing between API calls. So on
+        # every call in the agent loop, the app sends the whole conversation
+        # so far, and history is that list. The context the model actually sees
+        # on each "Repose API" call is:
+        #
+        # instructions + history (user prompt, output items, tool results) +
+        # tools
+        logger.debug("LLM client is now going to send the context to the LLM")
         logger.debug(
-            "Sending %d input item(s) to model %s",
+            "LLM client sending %d history input item(s) to model %s\n"
+            "System instructions:\n%s\n"
+            "Input items:\n%s\n"
+            "Tools:\n%s",
             len(history),
             self.model,
+            instructions,
+            _to_json(history),
+            _to_json(self.tools),
         )
         # See the note in ChatCompletionClient.create_response: this
         # call never streams, so narrow it back to ``Response``.

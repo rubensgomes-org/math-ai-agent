@@ -89,6 +89,12 @@ logging:
             handlers:
                 - console
             propagate: false
+        # FastMCP client: connection, session, and tool-call activity
+        fastmcp.client:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
         # HTTP request/response summaries — set to DEBUG for detail
         httpx:
             level: INFO
@@ -132,6 +138,6 @@ logging:
                 - console
             propagate: false
     root:
-        level: WARNING
+        level: DEBUG
         handlers:
             - console

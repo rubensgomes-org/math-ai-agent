@@ -54,13 +54,52 @@ import logging
 from typing import Any
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
-from openai.types.responses import Response, ResponseFunctionToolCall
+from openai.types.responses import (
+    Response,
+    ResponseFunctionToolCall,
+    ResponseReasoningItem,
+)
 
 from math_ai_agent.config.config import get_api_key, get_config
 from math_ai_agent.llm.client import ChatCompletionClient, ResponsesClient
 from math_ai_agent.mcp.calc_connection import CalcMCPConnection
 
 logger = logging.getLogger(__name__)
+
+_EMPTY_SECTION = "(none)"
+
+
+def _reasoning_texts(response: Response) -> list[str]:
+    """Return the reasoning text in a response's reasoning items.
+
+    The reasoning ``summary`` is ignored: some providers repeat the
+    reasoning text in it.
+    """
+    return [
+        part.text
+        for item in response.output
+        if isinstance(item, ResponseReasoningItem)
+        for part in item.content or []
+    ]
+
+
+def _format_answer(reasoning: list[str], final_response: str) -> str:
+    """Format the answer as reasoning and final response sections.
+
+    Surrounding whitespace is stripped from each text, so sections are
+    separated by exactly one blank line and turns by a line break.  Each
+    section shows ``(none)`` when the LLM returned no text for it.
+    """
+    sections = {
+        "reasoning": "\n".join(
+            text.strip() for text in reasoning if text.strip()
+        ),
+        "final response": final_response.strip(),
+    }
+    return "\n\n".join(
+        f"{heading}:\n{text or _EMPTY_SECTION}"
+        for heading, text in sections.items()
+    )
 
 
 class AgentBusyError(RuntimeError):
@@ -135,7 +174,8 @@ class Agent:
             user_prompt: The math question from the user.
 
         Returns:
-            The final text response from the LLM.
+            The LLM's answer.  The Responses API answer also includes
+            a reasoning section.
 
         Raises:
             AgentBusyError: If ``max_concurrent_prompts`` prompts are
@@ -154,7 +194,7 @@ class Agent:
         logger.debug("Calling calculator MCP tool %s with %s", tool_name, args)
         result = await self._calc.call_tool(tool_name, args)
         logger.debug(
-            "Tool %s result:\n%s",
+            "Calculator MCP tool %s result:\n%s",
             tool_name,
             json.dumps(result.structured_content, indent=2),
         )
@@ -284,7 +324,8 @@ class Agent:
             user_prompt: The math question from the user.
 
         Returns:
-            The final text response from the LLM.
+            The reasoning text from every turn and the final response,
+            as labeled sections.
 
         Raises:
             RuntimeError: If the token limit is reached, the content
@@ -296,6 +337,8 @@ class Agent:
         # The system prompt is sent as the top-level `instructions`
         # parameter, so it is not part of the input items.
         history: list[Any] = [{"role": "user", "content": user_prompt}]
+        # Reasoning collected from every turn, for the formatted answer.
+        reasoning: list[str] = []
         logger.debug("Sending user prompt: %s", user_prompt)
 
         logger.debug("==============================================")
@@ -324,6 +367,8 @@ class Agent:
             logger.debug("response.status: %s", response.status)
             match response.status:
                 case "completed":
+                    reasoning.extend(_reasoning_texts(response))
+
                     # check if the LLM is asking us to run any tool
                     tool_calls = [
                         item
@@ -364,6 +409,9 @@ class Agent:
                             tool_call.name,
                         )
                         result = await self._call_tool(tool_call.name, args)
+                        logger.debug(
+                            "appending to the history the result: %s", result
+                        )
                         history.append(
                             {
                                 "type": "function_call_output",
@@ -437,4 +485,4 @@ class Agent:
         logger.debug("Returning final response message from LLM.")
         logger.debug("=========== >>> END AGENT LOOP <<< ===========")
         logger.debug("==============================================")
-        return response.output_text or ""
+        return _format_answer(reasoning, response.output_text)

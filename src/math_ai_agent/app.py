@@ -139,6 +139,10 @@ async def prompt(payload: Prompt, request: Request) -> dict[str, str]:
 
 
 def main() -> None:
-    """Run the web app with uvicorn on the configured host and port."""
+    """Run the web app with uvicorn on the configured host and port.
+
+    ``log_config=None`` stops uvicorn from replacing the logging
+    configuration from ``config.yaml`` with its own.
+    """
     web = get_config().web
-    uvicorn.run(app, host=web.host, port=web.port)
+    uvicorn.run(app, host=web.host, port=web.port, log_config=None)
