@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.2] - 2026-09-26
+
+### Added
+
 - `GET /health` endpoint returning 200 with plain text `OK`
 - `math-ai-agent` command that starts the web app on the `web.host` and
   `web.port` set in `config.yaml` (default `127.0.0.1:9090`)
