@@ -50,15 +50,18 @@ From the project root folder run::
 
 import json
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from math_ai_agent.config.config import configure_logging, get_config
-from math_ai_agent.llm import agent_loop
+from math_ai_agent.llm import Agent, AgentBusyError
+from math_ai_agent.mcp.calc_connection import CalcMCPConnection
 from math_ai_agent.prompt import Prompt
 
 configure_logging()
@@ -67,10 +70,19 @@ logger = logging.getLogger(__name__)
 # folder to HTML file
 _STATIC_DIR = Path(__file__).parent / "static"
 
+
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
+    """Open the MCP connection and build the agent for the app's lifetime."""
+    async with CalcMCPConnection() as calc:
+        fastapi_app.state.agent = await Agent.create(calc)
+        yield
+
+
 # -------------------------------------------------
 # Create the FastAPI app instance
 # -------------------------------------------------
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
@@ -95,16 +107,18 @@ async def health() -> str:
 
 
 @app.post("/prompt/")
-async def prompt(payload: Prompt) -> dict[str, str]:
+async def prompt(payload: Prompt, request: Request) -> dict[str, str]:
     """Accept a prompt text from the user and return an answer.
 
     Args:
         payload: The validated question from the request body.
+        request: The request, used to reach the app's ``Agent``.
 
     Returns:
         A dict containing the `answer` key with the response.
 
     Raises:
+        HTTPException: 503 if too many prompts are already running.
         RuntimeError: If the agent loop encounters a token limit
             or content filter error.
         ValueError: If the LLM returns an unknown finish reason.
@@ -112,7 +126,14 @@ async def prompt(payload: Prompt) -> dict[str, str]:
     logger.debug("Received prompt: %s", payload.text)
     prompt_text = payload.text.strip()
     logger.debug("Calling LLM with user prompt: %s", prompt_text)
-    output = await agent_loop(prompt_text)
+    agent: Agent = request.app.state.agent
+    try:
+        output = await agent.run(prompt_text)
+    except AgentBusyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The server is busy. Please try again shortly.",
+        ) from error
     logger.debug("Output:\n%s", json.dumps(output, indent=2))
     return {"answer": output}
 

@@ -9,9 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `llm.timeout_seconds` (default 120) and `llm.max_concurrent_prompts`
+  (default 10) settings; prompts beyond the limit get HTTP 503
+- Automatic reconnect and one retry when the calculator MCP connection
+  drops during a tool call
+- `flake8` dev dependency and `.flake8` config (80-character lines)
+- `docs/PERFORMANCE.md` explaining the async event loop and shared clients
+
 ### Changed
 
+- The app opens one calculator MCP connection and one LLM client at startup
+  and reuses them for every prompt, instead of reconnecting per prompt and
+  per tool call
+
 ### Fixed
+
+- Web page shows the error message instead of `undefined` when a prompt
+  request fails with an error response
 
 ## [0.0.2] - 2026-09-26
 

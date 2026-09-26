@@ -38,7 +38,7 @@ Two options:
 
 1. **`langchain-mcp-adapters`** (0.3.2) — talks to the MCP server directly.
    Rejected: it bypasses `CalcMCPClient`, and with it the FastMCP OAuth flow,
-   the Fernet-encrypted token store, and the class-level tool cache.
+   and the Fernet-encrypted token store.
 2. **Wrap `call_tool` in `StructuredTool`** — keeps `CalcMCPClient` as the
    transport and feeds each MCP `inputSchema` straight in as `args_schema`
    (LangChain accepts a raw JSON-Schema dict there).
@@ -116,7 +116,7 @@ async def lc_agent_loop(user_prompt: str) -> str:
 - The compiled graph is invoked with `ainvoke`.
 - The ReAct loop that `create_agent()` provides (call model → dispatch tool
   calls → feed results back → repeat until no tool calls) replaces both
-  `_chat_agent_loop` and `_responses_agent_loop` wholesale.
+  `Agent._run_chat` and `Agent._run_responses` wholesale.
 - The system prompt goes in as `system_prompt=`; no manual seeding of a
   `{"role": "system", ...}` history entry.
 
@@ -134,18 +134,15 @@ poetry add "langchain@^1.4.0" "langchain-openai@^1.6.0"
    returns messages. To keep those `RuntimeError`s, inspect
    `response_metadata["finish_reason"]` on the final `AIMessage`, or write
    LangChain middleware.
-2. **A connection per tool call.** `call_tool()` opens a fresh
-   `CalcMCPClient` on every invocation. That is already true today, but
-   LangChain does not fix it.
-3. **Nemotron is a reasoning model.** Its `reasoning_content` lands in
+2. **Nemotron is a reasoning model.** Its `reasoning_content` lands in
    `additional_kwargs`, not `content`. The "plain text only, no LaTeX"
    instruction still matters and still belongs in `system_prompt`.
-4. **Coverage floor of 90%.** A new `lc_agent.py` needs unit tests with a fake
+3. **Coverage floor of 90%.** A new `lc_agent.py` needs unit tests with a fake
    chat model, alongside the existing `tests/test_responses.py` and
    `tests/test_chat_completion.py`.
 
 ## Possible Next Step
 
 Implement this as a third `llm.api_style` value (e.g. `langchain`) dispatched
-from `agent_loop()` in `llm/agent.py`, so all three paths stay switchable from
+from `Agent.create()` in `llm/agent.py`, so all three paths stay switchable from
 `config.yaml`.

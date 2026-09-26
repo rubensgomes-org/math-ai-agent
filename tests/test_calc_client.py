@@ -38,7 +38,7 @@
 
 """Unit tests for :mod:`math_ai_agent.mcp.calc_client`."""
 
-# Tests inspect and reset the client's private tool cache.
+# Tests call the private token store helper.
 # pylint: disable=protected-access
 
 from types import SimpleNamespace
@@ -57,14 +57,6 @@ from math_ai_agent.mcp.calc_client import CalcMCPClient
 # ---------------------------------------------------------------------------
 
 _URL = "http://localhost:9000/mcp"
-
-
-@pytest.fixture(autouse=True)
-def _clear_tools_cache():
-    """Reset the class-level tool cache before each test."""
-    CalcMCPClient._tools = []
-    yield
-    CalcMCPClient._tools = []
 
 
 @pytest.fixture(autouse=True)
@@ -95,12 +87,13 @@ def patch_oauth(monkeypatch, app_config, tmp_path):
         yield mock_init, mock_oauth
 
 
-def _make_calc(call_result="42"):
-    """Create a ``CalcMCPClient`` with a mocked ``call_tool``."""
+def _make_calc(call_result="42", tools=None):
+    """Create a ``CalcMCPClient`` with mocked ``call_tool``/``list_tools``."""
     with patch.object(Client, "__init__", return_value=None):
         calc = CalcMCPClient()
 
     calc.call_tool = AsyncMock(return_value=call_result)
+    calc.list_tools = AsyncMock(return_value=tools or [])
     return calc
 
 
@@ -234,66 +227,6 @@ async def test_aexit_delegates_to_super():
 
 
 # ---------------------------------------------------------------------------
-# list_tools — caching behaviour
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_list_tools_fetches_when_empty():
-    tools = [SimpleNamespace(name="sqrt", description="Square root")]
-    calc = _make_calc()
-
-    with patch.object(
-        Client,
-        "list_tools",
-        new_callable=AsyncMock,
-        return_value=tools,
-    ) as mock_parent_lt:
-        result = await calc.list_tools()
-
-    assert result == tools
-    assert CalcMCPClient._tools == tools
-    mock_parent_lt.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_list_tools_returns_cache_on_second_call():
-    tools = [SimpleNamespace(name="add", description="Add")]
-    calc = _make_calc()
-
-    with patch.object(
-        Client,
-        "list_tools",
-        new_callable=AsyncMock,
-        return_value=tools,
-    ) as mock_parent_lt:
-        first = await calc.list_tools()
-        second = await calc.list_tools()
-
-    assert first is second
-    # list_tools should only have been called once (cache hit)
-    mock_parent_lt.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_list_tools_skips_fetch_when_pre_populated():
-    existing = [SimpleNamespace(name="divide", description="Divide")]
-    CalcMCPClient._tools = existing
-    calc = _make_calc()
-
-    with patch.object(
-        Client,
-        "list_tools",
-        new_callable=AsyncMock,
-        return_value=[],
-    ) as mock_parent_lt:
-        result = await calc.list_tools()
-
-    assert result is existing
-    mock_parent_lt.assert_not_awaited()
-
-
-# ---------------------------------------------------------------------------
 # call_tool (inherited)
 # ---------------------------------------------------------------------------
 
@@ -337,8 +270,7 @@ async def test_to_openai_tools_converts_single_tool():
             },
         )
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_openai_tools()
     assert len(result) == 1
     assert result[0]["type"] == "function"
@@ -367,8 +299,7 @@ async def test_to_openai_tools_multiple_tools():
             },
         ),
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_openai_tools()
     assert len(result) == 2
     assert result[0]["function"]["name"] == "add"
@@ -396,8 +327,7 @@ async def test_to_openai_tools_no_description():
             inputSchema={"type": "object", "properties": {}},
         )
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_openai_tools()
     assert "description" not in result[0]["function"]
 
@@ -425,8 +355,7 @@ async def test_to_openai_tools_preserves_input_schema():
             inputSchema=schema,
         )
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_openai_tools()
     assert result[0]["function"]["parameters"] == schema
 
@@ -453,8 +382,7 @@ async def test_to_responses_tools_converts_single_tool():
             },
         )
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_responses_tools()
     assert len(result) == 1
     assert result[0]["type"] == "function"
@@ -482,8 +410,7 @@ async def test_to_responses_tools_multiple_tools():
             },
         ),
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_responses_tools()
     assert len(result) == 2
     assert result[0]["name"] == "add"
@@ -513,8 +440,7 @@ async def test_to_responses_tools_no_description():
             inputSchema={"type": "object", "properties": {}},
         )
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_responses_tools()
     assert "description" not in result[0]
 
@@ -531,8 +457,7 @@ async def test_to_responses_tools_preserves_input_schema():
     tools = [
         mcp.types.Tool(name="sqrt", description="root", inputSchema=schema)
     ]
-    CalcMCPClient._tools = tools
-    calc = _make_calc()
+    calc = _make_calc(tools=tools)
     result = await calc.to_responses_tools()
     assert result[0]["parameters"] == schema
 
@@ -572,99 +497,3 @@ async def test_full_round_trip():
         async with calc:
             result = await calc.call_tool("multiply", {"a": 3, "b": 7})
             assert result == "21"
-
-
-# ---------------------------------------------------------------------------
-# Module-level helpers — get_calc_mcp_tools / call_tool
-# ---------------------------------------------------------------------------
-
-
-class _FakeCalcClient:
-    """Stand-in for CalcMCPClient as an async context manager."""
-
-    def __init__(self, tools=None, result=None, responses_tools=None):
-        self._tools = tools or []
-        self._responses_tools = responses_tools or []
-        self._result = result
-        self.calls = []
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return None
-
-    async def to_openai_tools(self):
-        return self._tools
-
-    async def to_responses_tools(self):
-        return self._responses_tools
-
-    async def call_tool(self, tool_name, args):
-        self.calls.append((tool_name, args))
-        return self._result
-
-
-@pytest.mark.asyncio
-async def test_get_calc_mcp_tools_returns_openai_tools():
-    """get_calc_mcp_tools opens a client and returns its OpenAI tool list."""
-    tools = [{"type": "function", "function": {"name": "add"}}]
-    fake = _FakeCalcClient(tools=tools)
-    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
-        assert await calc_client.get_calc_mcp_tools() == tools
-
-
-@pytest.mark.asyncio
-async def test_get_calc_mcp_tools_empty():
-    """An MCP server exposing no tools yields an empty list."""
-    with patch.object(
-        calc_client, "CalcMCPClient", return_value=_FakeCalcClient(tools=[])
-    ):
-        assert await calc_client.get_calc_mcp_tools() == []
-
-
-@pytest.mark.asyncio
-async def test_get_calc_mcp_tools_responses_style():
-    """api_style="responses" returns the flat Responses tool list."""
-    chat_tools = [{"type": "function", "function": {"name": "add"}}]
-    responses_tools = [{"type": "function", "name": "add"}]
-    fake = _FakeCalcClient(tools=chat_tools, responses_tools=responses_tools)
-    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
-        assert (
-            await calc_client.get_calc_mcp_tools("responses") == responses_tools
-        )
-
-
-@pytest.mark.asyncio
-async def test_get_calc_mcp_tools_chat_style_is_the_default():
-    """An explicit or omitted "chat" style returns the nested tool list."""
-    chat_tools = [{"type": "function", "function": {"name": "add"}}]
-    responses_tools = [{"type": "function", "name": "add"}]
-    fake = _FakeCalcClient(tools=chat_tools, responses_tools=responses_tools)
-    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
-        assert await calc_client.get_calc_mcp_tools("chat") == chat_tools
-        assert await calc_client.get_calc_mcp_tools() == chat_tools
-
-
-@pytest.mark.asyncio
-async def test_call_tool_returns_string_result():
-    """call_tool returns the string form of the tool result data."""
-    result = SimpleNamespace(structured_content={"result": 8}, data=8)
-    fake = _FakeCalcClient(result=result)
-    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
-        assert await calc_client.call_tool("add", {"a": 4, "b": 4}) == "8"
-    assert fake.calls == [("add", {"a": 4, "b": 4})]
-
-
-@pytest.mark.asyncio
-async def test_call_tool_propagates_errors():
-    """A failing MCP tool call propagates to the caller."""
-    fake = _FakeCalcClient()
-
-    async def _boom(tool_name, args):
-        raise RuntimeError("tool exploded")
-
-    fake.call_tool = _boom
-    with patch.object(calc_client, "CalcMCPClient", return_value=fake):
-        with pytest.raises(RuntimeError, match="tool exploded"):
-            await calc_client.call_tool("divide", {"a": 1, "b": 0})

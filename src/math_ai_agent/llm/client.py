@@ -60,6 +60,8 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.responses import Response
 
+from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,6 +78,7 @@ class _BaseLLMClient:
         base_url: str,
         model: str,
         tools: list[dict],
+        timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS,
     ) -> None:
         """Create an ``AsyncOpenAI`` client for the LLM.
 
@@ -86,6 +89,7 @@ class _BaseLLMClient:
             base_url: Base URL of the inference endpoint.
             model: Model identifier to use for completions.
             tools: Tool definitions in the format matching this client.
+            timeout_seconds: Seconds to wait for each LLM response.
 
         Raises:
             ValueError: If any parameter is empty or ``None``.
@@ -116,6 +120,7 @@ class _BaseLLMClient:
         self.openai_client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
+            timeout=timeout_seconds,
         )
         self.tools = tools
         self.model = model

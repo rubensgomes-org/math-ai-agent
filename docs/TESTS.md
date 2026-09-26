@@ -76,20 +76,20 @@ answers with no such lines, it is doing arithmetic in its head and the system
 prompt is not taking effect.
 
 **Step 5 — the Responses agent loop.** Same idea as step 4, but against the
-Responses API (`POST /v1/responses`) rather than Chat Completions. It calls the
-real `_responses_agent_loop()`, so it exercises the code the app runs. Takes the
-question on the command line, or prompts for it:
+Responses API (`POST /v1/responses`) rather than Chat Completions. It runs the
+real `Agent`, so it exercises the code the app runs. Takes the question on the
+command line, or prompts for it:
 
 ```bash
 poetry run python tests/integration/test_llm_responses_tool.py "What is 4 + 4 * 3?"
 ```
 
 Look for `function_call` items in the response and `Calling call_id: <id>,
-tool_name: <name>` in the output. This step is independent of `llm.api_style` —
-it always drives the Responses loop.
+tool_name: <name>` in the output. This step forces `llm.api_style` to
+`responses`, so it always drives the Responses loop.
 
 **Step 6 — the web app.** Open <http://127.0.0.1:8000>, type a math question,
-and submit. `POST /prompt/` runs `agent_loop()`, which follows whichever path
+and submit. `POST /prompt/` runs `Agent.run()`, which follows whichever path
 `llm.api_style` selects.
 
 ### Verifying that config drives the client

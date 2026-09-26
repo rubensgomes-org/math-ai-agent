@@ -47,9 +47,11 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_LLM_TIMEOUT_SECONDS = 120.0
 
 
 class LLMConfig(BaseModel):
@@ -60,6 +62,8 @@ class LLMConfig(BaseModel):
     model: str
     api_key_env: str
     system_instructions: str
+    timeout_seconds: float = Field(default=DEFAULT_LLM_TIMEOUT_SECONDS, gt=0)
+    max_concurrent_prompts: int = Field(default=10, gt=0)
 
 
 class CalculatorMCPConfig(BaseModel):

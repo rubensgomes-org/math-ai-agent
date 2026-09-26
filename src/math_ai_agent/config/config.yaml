@@ -16,6 +16,10 @@ llm:
     # Get a key from https://build.nvidia.com (keys start with "nvapi-").
     api_key_env: "NVIDIA_API_KEY"
     # System prompt sent to the **stateless** LLM on every request.
+    # Seconds to wait for each LLM response before failing.
+    timeout_seconds: 120
+    # Prompts processed at once; more get HTTP 503 until one finishes.
+    max_concurrent_prompts: 10
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.

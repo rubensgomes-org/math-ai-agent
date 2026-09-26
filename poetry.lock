@@ -1253,6 +1253,23 @@ packaging = ">=20"
 platformdirs = ">=4.3.6"
 
 [[package]]
+name = "flake8"
+version = "7.4.1"
+description = "the modular source code checker: pep8 pyflakes and co"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "flake8-7.4.1-py2.py3-none-any.whl", hash = "sha256:78480274a6d7289d9cb8eafeda241fac57d4ea687d26e32dfdca37b72cdeddad"},
+    {file = "flake8-7.4.1.tar.gz", hash = "sha256:84ea5afcaf344487b0ea5baaebb8100f4cfaebc01f755998f75876664029f587"},
+]
+
+[package.dependencies]
+mccabe = ">=0.7.0,<0.8.0"
+pycodestyle = ">=2.15.0,<2.16.0"
+pyflakes = ">=4.0.0,<4.1.0"
+
+[[package]]
 name = "griffelib"
 version = "2.3.0"
 description = "Signatures for entire Python programs. Extract the structure, the frame, the skeleton of your project, to generate API documentation or find breaking changes in your API."
@@ -2684,6 +2701,18 @@ files = [
 defusedxml = ">=0.7.1,<0.8.0"
 
 [[package]]
+name = "pycodestyle"
+version = "2.15.0"
+description = "Python style guide checker"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "pycodestyle-2.15.0-py2.py3-none-any.whl", hash = "sha256:12fd2f73c7b8ee8845a0431111df8faf4c1a07d6e64e2ee7f0c74014dab14181"},
+    {file = "pycodestyle-2.15.0.tar.gz", hash = "sha256:318f5db083869b4c4dad922d0b11124fb27ab181b6730b93371da671e31bd50e"},
+]
+
+[[package]]
 name = "pycparser"
 version = "3.0"
 description = "C parser in Python"
@@ -2875,6 +2904,18 @@ azure-key-vault = ["azure-identity (>=1.16.0)", "azure-keyvault-secrets (>=4.8.0
 gcp-secret-manager = ["google-cloud-secret-manager (>=2.23.1)"]
 toml = ["tomli (>=2.0.1)"]
 yaml = ["pyyaml (>=6.0.1)"]
+
+[[package]]
+name = "pyflakes"
+version = "4.0.0"
+description = "passive checker of Python programs"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "pyflakes-4.0.0-py2.py3-none-any.whl", hash = "sha256:0f7b7a78e8fcffd78b205200f045a70911f4179be1b42eac82c3323e0bf5c8aa"},
+    {file = "pyflakes-4.0.0.tar.gz", hash = "sha256:492b27735181e3d4a6acfc08738948b666bf3e696781854ea6e0d8540d566d52"},
+]
 
 [[package]]
 name = "pygments"
@@ -4232,4 +4273,4 @@ test = ["pytest"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.14,<4.0.0"
-content-hash = "82cd31727cfb8290362f308829917648bbc59e6c8f6edebc4a4cc542c0c8ad99"
+content-hash = "33d8334769da8bc8061629feee1b1dd81cc1b21836b8b16eba2589421f9eef90"

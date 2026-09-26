@@ -49,8 +49,7 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from math_ai_agent.llm import agent as llm_module
-from math_ai_agent.llm.agent import agent_loop
+from math_ai_agent.llm.agent import Agent
 from math_ai_agent.llm.client import ResponsesClient
 
 # ---------------------------------------------------------------------------
@@ -66,6 +65,7 @@ _USAGE = SimpleNamespace(
     output_tokens=5,
     total_tokens=15,
 )
+_TOOL_RESULT = SimpleNamespace(data=8, structured_content={"result": 8})
 _TOOLS = [
     {
         "type": "function",
@@ -249,13 +249,13 @@ async def test_create_response_with_function_call():
 
 
 # ---------------------------------------------------------------------------
-# agent_loop — helpers
+# Agent.run — helpers
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
 def agent_env(app_config):
-    """Patch config, MCP tool discovery, and tool dispatch.
+    """Build an ``Agent`` with a fake MCP client and a patched LLM.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
     one entry per ``create_response`` call, whose ``histories`` list
@@ -269,7 +269,7 @@ def agent_env(app_config):
         responses=[],
         histories=[],
         instructions=[],
-        call_tool=AsyncMock(return_value="8"),
+        call_tool=AsyncMock(return_value=_TOOL_RESULT),
     )
 
     async def _next_response(history, instructions):
@@ -277,58 +277,56 @@ def agent_env(app_config):
         env.instructions.append(instructions)
         return env.responses.pop(0)
 
-    with (
-        patch.object(
-            llm_module, "get_calc_mcp_tools", AsyncMock(return_value=_TOOLS)
-        ),
-        patch.object(llm_module, "get_config", return_value=app_config),
-        patch.object(llm_module, "get_api_key", return_value=_API_KEY),
-        patch.object(llm_module, "call_tool", env.call_tool),
-        patch.object(
-            ResponsesClient, "create_response", side_effect=_next_response
-        ),
+    env.agent = Agent(
+        SimpleNamespace(call_tool=env.call_tool),
+        ResponsesClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
+        app_config.llm.system_instructions,
+        app_config.llm.max_concurrent_prompts,
+    )
+    with patch.object(
+        ResponsesClient, "create_response", side_effect=_next_response
     ):
         yield env
 
 
 # ---------------------------------------------------------------------------
-# agent_loop — terminal responses
+# Agent.run — terminal responses
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_returns_output_text_on_completed(agent_env):
+async def test_agent_run_returns_output_text_on_completed(agent_env):
     """A "completed" status with no tool calls returns the output text."""
     agent_env.responses = [
         _make_response(output=[_make_message("The answer is 8")])
     ]
-    assert await agent_loop("4+4?") == "The answer is 8"
+    assert await agent_env.agent.run("4+4?") == "The answer is 8"
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_returns_empty_string_for_no_output(agent_env):
+async def test_agent_run_returns_empty_string_for_no_output(agent_env):
     """A "completed" status with no output items returns an empty string."""
     agent_env.responses = [_make_response(output=[])]
-    assert await agent_loop("4+4?") == ""
+    assert await agent_env.agent.run("4+4?") == ""
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_handles_missing_usage(agent_env):
+async def test_agent_run_handles_missing_usage(agent_env):
     """A response without usage data is logged and does not raise."""
     agent_env.responses = [
         _make_response(output=[_make_message("8")], usage=None)
     ]
-    assert await agent_loop("4+4?") == "8"
+    assert await agent_env.agent.run("4+4?") == "8"
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_passes_system_instructions(agent_env):
+async def test_agent_run_passes_system_instructions(agent_env):
     """The loop supplies the system prompt to the client each turn."""
     agent_env.responses = [
         _make_response(output=[_make_function_call()]),
         _make_response(output=[_make_message("done")]),
     ]
-    await agent_loop("4+4?")
+    await agent_env.agent.run("4+4?")
     assert agent_env.instructions == [
         _INSTRUCTIONS,
         _INSTRUCTIONS,
@@ -336,20 +334,20 @@ async def test_agent_loop_passes_system_instructions(agent_env):
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_sends_user_prompt_without_system_item(agent_env):
+async def test_agent_run_sends_user_prompt_without_system_item(agent_env):
     """The first input carries only the user prompt, no system item."""
     agent_env.responses = [_make_response(output=[_make_message("8")])]
-    await agent_loop("4+4?")
+    await agent_env.agent.run("4+4?")
     assert agent_env.histories[0] == [{"role": "user", "content": "4+4?"}]
 
 
 # ---------------------------------------------------------------------------
-# agent_loop — error statuses
+# Agent.run — error statuses
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_max_output_tokens_raises_runtime_error(agent_env):
+async def test_agent_run_max_output_tokens_raises_runtime_error(agent_env):
     """An "incomplete" max_output_tokens response raises RuntimeError."""
     agent_env.responses = [
         _make_response(
@@ -358,11 +356,11 @@ async def test_agent_loop_max_output_tokens_raises_runtime_error(agent_env):
         )
     ]
     with pytest.raises(RuntimeError, match="Token limit reached"):
-        await agent_loop("4+4?")
+        await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_content_filter_raises_runtime_error(agent_env):
+async def test_agent_run_content_filter_raises_runtime_error(agent_env):
     """An "incomplete" content_filter response raises RuntimeError."""
     agent_env.responses = [
         _make_response(
@@ -371,11 +369,11 @@ async def test_agent_loop_content_filter_raises_runtime_error(agent_env):
         )
     ]
     with pytest.raises(RuntimeError, match="blocked"):
-        await agent_loop("4+4?")
+        await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_unknown_incomplete_reason_raises_value_error(
+async def test_agent_run_unknown_incomplete_reason_raises_value_error(
     agent_env,
 ):
     """An unrecognised incomplete reason raises ValueError."""
@@ -386,21 +384,21 @@ async def test_agent_loop_unknown_incomplete_reason_raises_value_error(
         )
     ]
     with pytest.raises(ValueError, match="Unknown incomplete reason: wat"):
-        await agent_loop("4+4?")
+        await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_missing_incomplete_details_raises_value_error(
+async def test_agent_run_missing_incomplete_details_raises_value_error(
     agent_env,
 ):
     """An "incomplete" status without details raises ValueError."""
     agent_env.responses = [_make_response(status="incomplete")]
     with pytest.raises(ValueError, match="Unknown incomplete reason: None"):
-        await agent_loop("4+4?")
+        await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_failed_raises_runtime_error(agent_env):
+async def test_agent_run_failed_raises_runtime_error(agent_env):
     """A "failed" status raises RuntimeError with the provider message."""
     agent_env.responses = [
         _make_response(
@@ -409,65 +407,65 @@ async def test_agent_loop_failed_raises_runtime_error(agent_env):
         )
     ]
     with pytest.raises(RuntimeError, match="upstream 502"):
-        await agent_loop("4+4?")
+        await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_failed_without_error_raises_runtime_error(agent_env):
+async def test_agent_run_failed_without_error_raises_runtime_error(agent_env):
     """A "failed" status with no error object still raises RuntimeError."""
     agent_env.responses = [_make_response(status="failed")]
     with pytest.raises(RuntimeError, match="unknown error"):
-        await agent_loop("4+4?")
+        await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_unknown_status_raises_value_error(agent_env):
+async def test_agent_run_unknown_status_raises_value_error(agent_env):
     """An unrecognised response status raises ValueError."""
     agent_env.responses = [_make_response(status="wat")]
     with pytest.raises(ValueError, match="Unknown response status: wat"):
-        await agent_loop("4+4?")
+        await agent_env.agent.run("4+4?")
 
 
 # ---------------------------------------------------------------------------
-# agent_loop — continue branches
+# Agent.run — continue branches
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_in_progress_continues(agent_env):
+async def test_agent_run_in_progress_continues(agent_env):
     """An "in_progress" status loops again instead of terminating."""
     agent_env.responses = [
         _make_response(status="in_progress"),
         _make_response(output=[_make_message("done")]),
     ]
-    assert await agent_loop("4+4?") == "done"
+    assert await agent_env.agent.run("4+4?") == "done"
     assert agent_env.responses == []
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_queued_continues(agent_env):
+async def test_agent_run_queued_continues(agent_env):
     """A "queued" status loops again instead of terminating."""
     agent_env.responses = [
         _make_response(status="queued"),
         _make_response(output=[_make_message("done")]),
     ]
-    assert await agent_loop("4+4?") == "done"
+    assert await agent_env.agent.run("4+4?") == "done"
     assert agent_env.responses == []
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_dispatches_tool_call(agent_env):
+async def test_agent_run_dispatches_tool_call(agent_env):
     """A function_call item dispatches to the MCP calculator."""
     agent_env.responses = [
         _make_response(output=[_make_function_call()]),
         _make_response(output=[_make_message("4 + 4 = 8")]),
     ]
-    assert await agent_loop("4+4?") == "4 + 4 = 8"
+    assert await agent_env.agent.run("4+4?") == "4 + 4 = 8"
     agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_dispatches_multiple_tool_calls(agent_env):
+async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
     """Every function_call item in one response is dispatched in order."""
     agent_env.responses = [
         _make_response(
@@ -480,7 +478,7 @@ async def test_agent_loop_dispatches_multiple_tool_calls(agent_env):
         ),
         _make_response(output=[_make_message("done")]),
     ]
-    assert await agent_loop("compute") == "done"
+    assert await agent_env.agent.run("compute") == "done"
     assert agent_env.call_tool.await_count == 2
     assert [c.args[0] for c in agent_env.call_tool.await_args_list] == [
         "add",
@@ -489,13 +487,13 @@ async def test_agent_loop_dispatches_multiple_tool_calls(agent_env):
 
 
 @pytest.mark.asyncio
-async def test_agent_loop_replays_output_items_and_tool_output(agent_env):
+async def test_agent_run_replays_output_items_and_tool_output(agent_env):
     """Output items are echoed back followed by function_call_output."""
     agent_env.responses = [
         _make_response(output=[_make_message("plan"), _make_function_call()]),
         _make_response(output=[_make_message("done")]),
     ]
-    await agent_loop("4+4?")
+    await agent_env.agent.run("4+4?")
 
     second_history = agent_env.histories[1]
     assert second_history[0] == {"role": "user", "content": "4+4?"}

@@ -36,18 +36,13 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Calculator MCP client and helper functions.
+"""Calculator MCP client.
 
 Provides the ``CalcMCPClient`` class which extends ``fastmcp.Client``
-to connect to a remote calculator MCP server, cache its tool list,
-and expose inherited ``call_tool()`` / ``list_tools()`` methods.
-Also provides the helper functions ``get_calc_mcp_tools()`` to discover
-available tools and ``call_tool()`` to invoke a tool over a new
-connection.
+to connect to a remote calculator MCP server and convert its tools to
+the OpenAI function-calling formats.
 """
 
-import asyncio
-import json
 import logging
 import os
 from pathlib import Path
@@ -62,7 +57,6 @@ from key_value.aio.stores.filetree import (
     FileTreeV1KeySanitizationStrategy,
 )
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
-from mcp.client.caching import CacheMode
 
 from math_ai_agent.config.config import get_config
 
@@ -89,17 +83,13 @@ def _create_token_store(token_dir: str) -> FileTreeStore:
 class CalcMCPClient(Client):
     """Calculator MCP client extending ``fastmcp.Client``.
 
-    Builds the correct transport and auth from ``config.yaml``,
-    and maintains a class-level tool cache.
+    Builds the correct transport and auth from ``config.yaml``.
 
     Usage::
 
         async with CalcMCPClient() as calc:
             result = await calc.call_tool("add", {"a": 1, "b": 2})
     """
-
-    _tools: list[mcp.types.Tool] = []
-    _lock = asyncio.Lock()
 
     def __init__(self) -> None:
         """Initialize the calculator MCP client."""
@@ -131,7 +121,7 @@ class CalcMCPClient(Client):
             super().__init__(url)
 
     async def __aenter__(self) -> "CalcMCPClient":
-        """Connect to the MCP server and populate the tool cache."""
+        """Connect to the MCP server."""
         logger.debug("Connecting to Calculator MCP server")
         await super().__aenter__()
         return self
@@ -141,32 +131,10 @@ class CalcMCPClient(Client):
         logger.debug("Closing CalcMCPClient")
         await super().__aexit__(exc_type, exc, tb)
 
-    async def list_tools(
-        self, max_pages: int = 250, *, cache_mode: CacheMode = "use"
-    ) -> list[mcp.types.Tool]:
-        """Return cached tools, fetching from the server on first call.
-
-        Thread-safe via an ``asyncio.Lock``.  Subsequent calls return
-        the cached list without contacting the server.
-        The arguments are forwarded to the first fetch only.
-
-        Returns:
-            The list of tools available on the MCP server.
-        """
-        async with CalcMCPClient._lock:
-            if not CalcMCPClient._tools:
-                logger.debug(
-                    "CalcMCPClient._tools is empty:" " fetching from MCP server"
-                )
-                CalcMCPClient._tools = await super().list_tools(
-                    max_pages, cache_mode=cache_mode
-                )
-            return CalcMCPClient._tools
-
     async def to_openai_tools(self) -> list[dict]:
-        """Convert cached MCP tools to OpenAI function-calling schema.
+        """Convert MCP tools to OpenAI function-calling schema.
 
-        Calls ``list_tools()`` to retrieve the (cached) tool list and
+        Calls ``list_tools()`` to retrieve the tool list and
         converts each tool to the OpenAI function-calling format.
 
         Returns:
@@ -200,9 +168,9 @@ class CalcMCPClient(Client):
         return openai_tools
 
     async def to_responses_tools(self) -> list[dict]:
-        """Convert cached MCP tools to Responses API function schema.
+        """Convert MCP tools to Responses API function schema.
 
-        Calls ``list_tools()`` to retrieve the (cached) tool list and
+        Calls ``list_tools()`` to retrieve the tool list and
         converts each tool to the Responses API function-calling
         format.  Unlike the Chat Completions format produced by
         ``to_openai_tools()``, the Responses API uses a flat,
@@ -235,57 +203,3 @@ class CalcMCPClient(Client):
             len(responses_tools),
         )
         return responses_tools
-
-
-# -------------------------------------------------
-# Helper functions
-# -------------------------------------------------
-async def get_calc_mcp_tools(
-    api_style: str = "chat",
-) -> list[dict[str, object]]:
-    """Discover available tools from the Calculator MCP server.
-
-    Args:
-        api_style: ``"responses"`` for the Responses API tool
-            format, anything else for the Chat Completions format.
-
-    Returns:
-        Tool definitions discovered from the MCP server, in the
-        format matching ``api_style``.
-    """
-    logger.debug("Discovering Calculator MCP tools (api_style=%s)", api_style)
-    async with CalcMCPClient() as calcmcp_client:
-        if api_style == "responses":
-            tools = await calcmcp_client.to_responses_tools()
-        else:
-            tools = await calcmcp_client.to_openai_tools()
-    logger.debug("Discovered %d MCP tool(s)", len(tools))
-    return tools
-
-
-async def call_tool(tool_name: str, args: dict) -> str:
-    """Call a calculator MCP tool over a new connection.
-
-    Args:
-        tool_name: The name of the MCP tool to invoke.
-        args: The arguments to pass to the tool.
-
-    Returns:
-        The string representation of the tool result.
-
-    Raises:
-        Exception: If the MCP tool call fails.
-    """
-    async with CalcMCPClient() as calcmcp_client:
-        logger.debug(
-            "Calling calculator MCP tool %s with %s",
-            tool_name,
-            args,
-        )
-        result = await calcmcp_client.call_tool(tool_name, args)
-        logger.debug(
-            "Tool %s result:\n%s",
-            tool_name,
-            json.dumps(result.structured_content, indent=2),
-        )
-        return str(result.data)

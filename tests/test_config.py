@@ -172,6 +172,28 @@ def test_load_config_unknown_api_style_raises(tmp_path, cfg):
         config.load_config(_write(tmp_path, cfg))
 
 
+def test_load_config_load_limits_default(tmp_path, cfg):
+    result = config.load_config(_write(tmp_path, cfg))
+    assert result.llm.timeout_seconds == config.DEFAULT_LLM_TIMEOUT_SECONDS
+    assert result.llm.max_concurrent_prompts == 10
+
+
+def test_load_config_load_limits_custom(tmp_path, cfg):
+    cfg["llm"]["timeout_seconds"] = 30
+    cfg["llm"]["max_concurrent_prompts"] = 3
+    result = config.load_config(_write(tmp_path, cfg))
+    assert result.llm.timeout_seconds == 30
+    assert result.llm.max_concurrent_prompts == 3
+
+
+@pytest.mark.parametrize("key", ["timeout_seconds", "max_concurrent_prompts"])
+@pytest.mark.parametrize("value", [0, -1])
+def test_load_config_non_positive_load_limit_raises(tmp_path, cfg, key, value):
+    cfg["llm"][key] = value
+    with pytest.raises(ValidationError, match=key):
+        config.load_config(_write(tmp_path, cfg))
+
+
 def test_load_config_is_oauth_true(tmp_path, cfg):
     cfg["server"]["calculator_mcp"]["is_oauth"] = True
     result = config.load_config(_write(tmp_path, cfg))

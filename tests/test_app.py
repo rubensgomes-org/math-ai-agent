@@ -36,16 +36,30 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Unit tests for :mod:`math_ai_agent.app`."""
+"""Unit tests for :mod:`math_ai_agent.app`.
 
-# TODO: refactor this unit test so that it does NOT start OAuth authentication.
+``ASGITransport`` does not run the app lifespan, so these tests never
+connect to the MCP server or start OAuth.
+"""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from math_ai_agent.app import Prompt, app, main
+from math_ai_agent import app as app_module
+from math_ai_agent.app import Prompt, app, lifespan, main
+from math_ai_agent.llm import AgentBusyError
+
+
+@pytest.fixture()
+def mock_agent():
+    """Install a mock ``Agent`` on the app state."""
+    agent = MagicMock()
+    agent.run = AsyncMock()
+    app.state.agent = agent
+    yield agent
+    del app.state.agent
 
 
 @pytest.mark.asyncio
@@ -105,12 +119,8 @@ async def test_health_returns_ok():
 
 
 @pytest.mark.asyncio
-@patch(
-    "math_ai_agent.app.agent_loop",
-    new_callable=AsyncMock,
-    return_value="The answer is 4.",
-)
-async def test_prompt_returns_answer(mock_agent_loop):
+async def test_prompt_returns_answer(mock_agent):
+    mock_agent.run.return_value = "The answer is 4."
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport, base_url="http://test"
@@ -120,16 +130,12 @@ async def test_prompt_returns_answer(mock_agent_loop):
         data = response.json()
         assert "answer" in data
         assert data["answer"] == "The answer is 4."
-    mock_agent_loop.assert_awaited_once_with("What is 2+2?")
+    mock_agent.run.assert_awaited_once_with("What is 2+2?")
 
 
 @pytest.mark.asyncio
-@patch(
-    "math_ai_agent.app.agent_loop",
-    new_callable=AsyncMock,
-    return_value="hello response",
-)
-async def test_prompt_strips_whitespace(mock_agent_loop):
+async def test_prompt_strips_whitespace(mock_agent):
+    mock_agent.run.return_value = "hello response"
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport, base_url="http://test"
@@ -137,7 +143,19 @@ async def test_prompt_strips_whitespace(mock_agent_loop):
         response = await client.post("/prompt/", json={"text": "  hello  "})
         assert response.status_code == 200
         assert response.json()["answer"] == "hello response"
-    mock_agent_loop.assert_awaited_once_with("hello")
+    mock_agent.run.assert_awaited_once_with("hello")
+
+
+@pytest.mark.asyncio
+async def test_prompt_returns_503_when_agent_busy(mock_agent):
+    mock_agent.run.side_effect = AgentBusyError("Too many prompts")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 503
+        assert "busy" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -213,3 +231,23 @@ def test_main_runs_uvicorn_with_configured_host_and_port(
     mock_get_config.return_value.web.port = 1234
     main()
     mock_run.assert_called_once_with(app, host="0.0.0.0", port=1234)
+
+
+@pytest.mark.asyncio
+async def test_lifespan_builds_agent_and_closes_mcp_client():
+    calc = MagicMock()
+    calc.__aenter__ = AsyncMock(return_value=calc)
+    calc.__aexit__ = AsyncMock(return_value=None)
+    agent = MagicMock()
+    fastapi_app = MagicMock()
+    with (
+        patch.object(app_module, "CalcMCPConnection", return_value=calc),
+        patch.object(
+            app_module.Agent, "create", AsyncMock(return_value=agent)
+        ) as mock_create,
+    ):
+        async with lifespan(fastapi_app):
+            assert fastapi_app.state.agent is agent
+            calc.__aexit__.assert_not_awaited()
+    mock_create.assert_awaited_once_with(calc)
+    calc.__aexit__.assert_awaited_once()

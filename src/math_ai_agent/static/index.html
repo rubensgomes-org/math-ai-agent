@@ -138,7 +138,8 @@
                 body: JSON.stringify({text: prompt})
             });
             const data = await res.json();
-            document.getElementById("textarea-response-id").value = data.answer;
+            document.getElementById("textarea-response-id").value =
+                res.ok ? data.answer : `Error: ${data.detail}`;
         } finally {
             setBusy(false);
         }
