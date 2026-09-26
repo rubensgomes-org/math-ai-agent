@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `fastmcp.client` logger in `config_local.yaml` and `config_remote.yaml`
+- Debug logs of the full context (instructions, history, tools) sent to
+  the LLM on each call
+
 ### Changed
 
+- With `llm.api_style: responses`, answers show `reasoning:` and
+  `final response:` sections, collecting the reasoning from every turn
+- `docs/PERFORMANCE.md` renamed to `docs/PYTHON_COROUTINE.md`
+
 ### Fixed
+
+- uvicorn startup, shutdown, and access logs use the `config.yaml` log
+  format instead of uvicorn's default
 
 ## [0.0.3] - 2026-09-26
 
@@ -22,22 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic reconnect and one retry when the calculator MCP connection
   drops during a tool call
 - `flake8` dev dependency and `.flake8` config (80-character lines)
-- `docs/PYTHON_COROUTINE.md` explaining the async event loop and shared clients
+- `docs/PERFORMANCE.md` explaining the async event loop and shared clients
 
 ### Changed
 
 - The app opens one calculator MCP connection and one LLM client at startup
   and reuses them for every prompt, instead of reconnecting per prompt and
   per tool call
-- With `llm.api_style: responses`, answers show `reasoning:` and
-  `final response:` sections, collecting the reasoning from every turn
 
 ### Fixed
 
 - Web page shows the error message instead of `undefined` when a prompt
   request fails with an error response
-- uvicorn startup, shutdown, and access logs use the `config.yaml` log
-  format instead of uvicorn's default
 
 ## [0.0.2] - 2026-09-26
 
