@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.4] - 2026-09-26
+
+### Added
+
 - `fastmcp.client` logger in `config_local.yaml` and `config_remote.yaml`
 - Debug logs of the full context (instructions, history, tools) sent to
   the LLM on each call
