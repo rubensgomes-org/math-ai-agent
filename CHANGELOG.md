@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.3] - 2026-09-26
+
+### Added
+
 - `llm.timeout_seconds` (default 120) and `llm.max_concurrent_prompts`
   (default 10) settings; prompts beyond the limit get HTTP 503
 - Automatic reconnect and one retry when the calculator MCP connection
