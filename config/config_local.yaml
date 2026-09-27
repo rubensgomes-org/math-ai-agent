@@ -11,6 +11,7 @@ llm:
     model_base_url: "https://integrate.api.nvidia.com/v1"
     # Nemotron frontier NVIDIA models for agentic workflows, coding and tool use
     # see list of NVIDIA models: https://integrate.api.nvidia.com/v1/models
+    # https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b/modelcard
     model: "nvidia/nemotron-3-super-120b-a12b"
     # Name of the environment variable holding the API key.
     # Get a key from https://build.nvidia.com (keys start with "nvapi-").

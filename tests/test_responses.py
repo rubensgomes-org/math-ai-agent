@@ -305,9 +305,7 @@ async def test_create_response_sends_reasoning_summary():
         [{"role": "user", "content": "4+4?"}], _INSTRUCTIONS
     )
 
-    assert mock_create.await_args.kwargs["reasoning"] == {
-        "summary": "detailed"
-    }
+    assert mock_create.await_args.kwargs["reasoning"] == {"summary": "detailed"}
 
 
 @pytest.mark.asyncio

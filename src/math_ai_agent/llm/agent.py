@@ -318,8 +318,10 @@ class Agent:
             logger.debug("LLM finish_reason: %s", finish_reason)
             match finish_reason:
                 case "stop":
-                    logger.info("=== >>> LLM TASK COMPLETED response: %s",
-                                llm_msg.content)
+                    logger.info(
+                        "=== >>> LLM TASK COMPLETED response: %s",
+                        llm_msg.content,
+                    )
                     break
 
                 case "length":
@@ -332,7 +334,7 @@ class Agent:
                     assert llm_msg.tool_calls is not None
                     logger.info(
                         "LLM is asking us to call tool(s): %s",
-                        llm_msg.tool_calls
+                        llm_msg.tool_calls,
                     )
                     for tool_call in llm_msg.tool_calls:
                         fn = tool_call.function  # type: ignore[union-attr]
@@ -355,9 +357,7 @@ class Agent:
                     continue
 
                 case "content_filter":
-                    error = (
-                        f"Content [{history}] blocked for safety reasons."
-                    )
+                    error = f"Content [{history}] blocked for safety reasons."
                     logger.error(error)
                     raise ContentFilterError(error)
 
@@ -421,9 +421,7 @@ class Agent:
         logger.info("=== >>> START AGENT LOOP")
         while True:
             response: Response = await llm.create_response(
-                input_items,
-                self._system_instructions,
-                previous_response_id
+                input_items, self._system_instructions, previous_response_id
             )
             logger.debug("LLM response status: %s", response.status)
             usage = response.usage
@@ -454,8 +452,10 @@ class Agent:
                             "LLM is asking us to call tool(s): %s", tool_calls
                         )
                     else:
-                        logger.info("=== >>> LLM TASK COMPLETED response: %s",
-                                    response.output_text)
+                        logger.info(
+                            "=== >>> LLM TASK COMPLETED response: %s",
+                            response.output_text,
+                        )
                         break
 
                     tool_outputs: list[Any] = []
@@ -510,8 +510,9 @@ class Agent:
                     # this project only supports regular create call without
                     # background or streaming.  Therefore, other response
                     # status like "queued", "in_progress" are not supported.
-                    error = (f"Non-supported response status:"
-                             f" {response.status}")
+                    error = (
+                        f"Non-supported response status:" f" {response.status}"
+                    )
                     logger.error(error)
                     raise ValueError(error)
 

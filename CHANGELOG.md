@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/NVIDIA-Nemotron-Open-Model-License-12-12-25.pdf`
+
 ### Changed
 
 ### Fixed
@@ -28,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reasoning item has no content
 - `docs/CLASS_DIAGRAM.md` shows `0..1` multiplicity for
   `CalcMCPConnection._client`
+- `docs/CLASS_DIAGRAM.md` shows the Chat Completions (March 2023) and
+  Responses (March 2025) API release dates
+- Config files link to the Nemotron 3 Super model card
 - Token limits, content filters, and failed Responses API requests raise
   `TokenLimitError`, `ContentFilterError`, and `LLMRequestFailedError`;
   `POST /prompt/` returns 502, 422, and 502 for them, and logs any other

@@ -30,7 +30,8 @@ llm/client.py
       │  create_response()      │   │  stateful               │
       │  → /v1/chat/completions │   │  create_response()      │
       └─────────────────────────┘   │  → /v1/responses        │
-                                    └─────────────────────────┘
+  Chat Completions API: March 2023  └─────────────────────────┘
+                                     Responses API: March 2025
 
 mcp/calc_connection.py                     mcp/calc_client.py
 ┌───────────────────────────────────┐      ┌───────────────────────────────────┐
