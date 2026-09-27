@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.6] - 2026-09-27
+
+### Added
+
+### Changed
+
 - LLM request and response logs replace the tool definitions with a
   placeholder message
 
