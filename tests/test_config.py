@@ -178,6 +178,29 @@ def test_load_config_load_limits_default(tmp_path, cfg):
     assert result.llm.max_concurrent_prompts == 10
 
 
+def test_load_config_stateful(tmp_path, cfg):
+    assert config.load_config(_write(tmp_path, cfg)).llm.stateful is False
+    cfg["llm"]["stateful"] = True
+    assert config.load_config(_write(tmp_path, cfg)).llm.stateful is True
+
+
+def test_load_config_temperature_defaults_to_none(tmp_path, cfg):
+    assert config.load_config(_write(tmp_path, cfg)).llm.temperature is None
+
+
+@pytest.mark.parametrize("value", [0, 0.2, 2])
+def test_load_config_temperature_in_range(tmp_path, cfg, value):
+    cfg["llm"]["temperature"] = value
+    assert config.load_config(_write(tmp_path, cfg)).llm.temperature == value
+
+
+@pytest.mark.parametrize("value", [-0.1, 2.1])
+def test_load_config_temperature_out_of_range_raises(tmp_path, cfg, value):
+    cfg["llm"]["temperature"] = value
+    with pytest.raises(ValidationError, match="temperature"):
+        config.load_config(_write(tmp_path, cfg))
+
+
 def test_load_config_load_limits_custom(tmp_path, cfg):
     cfg["llm"]["timeout_seconds"] = 30
     cfg["llm"]["max_concurrent_prompts"] = 3

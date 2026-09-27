@@ -101,9 +101,9 @@ Both values work against Ollama, with one version requirement:
 
 Ollama's Responses support is non-stateful — no `previous_response_id` and no
 server-side conversation — which is exactly the same restriction OpenRouter
-has. This project's Responses loop is stateless by design (it sends
-`store=False` and replays the full history each turn), so nothing extra is
-needed to run against either.
+has. This project's Responses loop is stateless by default (it sends
+`store=False` and replays the full history each turn), so keep
+`llm.stateful: false` to run against either.
 
 ### Caveats
 

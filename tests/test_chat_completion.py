@@ -47,6 +47,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from openai import omit
 from openai.types.chat import ChatCompletionMessage
 
 from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
@@ -178,6 +179,23 @@ def test_init_uses_given_timeout():
     assert client.openai_client.timeout == 30
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("temperature", [0.0, 0.2])
+async def test_create_response_sends_temperature(temperature):
+    """A set temperature is sent, including 0."""
+    client = ChatCompletionClient(
+        _API_KEY, _BASE_URL, _MODEL, _TOOLS, temperature=temperature
+    )
+    mock_create = AsyncMock(return_value=_make_chat_completion())
+    client.openai_client.chat = SimpleNamespace(
+        completions=SimpleNamespace(create=mock_create)
+    )
+
+    await client.create_response([{"role": "user", "content": "4+4?"}])
+
+    assert mock_create.await_args.kwargs["temperature"] == temperature
+
+
 def test_init_empty_api_key_raises():
     """Empty api_key raises ValueError."""
     with pytest.raises(ValueError, match="api_key must not be empty"):
@@ -234,6 +252,7 @@ async def test_create_response_returns_completion():
         messages=history,
         tools=_TOOLS,
         store=False,
+        temperature=omit,
     )
 
 
@@ -314,6 +333,7 @@ async def test_create_response_passes_all_messages():
         messages=history,
         tools=_TOOLS,
         store=False,
+        temperature=omit,
     )
 
 
@@ -538,6 +558,7 @@ async def test_agent_create_selects_client_for_api_style(
     assert isinstance(llm, client_type)
     assert llm.tools == await getattr(fake_calc, tools_attr)()
     assert llm.openai_client.timeout == app_config.llm.timeout_seconds
+    assert llm.temperature == app_config.llm.temperature
 
 
 @pytest.mark.asyncio

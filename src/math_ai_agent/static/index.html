@@ -35,6 +35,11 @@
             --bs-btn-disabled-border-color: #084298;
         }
 
+        .btn-outline-primary {
+            --bs-btn-active-bg: #084298;
+            --bs-btn-active-border-color: #084298;
+        }
+
         .btn-secondary {
             --bs-btn-bg: #495057;
             --bs-btn-border-color: #495057;
@@ -77,7 +82,7 @@
                 Please enter a math question.
             </div>
         </div>
-        <div class="col-12">
+        <div class="col-12 d-flex flex-wrap align-items-center gap-2">
             <button id="button-submit-id" type="button" class="btn btn-primary">
                 <span id="spinner-submit-id"
                       class="spinner-border spinner-border-sm d-none"
@@ -87,6 +92,31 @@
             <button id="button-clear-id" type="button" class="btn btn-secondary">
                 Clear
             </button>
+            <!-- display reasoning choice, right-aligned with the textarea -->
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <span id="label-display-reasoning-id">Display Reasoning</span>
+                <div class="btn-group"
+                     role="group"
+                     aria-labelledby="label-display-reasoning-id">
+                    <input id="radio-display-reasoning-yes-id"
+                           type="radio"
+                           class="btn-check"
+                           name="display-reasoning"
+                           value="yes"
+                           autocomplete="off"
+                           checked>
+                    <label class="btn btn-outline-primary"
+                           for="radio-display-reasoning-yes-id">Yes</label>
+                    <input id="radio-display-reasoning-no-id"
+                           type="radio"
+                           class="btn-check"
+                           name="display-reasoning"
+                           value="no"
+                           autocomplete="off">
+                    <label class="btn btn-outline-primary"
+                           for="radio-display-reasoning-no-id">No</label>
+                </div>
+            </div>
         </div>
     </form>
 

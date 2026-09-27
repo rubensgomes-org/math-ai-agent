@@ -56,13 +56,19 @@ import json
 import logging
 from typing import Any, cast
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, omit
 from openai.types.chat import ChatCompletion
 from openai.types.responses import Response
 
 from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
+
+
+def _omit_if_none(value: Any) -> Any:
+    """Return ``omit``, which leaves the field out of the request, for
+    ``None``; otherwise return ``value``."""
+    return omit if value is None else value
 
 
 def _to_json(value: Any) -> str:
@@ -94,6 +100,7 @@ class _BaseLLMClient:
         model: str,
         tools: list[dict],
         timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS,
+        temperature: float | None = None,
     ) -> None:
         """Create an ``AsyncOpenAI`` client for the LLM.
 
@@ -105,6 +112,8 @@ class _BaseLLMClient:
             model: Model identifier to use for completions.
             tools: Tool definitions in the format matching this client.
             timeout_seconds: Seconds to wait for each LLM response.
+            temperature: Sampling temperature, or ``None`` to use the
+                provider default.
 
         Raises:
             ValueError: If any parameter is empty or ``None``.
@@ -139,6 +148,7 @@ class _BaseLLMClient:
         )
         self.tools = tools
         self.model = model
+        self.temperature = temperature
 
 
 class ChatCompletionClient(_BaseLLMClient):
@@ -184,6 +194,7 @@ class ChatCompletionClient(_BaseLLMClient):
                 # intent explicit rather than dependent on how the
                 # account happens to be configured.
                 store=False,
+                temperature=_omit_if_none(self.temperature),
             ),
         )
         logger.debug(
@@ -198,42 +209,75 @@ class ResponsesClient(_BaseLLMClient):
 
     The system prompt is supplied by the caller and sent as the
     top-level ``instructions`` parameter rather than as a message
-    item, and ``store`` is always ``False``: the conversation is
-    replayed in full on every turn.
+    item.  When ``stateful`` is ``False``, ``store`` is ``False`` and
+    the caller replays the whole conversation on every turn.  When it
+    is ``True``, responses are stored and continued with
+    ``previous_response_id``, which not every provider supports.
     """
 
-    async def create_response(
-        self, history: list[Any], instructions: str
-    ) -> Response:
-        """Send the conversation history and return the response.
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str,
+        tools: list[dict],
+        timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS,
+        temperature: float | None = None,
+        stateful: bool = False,
+    ) -> None:
+        """Create the client; see ``_BaseLLMClient`` for the other args.
 
         Args:
-            history: Conversation history as a list of Responses
-                API input Items.
+            stateful: Store responses on the server so turns can be
+                continued with ``previous_response_id``.
+        """
+        super().__init__(
+            api_key, base_url, model, tools, timeout_seconds, temperature
+        )
+        self.stateful = stateful
+
+    async def create_response(
+        self,
+        input_items: list[Any],
+        instructions: str,
+        previous_response_id: str | None = None,
+    ) -> Response:
+        """Send input items and return the response.
+
+        Args:
+            input_items: Responses API input Items: the whole
+                conversation when stateless, or only the new items when
+                continuing ``previous_response_id``.
             instructions: System prompt sent as the top-level
-                ``instructions`` parameter.
+                ``instructions`` parameter.  The API does not carry it
+                over from a previous response.
+            previous_response_id: ID of the stored response to
+                continue, or ``None`` to start a new conversation.
 
         Returns:
             The ``Response`` from the configured model.
         """
-        # The LLM is stateless: it keeps nothing between API calls. So on
-        # every call in the agent loop, the app sends the whole conversation
-        # so far, and history is that list. The context the model actually sees
-        # on each "Repose API" call is:
-        #
-        # instructions + history (user prompt, output items, tool results) +
-        # tools
-        logger.debug("LLM client is now going to send the context to the LLM")
-        logger.debug(
-            "LLM client sending %d history input item(s) to model %s\n"
+        # The call to the LLM model has:
+        # - instructions: you should always add this instruction because there
+        #     no guarantee the LLM model will save this
+        # - input items: this contains the conversation history which may only
+        #     require new input items for stateful connections.  The previous
+        #     items are based on passing previous_response_id.
+        # - tools: you should always pass when you want the LLM to consider
+        #     these tools on the new request.
+        logger.info(
+            "LLM client sending %d input item(s) to model %s"
+            " (previous_response_id=%s)\n"
             "System instructions:\n%s\n"
             "Input items:\n%s\n"
             "Tools:\n%s",
-            len(history),
+            len(input_items),
             self.model,
+            previous_response_id,
             instructions,
-            _to_json(history),
-            _to_json(self.tools),
+            _to_json(input_items),
+            "!!!TOOLS TOO LONG AND REMOVED FROM LOGS!!!",
+            # _to_json(self.tools),
         )
         # See the note in ChatCompletionClient.create_response: this
         # call never streams, so narrow it back to ``Response``.
@@ -241,24 +285,23 @@ class ResponsesClient(_BaseLLMClient):
             Response,
             await self.openai_client.responses.create(
                 model=self.model,
-                input=history,  # type: ignore[arg-type]
+                input=input_items,  # type: ignore[arg-type]
                 tools=self.tools,  # type: ignore[arg-type]
                 instructions=instructions,
                 # ``store`` controls server-side retention of the
                 # request and response.  Unlike Chat Completions, the
-                # Responses API stores by default, so it must be
-                # disabled explicitly.  Two provider notes:
+                # Responses API is stateful by default (depending on
+                # support by the LLM model), so it must be disabled
+                # explicitly when stateless.  Provider notes:
                 #
                 # * OpenRouter rejects ``store=True`` (and any
-                #   non-null ``previous_response_id``) with HTTP 400 --
-                #   its Responses API is strictly stateless.  Sending
-                #   ``False`` is what keeps this client compatible.
-                # * OpenAI honours ``False`` per the API reference, but
-                #   accounts also carry a data-retention setting that
-                #   governs what appears in the org dashboard.  Treat
-                #   this flag as controlling the API's own storage, not
-                #   as a guarantee about org-level logging.
-                store=False,
+                #   non-null ``previous_response_id``) with HTTP 400,
+                #   and NVIDIA rejects ``previous_response_id`` with
+                #   HTTP 501.  Both work only when stateless.
+                store=self.stateful,
+                # ``omit`` leaves the field out of the request.
+                previous_response_id=previous_response_id or omit,
+                temperature=_omit_if_none(self.temperature),
             ),
         )
         logger.debug(

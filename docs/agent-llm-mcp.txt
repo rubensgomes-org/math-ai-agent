@@ -1,0 +1,54 @@
+                 ┌──────────────┐
+                 │     User     │  Web browser
+                 └──────┬───────┘
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ Agent / App  │  FastAPI server
+                 └──────┬───────┘
+                        │
+                  sends prompt
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │     LLM      │  NVIDIA nemotrom 3 super
+                 └──────┬───────┘
+                        │
+                 "I need to use
+                  calculator"
+                        │
+                  tool call
+                  instruction
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ Agent / App  │  FastMCP client
+                 └──────┬───────┘
+                        │
+                   actual API
+                   / MCP call
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ MCP Server   │  FastMCP server
+                 │ calculator   │
+                 └──────┬───────┘
+                        │
+                     result
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ Agent / App  │  FastAPI + FastMCP
+                 └──────┬───────┘
+                        │
+                  sends result
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │     LLM      │
+                 └──────┬───────┘
+                        │
+                  final response
+                        │
+                        ▼
+                     User

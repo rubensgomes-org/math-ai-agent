@@ -74,10 +74,10 @@ more providers.
   `queued`, or `in_progress`. The answer is final when it is `completed`
   and has no `function_call` items.
 - **State.** The Responses API can keep the conversation on the server and
-  continue it with `previous_response_id`. This app does not use that: it
-  sends `store=False` and replays every output item, including the
-  model's reasoning items, on each turn. Some providers, such as
-  OpenRouter, only support this stateless mode.
+  continue it with `previous_response_id`. This app does that only when
+  `llm.stateful` is `true`. By default it sends `store=False` and
+  replays every output item, including the model's reasoning items, on
+  each turn. NVIDIA and OpenRouter only support this stateless mode.
 - **Tool schemas.** `CalcMCPClient.to_openai_tools()` builds the Chat
   Completions format and `to_responses_tools()` builds the Responses
   format from the same MCP tool list.

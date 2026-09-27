@@ -26,10 +26,11 @@ OpenAI SDK. Which SDK surface it uses is controlled by `llm.api_style`.
 Several providers label `/v1/responses` beta or
 experimental — OpenRouter's is beta and strictly stateless (it rejects
 `store: true` and `previous_response_id` with HTTP 400), and NVIDIA's is marked
-experimental. Both work with this app, as does Ollama v0.13.3+. The Responses
-agent loop replays every output Item back as input on each turn rather than
-relying on server-side state, which is what keeps it portable across all of
-them and unchanged against `https://api.openai.com/v1`. Not every model in a
+experimental. Both work with this app, as does Ollama v0.13.3+. By default
+the Responses agent loop replays every output Item back as input on each turn
+rather than relying on server-side state, which keeps it portable across all
+of them. Against `https://api.openai.com/v1`, set `llm.stateful: true` to
+continue stored responses with `previous_response_id` instead. Not every model in a
 provider's catalog is necessarily served over its Responses endpoint — if a
 model 404s or 400s under `api_style: "responses"`, either pick a model that
 supports it or set `api_style: "chat"`.
@@ -37,7 +38,8 @@ supports it or set `api_style: "chat"`.
 ## Server-Side Storage
 
 Both clients send `store=False` on every request, so
-neither API retains the conversation. This matters most on the Responses API,
+neither API retains the conversation, unless `llm.stateful` is `true`, which
+makes the Responses API store it (30 days on OpenAI). This matters most on the Responses API,
 which stores by default; Chat Completions already defaults to not storing, but
 the flag is sent there too because OpenAI accounts carry a separate
 data-retention setting that can enable storage when the parameter is omitted.

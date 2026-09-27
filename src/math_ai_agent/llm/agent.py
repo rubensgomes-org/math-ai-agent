@@ -83,6 +83,28 @@ def _reasoning_texts(response: Response) -> list[str]:
     ]
 
 
+def _next_turn_input(
+    stateful: bool,
+    input_items: list[Any],
+    response: Response,
+    tool_outputs: list[Any],
+) -> tuple[list[Any], str | None]:
+    """Return the input items and previous response ID for the next turn.
+
+    Stateful turns send only the tool outputs and continue the stored
+    ``response``.  Stateless turns replay the whole conversation,
+    including reasoning items, so the model keeps its context.
+    """
+    if stateful:
+        logger.debug("LLM model is operating in stateful mode")
+        return tool_outputs, response.id
+    logger.debug("LLM model is operating in stateless")
+    output_items = [
+        item.model_dump(exclude_none=True) for item in response.output
+    ]
+    return [*input_items, *output_items, *tool_outputs], None
+
+
 def _format_answer(reasoning: list[str], final_response: str) -> str:
     """Format the answer as reasoning and final response sections.
 
@@ -151,6 +173,8 @@ class Agent:
                 llm_config.model,
                 await calc.to_responses_tools(),
                 llm_config.timeout_seconds,
+                llm_config.temperature,
+                llm_config.stateful,
             )
         else:
             llm = ChatCompletionClient(
@@ -159,6 +183,7 @@ class Agent:
                 llm_config.model,
                 await calc.to_openai_tools(),
                 llm_config.timeout_seconds,
+                llm_config.temperature,
             )
         return cls(
             calc,
@@ -315,9 +340,11 @@ class Agent:
         ``function_call`` items to the calculator MCP server until the
         LLM produces a final text response.
 
-        The loop is stateless: ``store`` is ``False`` and every output
-        Item is echoed back as input on the next turn, so no
-        ``previous_response_id`` is used.
+        When the API server does not store responses (``stateful`` is
+        ``False``), every output Item is echoed back as input on the
+        next turn.  When it does, the next turn sends only the tool
+        outputs and continues the stored response with
+        ``previous_response_id``.
 
         Args:
             llm: The Responses API client.
@@ -333,28 +360,27 @@ class Agent:
             ValueError: If the LLM returns an unknown response status
                 or an unknown incomplete reason.
         """
-        logger.debug("Starting AI LLM agent loop (responses)")
+        logger.info("Starting AI LLM agent loop using the Responses API")
         # The system prompt is sent as the top-level `instructions`
         # parameter, so it is not part of the input items.
-        history: list[Any] = [{"role": "user", "content": user_prompt}]
+        input_items: list[Any] = [{"role": "user", "content": user_prompt}]
+        previous_response_id: str | None = None
         # Reasoning collected from every turn, for the formatted answer.
         reasoning: list[str] = []
         logger.debug("Sending user prompt: %s", user_prompt)
 
-        logger.debug("==============================================")
-        logger.debug("========== >>> START AGENT LOOP <<< ==========")
-
         # -------------------------
         # Agent Loop
         # -------------------------
+        logger.info("=== >>> START AGENT LOOP")
         while True:
             response: Response = await llm.create_response(
-                history, self._system_instructions
+                input_items, self._system_instructions, previous_response_id
             )
             logger.debug("LLM response status: %s", response.status)
             usage = response.usage
             if usage is not None:
-                logger.debug(
+                logger.info(
                     "Token usage in the current request:"
                     " input=%d output=%d total=%d",
                     usage.input_tokens,
@@ -364,7 +390,8 @@ class Agent:
             else:
                 logger.warning("No token usage reported in the response.")
 
-            logger.debug("response.status: %s", response.status)
+            logger.debug("response.status (complete does not mean task is "
+                         "completed): %s", response.status)
             match response.status:
                 case "completed":
                     reasoning.extend(_reasoning_texts(response))
@@ -381,26 +408,14 @@ class Agent:
                             "LLM is asking us to call tool(s): %s", tool_calls
                         )
                     else:
-                        logger.info(
-                            "LLM is done with final response (status=%s): %s",
-                            response.status,
+                        logger.info("=== >>> LLM IS DONE WITH TASK")
+                        logger.debug(
+                            "LLM final output response: %s",
                             response.output_text,
                         )
                         break
 
-                    # ---------- >>> STATELESS REPLAY <<< ---------
-                    # Every output item is added back to history, so the
-                    # model keeps its context. This is required because
-                    # the model is Stateless.
-                    logger.debug(
-                        "STATELESS REPLAY: echo every output Item back "
-                        "as input so the model keeps its reasoning "
-                        "context."
-                    )
-                    history.extend(
-                        item.model_dump(exclude_none=True)
-                        for item in response.output
-                    )
+                    tool_outputs: list[Any] = []
                     for tool_call in tool_calls:
                         args = json.loads(tool_call.arguments)
                         logger.debug(
@@ -409,16 +424,17 @@ class Agent:
                             tool_call.name,
                         )
                         result = await self._call_tool(tool_call.name, args)
-                        logger.debug(
-                            "appending to the history the result: %s", result
-                        )
-                        history.append(
+                        logger.debug("Tool call result: %s", result)
+                        tool_outputs.append(
                             {
                                 "type": "function_call_output",
                                 "call_id": tool_call.call_id,
                                 "output": result,
                             }
                         )
+                    input_items, previous_response_id = _next_turn_input(
+                        llm.stateful, input_items, response, tool_outputs
+                    )
                     continue
 
                 case "incomplete":
@@ -434,7 +450,7 @@ class Agent:
                         raise RuntimeError(error)
                     if reason == "content_filter":
                         error = (
-                            f"The content [{history}] was blocked"
+                            f"The content [{input_items}] was blocked"
                             " for safety reasons."
                             f" (status={response.status}, reason={reason})"
                         )
@@ -455,12 +471,6 @@ class Agent:
                         f" (status={response.status})"
                     )
                     logger.error(error)
-                    logger.debug(
-                        "====== >>> END AGENT LOOP W/FAILURE <<< ======"
-                    )
-                    logger.debug(
-                        "=============================================="
-                    )
                     raise RuntimeError(error)
 
                 case "queued" | "in_progress":
@@ -474,15 +484,7 @@ class Agent:
                 case _:
                     error = f"Unknown response status: {response.status}"
                     logger.error(error)
-                    logger.debug(
-                        "====== >>> END AGENT LOOP W/FAILURE <<< ======"
-                    )
-                    logger.debug(
-                        "=============================================="
-                    )
                     raise ValueError(error)
 
-        logger.debug("Returning final response message from LLM.")
-        logger.debug("=========== >>> END AGENT LOOP <<< ===========")
-        logger.debug("==============================================")
+        logger.debug("END AGENT LOOP <<< ===")
         return _format_answer(reasoning, response.output_text)

@@ -43,6 +43,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from openai import omit
 from openai.types.responses import (
     ResponseFunctionToolCall,
     ResponseOutputMessage,
@@ -131,6 +132,7 @@ def _make_function_call(
 
 def _make_response(
     status="completed",
+    response_id="resp-1",
     output=None,
     usage=_USAGE,
     incomplete_details=None,
@@ -147,6 +149,7 @@ def _make_response(
         if isinstance(part, ResponseOutputText)
     )
     response = SimpleNamespace(
+        id=response_id,
         status=status,
         output=output,
         output_text=output_text,
@@ -161,9 +164,11 @@ def _make_response(
     return response
 
 
-def _make_client():
+def _make_client(stateful=False):
     """Create a ResponsesClient instance with test parameters."""
-    return ResponsesClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    return ResponsesClient(
+        _API_KEY, _BASE_URL, _MODEL, _TOOLS, stateful=stateful
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +254,52 @@ async def test_create_response_sends_expected_arguments():
         tools=_TOOLS,
         instructions=_INSTRUCTIONS,
         store=False,
+        previous_response_id=omit,
+        temperature=omit,
     )
+
+
+@pytest.mark.asyncio
+async def test_create_response_stateful_sends_previous_response_id():
+    """A stateful client stores and continues the previous response."""
+    client = _make_client(stateful=True)
+
+    mock_create = AsyncMock(return_value=_make_response())
+    client.openai_client.responses = SimpleNamespace(create=mock_create)
+
+    tool_output = {
+        "type": "function_call_output",
+        "call_id": "c",
+        "output": "8",
+    }
+    await client.create_response([tool_output], _INSTRUCTIONS, "resp-1")
+
+    mock_create.assert_awaited_once_with(
+        model=_MODEL,
+        input=[tool_output],
+        tools=_TOOLS,
+        instructions=_INSTRUCTIONS,
+        store=True,
+        previous_response_id="resp-1",
+        temperature=omit,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("temperature", [0.0, 0.2])
+async def test_create_response_sends_temperature(temperature):
+    """A set temperature is sent, including 0."""
+    client = ResponsesClient(
+        _API_KEY, _BASE_URL, _MODEL, _TOOLS, temperature=temperature
+    )
+    mock_create = AsyncMock(return_value=_make_response())
+    client.openai_client.responses = SimpleNamespace(create=mock_create)
+
+    await client.create_response(
+        [{"role": "user", "content": "4+4?"}], _INSTRUCTIONS
+    )
+
+    assert mock_create.await_args.kwargs["temperature"] == temperature
 
 
 @pytest.mark.asyncio
@@ -274,33 +324,37 @@ async def test_create_response_with_function_call():
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
-def agent_env(app_config):
+@pytest.fixture(params=[False], ids=["stateless"])
+def agent_env(app_config, request):
     """Build an ``Agent`` with a fake MCP client and a patched LLM.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
     one entry per ``create_response`` call, whose ``histories`` list
     records a snapshot of the input items sent on each call, whose
     ``instructions`` list records the system prompt sent on each call,
-    and whose ``call_tool`` mock records every dispatched calculator
-    tool call.
+    whose ``previous_response_ids`` list records the response ID
+    continued on each call, and whose ``call_tool`` mock records every
+    dispatched calculator tool call.  The fixture param sets whether
+    the client is stateful.
     """
     app_config.llm.api_style = "responses"
     env = SimpleNamespace(
         responses=[],
         histories=[],
         instructions=[],
+        previous_response_ids=[],
         call_tool=AsyncMock(return_value=_TOOL_RESULT),
     )
 
-    async def _next_response(history, instructions):
-        env.histories.append(copy.deepcopy(history))
+    async def _next_response(input_items, instructions, previous_id):
+        env.histories.append(copy.deepcopy(input_items))
         env.instructions.append(instructions)
+        env.previous_response_ids.append(previous_id)
         return env.responses.pop(0)
 
     env.agent = Agent(
         SimpleNamespace(call_tool=env.call_tool),
-        ResponsesClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
+        _make_client(stateful=request.param),
         app_config.llm.system_instructions,
         app_config.llm.max_concurrent_prompts,
     )
@@ -526,6 +580,28 @@ async def test_agent_run_replays_output_items_and_tool_output(agent_env):
         "call_id": "call-1",
         "output": "8",
     }
+    assert agent_env.previous_response_ids == [None, None]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("agent_env", [True], ids=["stateful"], indirect=True)
+async def test_agent_run_stateful_sends_only_tool_output(agent_env):
+    """A stateful turn sends only new items and continues the response."""
+    agent_env.responses = [
+        _make_response(
+            response_id="resp-1",
+            output=[_make_message("plan"), _make_function_call()],
+        ),
+        _make_response(response_id="resp-2", output=[_make_message("done")]),
+    ]
+    answer = await agent_env.agent.run("4+4?")
+
+    assert answer == _answer(final="done")
+    assert agent_env.histories == [
+        [{"role": "user", "content": "4+4?"}],
+        [{"type": "function_call_output", "call_id": "call-1", "output": "8"}],
+    ]
+    assert agent_env.previous_response_ids == [None, "resp-1"]
 
 
 # ---------------------------------------------------------------------------

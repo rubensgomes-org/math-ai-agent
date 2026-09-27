@@ -20,6 +20,14 @@ llm:
     timeout_seconds: 120
     # Prompts processed at once; more get HTTP 503 until one finishes.
     max_concurrent_prompts: 10
+    # Responses API only: store responses on the server and send only new
+    # items each turn via previous_response_id. NVIDIA and OpenRouter do
+    # not support it; OpenAI does and keeps stored responses for 30 days.
+    stateful: false
+    # Sampling temperature between 0 and 2. Higher values like 0.8 make the
+    # output more random, while lower values like 0.2 make it more focused
+    # and deterministic.
+    temperature: 0.2
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.

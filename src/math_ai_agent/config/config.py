@@ -64,6 +64,8 @@ class LLMConfig(BaseModel):
     system_instructions: str
     timeout_seconds: float = Field(default=DEFAULT_LLM_TIMEOUT_SECONDS, gt=0)
     max_concurrent_prompts: int = Field(default=10, gt=0)
+    stateful: bool = False
+    temperature: float | None = Field(default=None, ge=0, le=2)
 
 
 class CalculatorMCPConfig(BaseModel):

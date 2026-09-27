@@ -19,6 +19,26 @@ for any arithmetic operations.
 - **Plain-text answers** — the model is instructed to reply without LaTeX or
   Markdown, since the web UI renders answers in a plain `<textarea>`
 
+## Non-Supported Features
+
+- **Server-sent events (SSE)** are not supported for either LLM or MCP
+  communication.
+- **Streaming communication channels**, such as HTTP Streamable, are not
+  supported. In other words, both the LLM model and the MCP server are expected
+  to generate the entire output before sending it.
+- **Stateful Responses API** communication may not be supported, depending on
+  the LLM model selected in the configuration.
+- **Input types** such as images and videos are not supported. Only text
+  input is supported.
+- **Tools** available to the LLM are limited to the `Calculator MCP` only. Other
+  tool types, such as `built-in tools` (for example, web search and file search)
+  and `function calls`, are not supported.
+
+Bear in mind that support for the features listed above also depends on the
+capabilities of the selected LLM model. For example, the default configurable
+model, NVIDIA Nemotron 3 Super, does not support storing conversation history
+and supports only text input.
+
 ## AI Disclaimer
 
 This project includes code and documentation created with the assistance of AI
