@@ -64,6 +64,8 @@ from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
+TOOLS_REMOVED_FROM_LOGS = "!!!TOOLS TOO LONG AND REMOVED FROM LOGS!!!"
+
 
 def _omit_if_none(value: Any) -> Any:
     """Return ``omit``, which leaves the field out of the request, for
@@ -137,10 +139,10 @@ class _BaseLLMClient:
             model,
             len(tools),
         )
-        logger.debug(
-            "Tool definitions being set on the LLM client:\n%s",
-            json.dumps(tools, indent=2),
-        )
+        # logger.debug(
+        #     "Tool definitions being set on the LLM client:\n%s",
+        #     json.dumps(tools, indent=2),
+        # )
         self.openai_client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
@@ -276,7 +278,7 @@ class ResponsesClient(_BaseLLMClient):
             previous_response_id,
             instructions,
             _to_json(input_items),
-            "!!!TOOLS TOO LONG AND REMOVED FROM LOGS!!!",
+            TOOLS_REMOVED_FROM_LOGS,
             # _to_json(self.tools),
         )
         # See the note in ChatCompletionClient.create_response: this
@@ -306,6 +308,9 @@ class ResponsesClient(_BaseLLMClient):
         )
         logger.debug(
             "LLM response:\n%s",
-            json.dumps(response.model_dump(), indent=2),
+            json.dumps(
+                {**response.model_dump(), "tools": TOOLS_REMOVED_FROM_LOGS},
+                indent=2,
+            ),
         )
         return response
