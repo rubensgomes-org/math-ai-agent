@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.7] - 2026-09-27
+
+### Added
+
+### Changed
+
 - Web page shows 6 rows in the Response box and no gap below the title
 - Web page notes that Display Reasoning requires the Responses API
 - Web page shows errors, including network and non-JSON responses, in
