@@ -110,6 +110,24 @@ logging:
             handlers:
                 - console
             propagate: false
+        # FastMCP OAuth client (fastmcp/client/auth/oauth.py)
+        fastmcp.client.auth.oauth:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # FastMCP client tool calls (fastmcp/client/mixins/tools.py)
+        fastmcp.client.mixins.tools:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # FastMCP client core (fastmcp/client/client.py)
+        fastmcp.client.client:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
         # HTTP request/response summaries — set to DEBUG for detail
         httpx:
             level: INFO

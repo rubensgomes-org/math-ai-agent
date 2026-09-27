@@ -48,7 +48,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from math_ai_agent import app as app_module
-from math_ai_agent.app import Prompt, app, lifespan, main
+from math_ai_agent.app import Payload, app, lifespan, main
 from math_ai_agent.llm import AgentBusyError
 
 
@@ -130,7 +130,21 @@ async def test_prompt_returns_answer(mock_agent):
         data = response.json()
         assert "answer" in data
         assert data["answer"] == "The answer is 4."
-    mock_agent.run.assert_awaited_once_with("What is 2+2?")
+    mock_agent.run.assert_awaited_once_with("What is 2+2?", True)
+
+
+@pytest.mark.asyncio
+async def test_prompt_passes_display_reasoning(mock_agent):
+    mock_agent.run.return_value = "8"
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/prompt/", json={"text": "4+4?", "display_reasoning": False}
+        )
+        assert response.status_code == 200
+    mock_agent.run.assert_awaited_once_with("4+4?", False)
 
 
 @pytest.mark.asyncio
@@ -143,7 +157,7 @@ async def test_prompt_strips_whitespace(mock_agent):
         response = await client.post("/prompt/", json={"text": "  hello  "})
         assert response.status_code == 200
         assert response.json()["answer"] == "hello response"
-    mock_agent.run.assert_awaited_once_with("hello")
+    mock_agent.run.assert_awaited_once_with("hello", True)
 
 
 @pytest.mark.asyncio
@@ -213,13 +227,14 @@ async def test_prompt_get_method_not_allowed():
 
 
 def test_math_question_model():
-    q = Prompt(text="What is 5*3?")
+    q = Payload(text="What is 5*3?")
     assert q.text == "What is 5*3?"
+    assert q.display_reasoning is True
 
 
 def test_math_question_model_requires_question():
     with pytest.raises(Exception):
-        Prompt()
+        Payload()
 
 
 @patch("math_ai_agent.app.uvicorn.run")

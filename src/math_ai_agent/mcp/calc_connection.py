@@ -84,6 +84,7 @@ class CalcMCPConnection:
 
     async def __aenter__(self) -> "CalcMCPConnection":
         """Open the first MCP connection."""
+        logger.debug("Opening the first MCP connection")
         await self._open()
         return self
 
@@ -94,14 +95,17 @@ class CalcMCPConnection:
         tb: TracebackType | None,
     ) -> None:
         """Close the current MCP connection."""
+        logger.debug("Closing the first MCP connection")
         await self._close()
 
-    async def to_openai_tools(self) -> list[dict]:
+    async def to_chat_completions_tools(self) -> list[dict]:
         """Return the MCP tools in the Chat Completions format."""
-        return await self._connected_client().to_openai_tools()
+        logger.debug("Return the MCP tools in the Chat Completions API format")
+        return await self._connected_client().to_chat_completions_tools()
 
     async def to_responses_tools(self) -> list[dict]:
         """Return the MCP tools in the Responses API format."""
+        logger.debug("Return the MCP tools in the Responses API format")
         return await self._connected_client().to_responses_tools()
 
     async def call_tool(self, tool_name: str, args: dict) -> CallToolResult:

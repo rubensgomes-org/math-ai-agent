@@ -78,9 +78,9 @@ more providers.
   `llm.stateful` is `true`. By default it sends `store=False` and
   replays every output item, including the model's reasoning items, on
   each turn. NVIDIA and OpenRouter only support this stateless mode.
-- **Tool schemas.** `CalcMCPClient.to_openai_tools()` builds the Chat
-  Completions format and `to_responses_tools()` builds the Responses
-  format from the same MCP tool list.
+- **Tool schemas.** `CalcMCPClient.to_chat_completions_tools()` builds
+  the Chat Completions format and `to_responses_tools()` builds the
+  Responses format from the same MCP tool list.
 
 ## System Instructions vs. User Prompt
 

@@ -14,8 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `previous_response_id`
 - `llm.temperature` setting (0 to 2, set to 0.2); when unset, the provider
   default applies
+- "Display Reasoning" Yes/No choice on the web page; `POST /prompt/`
+  takes `display_reasoning` (default `true`) and, when `false`, returns
+  only the final response
 
 ### Changed
+
+- `prompt.py` renamed to `payload.py` and `Prompt` to `Payload`
+- `to_openai_tools()` renamed to `to_chat_completions_tools()` in
+  `CalcMCPClient` and `CalcMCPConnection`
 
 ### Fixed
 

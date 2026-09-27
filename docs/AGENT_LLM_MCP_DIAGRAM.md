@@ -1,3 +1,6 @@
+# Agent, LLM, MCP Diagram
+
+```text
                  ┌──────────────┐
                  │     User     │  Web browser
                  └──────┬───────┘
@@ -52,3 +55,4 @@
                         │
                         ▼
                      User
+```

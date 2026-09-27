@@ -250,12 +250,12 @@ async def test_call_tool_with_empty_arguments():
 
 
 # ---------------------------------------------------------------------------
-# to_openai_tools
+# to_chat_completions_tools
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_to_openai_tools_converts_single_tool():
+async def test_to_chat_completions_tools_converts_single_tool():
     tools = [
         mcp.types.Tool(
             name="add",
@@ -271,7 +271,7 @@ async def test_to_openai_tools_converts_single_tool():
         )
     ]
     calc = _make_calc(tools=tools)
-    result = await calc.to_openai_tools()
+    result = await calc.to_chat_completions_tools()
     assert len(result) == 1
     assert result[0]["type"] == "function"
     func = result[0]["function"]
@@ -283,7 +283,7 @@ async def test_to_openai_tools_converts_single_tool():
 
 
 @pytest.mark.asyncio
-async def test_to_openai_tools_multiple_tools():
+async def test_to_chat_completions_tools_multiple_tools():
     tools = [
         mcp.types.Tool(
             name="add",
@@ -300,14 +300,14 @@ async def test_to_openai_tools_multiple_tools():
         ),
     ]
     calc = _make_calc(tools=tools)
-    result = await calc.to_openai_tools()
+    result = await calc.to_chat_completions_tools()
     assert len(result) == 2
     assert result[0]["function"]["name"] == "add"
     assert result[1]["function"]["name"] == "sqrt"
 
 
 @pytest.mark.asyncio
-async def test_to_openai_tools_empty_list():
+async def test_to_chat_completions_tools_empty_list():
     calc = _make_calc()
     with patch.object(
         Client,
@@ -315,12 +315,12 @@ async def test_to_openai_tools_empty_list():
         new_callable=AsyncMock,
         return_value=[],
     ):
-        result = await calc.to_openai_tools()
+        result = await calc.to_chat_completions_tools()
     assert result == []
 
 
 @pytest.mark.asyncio
-async def test_to_openai_tools_no_description():
+async def test_to_chat_completions_tools_no_description():
     tools = [
         mcp.types.Tool(
             name="noop",
@@ -328,12 +328,12 @@ async def test_to_openai_tools_no_description():
         )
     ]
     calc = _make_calc(tools=tools)
-    result = await calc.to_openai_tools()
+    result = await calc.to_chat_completions_tools()
     assert "description" not in result[0]["function"]
 
 
 @pytest.mark.asyncio
-async def test_to_openai_tools_preserves_input_schema():
+async def test_to_chat_completions_tools_preserves_input_schema():
     schema = {
         "type": "object",
         "properties": {
@@ -356,7 +356,7 @@ async def test_to_openai_tools_preserves_input_schema():
         )
     ]
     calc = _make_calc(tools=tools)
-    result = await calc.to_openai_tools()
+    result = await calc.to_chat_completions_tools()
     assert result[0]["function"]["parameters"] == schema
 
 

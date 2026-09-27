@@ -78,7 +78,7 @@ async def get_mcp_tools() -> list[dict]:
     """
     logger.info("Connecting to Calculator MCP server")
     async with CalcMCPClient() as calcmcp_client:
-        tools = await calcmcp_client.to_openai_tools()
+        tools = await calcmcp_client.to_chat_completions_tools()
         logger.info("Discovered %d MCP tool(s)", len(tools))
         return tools
 

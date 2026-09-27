@@ -41,7 +41,8 @@
 from pydantic import BaseModel
 
 
-class Prompt(BaseModel):
-    """The text message sent by the user in the web chat."""
+class Payload(BaseModel):
+    """The prompt text and display choice sent by the web page."""
 
     text: str
+    display_reasoning: bool = True

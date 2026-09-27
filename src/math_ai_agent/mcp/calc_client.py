@@ -70,6 +70,7 @@ def _create_token_store(token_dir: str) -> FileTreeStore:
     characters, valid as file and directory names.
     """
     directory = Path(token_dir).expanduser()
+    logger.debug("creating token store: %s", directory)
     directory.mkdir(parents=True, exist_ok=True)
     return FileTreeStore(
         data_directory=directory,
@@ -93,10 +94,9 @@ class CalcMCPClient(Client):
 
     def __init__(self) -> None:
         """Initialize the calculator MCP client."""
-        logger.debug("Instantiating CalcMCPClient")
         mcp_config = get_config().server.calculator_mcp
         url = mcp_config.url
-        logger.info("Creating HTTP MCP client: %s", url)
+        logger.info("Creating MCP client with MCP server URL: %s", url)
 
         if mcp_config.is_oauth:
             logger.info("OAuth enabled, using OAuthClient")
@@ -131,7 +131,7 @@ class CalcMCPClient(Client):
         logger.debug("Closing CalcMCPClient")
         await super().__aexit__(exc_type, exc, tb)
 
-    async def to_openai_tools(self) -> list[dict]:
+    async def to_chat_completions_tools(self) -> list[dict]:
         """Convert MCP tools to OpenAI function-calling schema.
 
         Calls ``list_tools()`` to retrieve the tool list and
@@ -152,7 +152,10 @@ class CalcMCPClient(Client):
                     ...
                 ]
         """
-        logger.debug("Calling Calculator MCP Server to list tools")
+        logger.info(
+            "Calling Calculator MCP Server to list tools for the Chat "
+            "Completion API."
+        )
         mcp_tools: list[mcp.types.Tool] = await self.list_tools()
         logger.debug("mcp_tools: %s", mcp_tools)
         logger.debug("Converting %d MCP tools to OpenAI format", len(mcp_tools))
@@ -175,7 +178,7 @@ class CalcMCPClient(Client):
         Calls ``list_tools()`` to retrieve the tool list and
         converts each tool to the Responses API function-calling
         format.  Unlike the Chat Completions format produced by
-        ``to_openai_tools()``, the Responses API uses a flat,
+        ``to_chat_completions_tools()``, the Responses API uses a flat,
         internally-tagged shape with no nested ``function`` object.
 
         Returns:
@@ -191,7 +194,9 @@ class CalcMCPClient(Client):
                     ...
                 ]
         """
-        logger.debug("Calling Calculator MCP Server to list tools")
+        logger.info(
+            "Calling Calculator MCP Server to list tools for the Responses API"
+        )
         mcp_tools: list[mcp.types.Tool] = await self.list_tools()
         logger.debug("mcp_tools: %s", mcp_tools)
         logger.debug(

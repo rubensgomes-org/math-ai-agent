@@ -165,7 +165,11 @@
             const res = await fetch("/prompt/", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({text: prompt})
+                body: JSON.stringify({
+                    text: prompt,
+                    display_reasoning: document.getElementById(
+                        "radio-display-reasoning-yes-id").checked
+                })
             });
             const data = await res.json();
             document.getElementById("textarea-response-id").value =

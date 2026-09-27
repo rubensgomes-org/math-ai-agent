@@ -56,7 +56,7 @@ class _FakeClient:
         self.connected = False
         self.exit_count = 0
         self.call_tool = AsyncMock(return_value=result)
-        self.to_openai_tools = AsyncMock(return_value=["openai-tool"])
+        self.to_chat_completions_tools = AsyncMock(return_value=["openai-tool"])
         self.to_responses_tools = AsyncMock(return_value=["responses-tool"])
 
     async def __aenter__(self):
@@ -107,7 +107,7 @@ async def test_opens_on_enter_and_closes_on_exit():
 @pytest.mark.parametrize(
     ("method", "expected"),
     [
-        ("to_openai_tools", ["openai-tool"]),
+        ("to_chat_completions_tools", ["openai-tool"]),
         ("to_responses_tools", ["responses-tool"]),
     ],
 )
@@ -121,7 +121,7 @@ async def test_tool_listing_delegates_to_client(method, expected):
 async def test_tool_listing_before_open_raises():
     conn, _ = _connection(_FakeClient())
     with pytest.raises(RuntimeError, match="not open"):
-        await conn.to_openai_tools()
+        await conn.to_chat_completions_tools()
 
 
 @pytest.mark.asyncio

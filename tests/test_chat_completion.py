@@ -529,7 +529,7 @@ async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
 def fake_calc():
     """Fake MCP client exposing tools in both OpenAI formats."""
     return SimpleNamespace(
-        to_openai_tools=AsyncMock(return_value=_TOOLS),
+        to_chat_completions_tools=AsyncMock(return_value=_TOOLS),
         to_responses_tools=AsyncMock(
             return_value=[{"type": "function", "name": "add"}]
         ),
@@ -540,7 +540,7 @@ def fake_calc():
 @pytest.mark.parametrize(
     ("api_style", "client_type", "tools_attr"),
     [
-        ("chat", ChatCompletionClient, "to_openai_tools"),
+        ("chat", ChatCompletionClient, "to_chat_completions_tools"),
         ("responses", ResponsesClient, "to_responses_tools"),
     ],
 )

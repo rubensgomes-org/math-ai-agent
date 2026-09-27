@@ -54,7 +54,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from math_ai_agent.config.config import configure_logging
-from math_ai_agent.prompt import Prompt
+from math_ai_agent.payload import Payload
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ async def root() -> str:
 
 
 @app.post("/prompt/")
-async def prompt(payload: Prompt) -> dict[str, str]:
+async def prompt(payload: Payload) -> dict[str, str]:
     """Accept a prompt text from the user and return an answer.
 
     Args:

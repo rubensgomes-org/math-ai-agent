@@ -164,7 +164,14 @@ class Agent:
                 variable is not set.
         """
         llm_config = get_config().llm
-        logger.info("Creating agent (api_style=%s)", llm_config.api_style)
+        logger.info(
+            "Creating AI agent using LLM api_style=%s, "
+            "model_base_url=%s, model=%s, temperature=%s",
+            llm_config.api_style,
+            llm_config.model_base_url,
+            llm_config.model,
+            llm_config.temperature,
+        )
         llm: ChatCompletionClient | ResponsesClient
         if llm_config.api_style == "responses":
             llm = ResponsesClient(
@@ -181,7 +188,7 @@ class Agent:
                 get_api_key(),
                 llm_config.model_base_url,
                 llm_config.model,
-                await calc.to_openai_tools(),
+                await calc.to_chat_completions_tools(),
                 llm_config.timeout_seconds,
                 llm_config.temperature,
             )
@@ -192,15 +199,20 @@ class Agent:
             llm_config.max_concurrent_prompts,
         )
 
-    async def run(self, user_prompt: str) -> str:
+    async def run(
+        self, user_prompt: str, display_reasoning: bool = True
+    ) -> str:
         """Run the agent loop for the configured OpenAI API style.
 
         Args:
             user_prompt: The math question from the user.
+            display_reasoning: Include the reasoning section in the
+                Responses API answer.  Chat Completions answers have
+                no reasoning, so it is ignored there.
 
         Returns:
             The LLM's answer.  The Responses API answer also includes
-            a reasoning section.
+            a reasoning section when ``display_reasoning`` is ``True``.
 
         Raises:
             AgentBusyError: If ``max_concurrent_prompts`` prompts are
@@ -211,7 +223,11 @@ class Agent:
             raise AgentBusyError("Too many prompts are running")
         async with self._prompt_slots:
             if isinstance(self._llm, ResponsesClient):
-                return await self._run_responses(self._llm, user_prompt)
+                logger.debug("Using Responses API to send LLM request")
+                return await self._run_responses(
+                    self._llm, user_prompt, display_reasoning
+                )
+            logger.debug("Using Chat Completions API to send LLM request")
             return await self._run_chat(self._llm, user_prompt)
 
     async def _call_tool(self, tool_name: str, args: dict) -> str:
@@ -332,7 +348,10 @@ class Agent:
         return llm_msg.content or ""
 
     async def _run_responses(
-        self, llm: ResponsesClient, user_prompt: str
+        self,
+        llm: ResponsesClient,
+        user_prompt: str,
+        display_reasoning: bool = True,
     ) -> str:
         """Run the agent loop against the Responses API.
 
@@ -349,10 +368,12 @@ class Agent:
         Args:
             llm: The Responses API client.
             user_prompt: The math question from the user.
+            display_reasoning: Include the reasoning section.
 
         Returns:
             The reasoning text from every turn and the final response,
-            as labeled sections.
+            as labeled sections, or only the final response text when
+            ``display_reasoning`` is ``False``.
 
         Raises:
             RuntimeError: If the token limit is reached, the content
@@ -390,8 +411,11 @@ class Agent:
             else:
                 logger.warning("No token usage reported in the response.")
 
-            logger.debug("response.status (complete does not mean task is "
-                         "completed): %s", response.status)
+            logger.debug(
+                "response.status (complete does not mean task is "
+                "completed): %s",
+                response.status,
+            )
             match response.status:
                 case "completed":
                     reasoning.extend(_reasoning_texts(response))
@@ -487,4 +511,6 @@ class Agent:
                     raise ValueError(error)
 
         logger.debug("END AGENT LOOP <<< ===")
+        if not display_reasoning:
+            return response.output_text.strip()
         return _format_answer(reasoning, response.output_text)

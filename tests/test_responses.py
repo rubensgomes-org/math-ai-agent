@@ -632,6 +632,21 @@ async def test_agent_run_includes_reasoning_from_every_turn(agent_env):
 
 
 @pytest.mark.asyncio
+async def test_agent_run_without_reasoning_returns_final_response(agent_env):
+    """With display_reasoning False, only the final text is returned."""
+    agent_env.responses = [
+        _make_response(
+            output=[
+                _make_reasoning(texts=["Need 4 + 4."]),
+                _make_message("  4 + 4 = 8\n"),
+            ]
+        ),
+    ]
+    answer = await agent_env.agent.run("4+4?", display_reasoning=False)
+    assert answer == "4 + 4 = 8"
+
+
+@pytest.mark.asyncio
 async def test_agent_run_strips_blank_lines_from_answer(agent_env):
     """Whitespace around each text adds no extra blank lines."""
     agent_env.responses = [
