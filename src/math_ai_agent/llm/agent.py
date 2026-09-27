@@ -72,14 +72,15 @@ _EMPTY_SECTION = "(none)"
 def _reasoning_texts(response: Response) -> list[str]:
     """Return the reasoning text in a response's reasoning items.
 
-    The reasoning ``summary`` is ignored: some providers repeat the
-    reasoning text in it.
+    An item's ``summary`` is used only when it has no ``content``: some
+    providers repeat the content in the summary, and others, such as
+    OpenAI, return only the summary.
     """
     return [
         part.text
         for item in response.output
         if isinstance(item, ResponseReasoningItem)
-        for part in item.content or []
+        for part in item.content or item.summary
     ]
 
 
@@ -126,6 +127,28 @@ def _format_answer(reasoning: list[str], final_response: str) -> str:
 
 class AgentBusyError(RuntimeError):
     """Raised when the maximum number of prompts is already running."""
+
+
+class TokenLimitError(RuntimeError):
+    """Raised when the LLM stops because it reached its token limit."""
+
+
+class ContentFilterError(RuntimeError):
+    """Raised when the LLM provider blocks content for safety reasons."""
+
+
+class LLMRequestFailedError(RuntimeError):
+    """Raised when the LLM provider reports the response as failed."""
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        """Create the error.
+
+        Args:
+            message: Error description.
+            code: Provider error code, such as ``server_error``.
+        """
+        super().__init__(message)
+        self.code = code
 
 
 class Agent:
@@ -182,6 +205,7 @@ class Agent:
                 llm_config.timeout_seconds,
                 llm_config.temperature,
                 llm_config.stateful,
+                llm_config.reasoning_summary,
             )
         else:
             llm = ChatCompletionClient(
@@ -258,8 +282,9 @@ class Agent:
             The final text response from the LLM.
 
         Raises:
-            RuntimeError: If the token limit is reached or the
-                content is blocked by a safety filter.
+            TokenLimitError: If the token limit is reached.
+            ContentFilterError: If the content is blocked by a safety
+                filter.
             ValueError: If the LLM returns an unknown finish
                 reason.
         """
@@ -270,19 +295,17 @@ class Agent:
         history.append({"role": "user", "content": user_prompt})
         logger.debug("Sending user prompt: %s", user_prompt)
 
-        logger.debug("==============================================")
-        logger.debug("========== >>> START AGENT LOOP <<< ==========")
-
         # -------------------------
         # Agent Loop
         # -------------------------
+        logger.debug("=== >>> START AGENT LOOP")
         while True:
             response: ChatCompletion = await llm.create_response(history)
             llm_msg: ChatCompletionMessage = response.choices[0].message
             finish_reason = response.choices[0].finish_reason
             usage = response.usage
             if usage is not None:
-                logger.debug(
+                logger.info(
                     "Token usage in the current request:"
                     " prompt=%d completion=%d total=%d",
                     usage.prompt_tokens,
@@ -290,22 +313,27 @@ class Agent:
                     usage.total_tokens,
                 )
             else:
-                logger.debug("No token usage reported in the response.")
+                logger.warning("No token usage reported in the response.")
 
-            logger.debug("finish_reason: %s", finish_reason)
+            logger.debug("LLM finish_reason: %s", finish_reason)
             match finish_reason:
                 case "stop":
-                    logger.info("Assistant (LLM) response: %s", llm_msg.content)
+                    logger.info("=== >>> LLM TASK COMPLETED response: %s",
+                                llm_msg.content)
                     break
 
                 case "length":
                     error = "Token limit reached."
                     logger.error(error)
-                    raise RuntimeError(error)
+                    raise TokenLimitError(error)
 
                 case "tool_calls":
                     history.append(llm_msg)
                     assert llm_msg.tool_calls is not None
+                    logger.info(
+                        "LLM is asking us to call tool(s): %s",
+                        llm_msg.tool_calls
+                    )
                     for tool_call in llm_msg.tool_calls:
                         fn = tool_call.function  # type: ignore[union-attr]
                         tool_name = fn.name
@@ -328,23 +356,17 @@ class Agent:
 
                 case "content_filter":
                     error = (
-                        f"The content [{history}] was blocked"
-                        " for safety reasons."
+                        f"Content [{history}] blocked for safety reasons."
                     )
                     logger.error(error)
-                    raise RuntimeError(error)
-
-                case None:
-                    # Happens during streaming before final chunk
-                    logger.debug("Streaming before final chunk. Continue ...")
-                    continue
+                    raise ContentFilterError(error)
 
                 case _:
-                    error = f"Unknown finish_reason: {finish_reason}"
+                    error = f"Non-supported finish_reason: {finish_reason}"
                     logger.error(error)
                     raise ValueError(error)
 
-        logger.debug("Returning final response message from LLM.")
+        logger.info("END AGENT LOOP <<< ===")
         return llm_msg.content or ""
 
     async def _run_responses(
@@ -376,8 +398,11 @@ class Agent:
             ``display_reasoning`` is ``False``.
 
         Raises:
-            RuntimeError: If the token limit is reached, the content
-                is blocked by a safety filter, or the request fails.
+            TokenLimitError: If the token limit is reached.
+            ContentFilterError: If the content is blocked by a safety
+                filter.
+            LLMRequestFailedError: If the LLM reports the response as
+                failed.
             ValueError: If the LLM returns an unknown response status
                 or an unknown incomplete reason.
         """
@@ -396,7 +421,9 @@ class Agent:
         logger.info("=== >>> START AGENT LOOP")
         while True:
             response: Response = await llm.create_response(
-                input_items, self._system_instructions, previous_response_id
+                input_items,
+                self._system_instructions,
+                previous_response_id
             )
             logger.debug("LLM response status: %s", response.status)
             usage = response.usage
@@ -411,11 +438,6 @@ class Agent:
             else:
                 logger.warning("No token usage reported in the response.")
 
-            logger.debug(
-                "response.status (complete does not mean task is "
-                "completed): %s",
-                response.status,
-            )
             match response.status:
                 case "completed":
                     reasoning.extend(_reasoning_texts(response))
@@ -432,11 +454,8 @@ class Agent:
                             "LLM is asking us to call tool(s): %s", tool_calls
                         )
                     else:
-                        logger.info("=== >>> LLM IS DONE WITH TASK")
-                        logger.debug(
-                            "LLM final output response: %s",
-                            response.output_text,
-                        )
+                        logger.info("=== >>> LLM TASK COMPLETED response: %s",
+                                    response.output_text)
                         break
 
                     tool_outputs: list[Any] = []
@@ -465,52 +484,38 @@ class Agent:
                     details = response.incomplete_details
                     reason = details.reason if details is not None else None
                     if reason == "max_output_tokens":
-                        error = (
-                            "Token limit reached."
-                            f" (status={response.status},"
-                            f" reason={reason})"
-                        )
+                        error = "Token limit reached."
                         logger.error(error)
-                        raise RuntimeError(error)
+                        raise TokenLimitError(error)
                     if reason == "content_filter":
                         error = (
-                            f"The content [{input_items}] was blocked"
-                            " for safety reasons."
-                            f" (status={response.status}, reason={reason})"
+                            f"Content [{input_items}] blocked for safety "
+                            f"reasons."
                         )
                         logger.error(error)
-                        raise RuntimeError(error)
-                    error = (
-                        f"Unknown incomplete reason: {reason}"
-                        f" (status={response.status})"
-                    )
+                        raise ContentFilterError(error)
+                    error = f"Unknown incomplete reason: {reason}"
                     logger.error(error)
                     raise ValueError(error)
 
                 case "failed":
                     err = response.error
                     detail = err.message if err is not None else "unknown error"
-                    error = (
-                        f"LLM request failed: {detail}"
-                        f" (status={response.status})"
-                    )
+                    code = err.code if err is not None else None
+                    error = f"LLM request failed: {detail} (code={code})"
                     logger.error(error)
-                    raise RuntimeError(error)
-
-                case "queued" | "in_progress":
-                    # Response is not final yet. Poll again.
-                    logger.debug(
-                        "Response not final yet (status=%s). Continue ...",
-                        response.status,
-                    )
-                    continue
+                    raise LLMRequestFailedError(error, code)
 
                 case _:
-                    error = f"Unknown response status: {response.status}"
+                    # this project only supports regular create call without
+                    # background or streaming.  Therefore, other response
+                    # status like "queued", "in_progress" are not supported.
+                    error = (f"Non-supported response status:"
+                             f" {response.status}")
                     logger.error(error)
                     raise ValueError(error)
 
-        logger.debug("END AGENT LOOP <<< ===")
+        logger.info("END AGENT LOOP <<< ===")
         if not display_reasoning:
             return response.output_text.strip()
         return _format_answer(reasoning, response.output_text)

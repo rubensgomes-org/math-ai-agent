@@ -60,7 +60,10 @@ from openai import AsyncOpenAI, omit
 from openai.types.chat import ChatCompletion
 from openai.types.responses import Response
 
-from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
+from math_ai_agent.config.config import (
+    DEFAULT_LLM_TIMEOUT_SECONDS,
+    ReasoningSummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -226,17 +229,21 @@ class ResponsesClient(_BaseLLMClient):
         timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS,
         temperature: float | None = None,
         stateful: bool = False,
+        reasoning_summary: ReasoningSummary | None = None,
     ) -> None:
         """Create the client; see ``_BaseLLMClient`` for the other args.
 
         Args:
             stateful: Store responses on the server so turns can be
                 continued with ``previous_response_id``.
+            reasoning_summary: Reasoning summary detail to request, or
+                ``None`` to not request one.
         """
         super().__init__(
             api_key, base_url, model, tools, timeout_seconds, temperature
         )
         self.stateful = stateful
+        self.reasoning_summary = reasoning_summary
 
     async def create_response(
         self,
@@ -288,6 +295,12 @@ class ResponsesClient(_BaseLLMClient):
             await self.openai_client.responses.create(
                 model=self.model,
                 input=input_items,  # type: ignore[arg-type]
+                # Models without reasoning may reject this field.
+                reasoning=(
+                    {"summary": self.reasoning_summary}
+                    if self.reasoning_summary
+                    else omit
+                ),
                 tools=self.tools,  # type: ignore[arg-type]
                 instructions=instructions,
                 # ``store`` controls server-side retention of the

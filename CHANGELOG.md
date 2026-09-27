@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Web page shows 6 rows in the Response box and no gap below the title
+- Web page notes that Display Reasoning requires the Responses API
+- Web page shows errors, including network and non-JSON responses, in
+  red text below the form instead of in the Response box
+- `llm.reasoning_summary` setting (`auto`, `concise`, or `detailed`)
+  requests reasoning summaries; reasoning shows the summary when a
+  reasoning item has no content
+- `docs/CLASS_DIAGRAM.md` shows `0..1` multiplicity for
+  `CalcMCPConnection._client`
+- Token limits, content filters, and failed Responses API requests raise
+  `TokenLimitError`, `ContentFilterError`, and `LLMRequestFailedError`;
+  `POST /prompt/` returns 502, 422, and 502 for them, and logs any other
+  error and returns 500
+- Responses loop raises `ValueError` for `queued` and `in_progress`
+  statuses instead of resending the request
+
 ### Fixed
 
 ## [0.0.6] - 2026-09-27

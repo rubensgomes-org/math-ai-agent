@@ -11,7 +11,10 @@ payload.py                       llm/agent.py
 └──────────────────────┘         │  _prompt_slots ◆── [Semaphore]   │
                                  │  create() ···> AppConfig.llm     │
 ┌──────────────────────┐         │  run() raises AgentBusyError     │
-│ AgentBusyError       │         └──────────────────────────────────┘
+│ AgentBusyError       │         │    TokenLimitError               │
+│ TokenLimitError      │         │    ContentFilterError            │
+│ ContentFilterError   │         │    LLMRequestFailedError         │
+│ LLMRequestFailedError│         └──────────────────────────────────┘
 │  ──▷ [RuntimeError]  │
 └──────────────────────┘
 
@@ -32,7 +35,7 @@ llm/client.py
 mcp/calc_connection.py                     mcp/calc_client.py
 ┌───────────────────────────────────┐      ┌───────────────────────────────────┐
 │ CalcMCPConnection                 │      │ CalcMCPClient                     │
-│  _client ◆── CalcMCPClient ───────┼────▶ │  ──▷ [fastmcp.Client]             │
+│  _client ◆── 0..1 CalcMCPClient ──┼────▶ │  ──▷ [fastmcp.Client]             │
 │  _client_factory (builds it)      │      │  auth ◆── [OAuth] (optional)      │
 │  _reconnect_lock ◆── [Lock]       │      │  __init__ ···> AppConfig          │
 │  call_tool() (reconnect+retry)    │      │            .server.calculator_mcp │

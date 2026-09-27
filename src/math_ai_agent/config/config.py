@@ -52,6 +52,7 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 DEFAULT_LLM_TIMEOUT_SECONDS = 120.0
+ReasoningSummary = Literal["auto", "concise", "detailed"]
 
 
 class LLMConfig(BaseModel):
@@ -66,6 +67,7 @@ class LLMConfig(BaseModel):
     max_concurrent_prompts: int = Field(default=10, gt=0)
     stateful: bool = False
     temperature: float | None = Field(default=None, ge=0, le=2)
+    reasoning_summary: ReasoningSummary | None = None
 
 
 class CalculatorMCPConfig(BaseModel):

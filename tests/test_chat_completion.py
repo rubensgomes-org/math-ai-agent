@@ -52,7 +52,12 @@ from openai.types.chat import ChatCompletionMessage
 
 from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
 from math_ai_agent.llm import agent as llm_module
-from math_ai_agent.llm.agent import Agent, AgentBusyError
+from math_ai_agent.llm.agent import (
+    Agent,
+    AgentBusyError,
+    ContentFilterError,
+    TokenLimitError,
+)
 from math_ai_agent.llm.client import (
     ChatCompletionClient,
     ResponsesClient,
@@ -440,20 +445,22 @@ async def test_agent_run_handles_missing_usage(agent_env):
 
 
 @pytest.mark.asyncio
-async def test_agent_run_length_raises_runtime_error(agent_env):
-    """A "length" finish_reason raises RuntimeError."""
+async def test_agent_run_length_raises_token_limit_error(agent_env):
+    """A "length" finish_reason raises TokenLimitError."""
     agent_env.responses = [_make_chat_completion(finish_reason="length")]
-    with pytest.raises(RuntimeError, match="Token limit reached"):
+    with pytest.raises(TokenLimitError, match="Token limit reached"):
         await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_run_content_filter_raises_runtime_error(agent_env):
-    """A "content_filter" finish_reason raises RuntimeError."""
+async def test_agent_run_content_filter_raises_content_filter_error(
+    agent_env,
+):
+    """A "content_filter" finish_reason raises ContentFilterError."""
     agent_env.responses = [
         _make_chat_completion(finish_reason="content_filter")
     ]
-    with pytest.raises(RuntimeError, match="blocked"):
+    with pytest.raises(ContentFilterError, match="blocked for safety"):
         await agent_env.agent.run("4+4?")
 
 
@@ -461,24 +468,21 @@ async def test_agent_run_content_filter_raises_runtime_error(agent_env):
 async def test_agent_run_unknown_reason_raises_value_error(agent_env):
     """An unrecognised finish_reason raises ValueError."""
     agent_env.responses = [_make_chat_completion(finish_reason="wat")]
-    with pytest.raises(ValueError, match="Unknown finish_reason: wat"):
+    with pytest.raises(ValueError, match="Non-supported finish_reason: wat"):
+        await agent_env.agent.run("4+4?")
+
+
+@pytest.mark.asyncio
+async def test_agent_run_none_reason_raises_value_error(agent_env):
+    """A missing finish_reason raises ValueError."""
+    agent_env.responses = [_make_chat_completion(finish_reason=None)]
+    with pytest.raises(ValueError, match="Non-supported finish_reason: None"):
         await agent_env.agent.run("4+4?")
 
 
 # ---------------------------------------------------------------------------
 # Agent.run — continue branches
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_agent_run_none_reason_continues(agent_env):
-    """A None finish_reason loops again instead of terminating."""
-    agent_env.responses = [
-        _make_chat_completion(finish_reason=None),
-        _make_chat_completion(content="done"),
-    ]
-    assert await agent_env.agent.run("4+4?") == "done"
-    assert agent_env.responses == []
 
 
 @pytest.mark.asyncio
@@ -559,6 +563,19 @@ async def test_agent_create_selects_client_for_api_style(
     assert llm.tools == await getattr(fake_calc, tools_attr)()
     assert llm.openai_client.timeout == app_config.llm.timeout_seconds
     assert llm.temperature == app_config.llm.temperature
+
+
+@pytest.mark.asyncio
+async def test_agent_create_passes_reasoning_summary(app_config, fake_calc):
+    """Agent.create passes llm.reasoning_summary to the Responses client."""
+    app_config.llm.api_style = "responses"
+    app_config.llm.reasoning_summary = "detailed"
+    with (
+        patch.object(llm_module, "get_config", return_value=app_config),
+        patch.object(llm_module, "get_api_key", return_value=_API_KEY),
+    ):
+        agent = await Agent.create(fake_calc)
+    assert agent._llm.reasoning_summary == "detailed"  # pylint: disable=W0212
 
 
 @pytest.mark.asyncio

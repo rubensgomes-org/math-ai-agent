@@ -28,6 +28,10 @@ llm:
     # output more random, while lower values like 0.2 make it more focused
     # and deterministic.
     temperature: 0.2
+    # Responses API only: reasoning summary detail ("auto", "concise", or
+    # "detailed"). Remove it for models without reasoning, which may reject
+    # the request.
+    reasoning_summary: "detailed"
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.

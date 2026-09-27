@@ -201,6 +201,20 @@ def test_load_config_temperature_out_of_range_raises(tmp_path, cfg, value):
         config.load_config(_write(tmp_path, cfg))
 
 
+def test_load_config_reasoning_summary(tmp_path, cfg):
+    llm = config.load_config(_write(tmp_path, cfg)).llm
+    assert llm.reasoning_summary is None
+    cfg["llm"]["reasoning_summary"] = "detailed"
+    llm = config.load_config(_write(tmp_path, cfg)).llm
+    assert llm.reasoning_summary == "detailed"
+
+
+def test_load_config_invalid_reasoning_summary_raises(tmp_path, cfg):
+    cfg["llm"]["reasoning_summary"] = "verbose"
+    with pytest.raises(ValidationError, match="reasoning_summary"):
+        config.load_config(_write(tmp_path, cfg))
+
+
 def test_load_config_load_limits_custom(tmp_path, cfg):
     cfg["llm"]["timeout_seconds"] = 30
     cfg["llm"]["max_concurrent_prompts"] = 3

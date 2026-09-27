@@ -49,7 +49,12 @@ from httpx import ASGITransport, AsyncClient
 
 from math_ai_agent import app as app_module
 from math_ai_agent.app import Payload, app, lifespan, main
-from math_ai_agent.llm import AgentBusyError
+from math_ai_agent.llm import (
+    AgentBusyError,
+    ContentFilterError,
+    LLMRequestFailedError,
+    TokenLimitError,
+)
 
 
 @pytest.fixture()
@@ -105,6 +110,7 @@ async def test_root_contains_form_elements():
         assert "textarea-question-id" in response.text
         assert "button-submit-id" in response.text
         assert "textarea-response-id" in response.text
+        assert "div-error-id" in response.text
 
 
 @pytest.mark.asyncio
@@ -170,6 +176,55 @@ async def test_prompt_returns_503_when_agent_busy(mock_agent):
         response = await client.post("/prompt/", json={"text": "1+1?"})
         assert response.status_code == 503
         assert "busy" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_prompt_returns_422_when_content_filtered(mock_agent):
+    mock_agent.run.side_effect = ContentFilterError("blocked")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 422
+        assert "safety filter" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_prompt_returns_502_when_token_limit_reached(mock_agent):
+    mock_agent.run.side_effect = TokenLimitError("Token limit reached.")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 502
+        assert "token limit" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_prompt_returns_502_when_llm_request_fails(mock_agent):
+    mock_agent.run.side_effect = LLMRequestFailedError("failed", "server_error")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 502
+        assert "request failed" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_prompt_returns_500_on_unexpected_error(mock_agent, caplog):
+    mock_agent.run.side_effect = ValueError("Non-supported finish_reason")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 500
+        assert "unexpected error" in response.json()["detail"]
+    assert "Non-supported finish_reason" in caplog.text
 
 
 @pytest.mark.asyncio

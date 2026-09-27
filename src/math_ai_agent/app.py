@@ -60,7 +60,13 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from math_ai_agent.config.config import configure_logging, get_config
-from math_ai_agent.llm import Agent, AgentBusyError
+from math_ai_agent.llm import (
+    Agent,
+    AgentBusyError,
+    ContentFilterError,
+    LLMRequestFailedError,
+    TokenLimitError,
+)
 from math_ai_agent.mcp.calc_connection import CalcMCPConnection
 from math_ai_agent.payload import Payload
 
@@ -119,10 +125,10 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
         A dict containing the `answer` key with the response.
 
     Raises:
-        HTTPException: 503 if too many prompts are already running.
-        RuntimeError: If the agent loop encounters a token limit
-            or content filter error.
-        ValueError: If the LLM returns an unknown finish reason.
+        HTTPException: 503 if too many prompts are already running,
+            422 if the content is blocked by a safety filter, 502 if
+            the LLM reaches its token limit or the request fails, or
+            500 for any other error.
     """
     logger.debug("Received prompt: %s", payload.text)
     prompt_text = payload.text.strip()
@@ -134,6 +140,27 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The server is busy. Please try again shortly.",
+        ) from error
+    except ContentFilterError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The prompt was blocked by the LLM safety filter.",
+        ) from error
+    except TokenLimitError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The LLM reached its token limit before answering.",
+        ) from error
+    except LLMRequestFailedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The LLM request failed. Please try again.",
+        ) from error
+    except Exception as error:
+        logger.exception("Unexpected error answering prompt: %s", prompt_text)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred. Please try again.",
         ) from error
     logger.debug("Output:\n%s", json.dumps(output, indent=2))
     return {"answer": output}

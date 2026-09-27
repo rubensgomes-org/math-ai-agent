@@ -66,7 +66,7 @@
     </noscript>
 </header>
 <div class="container">
-    <h2>Math AI Agent!</h2>
+    <h2 class="mb-0">Math AI Agent!</h2>
     <p>Ask a math question. The app will use the MCP calculator for all
         arithmetic.</p>
     <form class="row g-3">
@@ -94,10 +94,16 @@
             </button>
             <!-- display reasoning choice, right-aligned with the textarea -->
             <div class="ms-auto d-flex align-items-center gap-2">
-                <span id="label-display-reasoning-id">Display Reasoning</span>
+                <div class="d-flex flex-column text-end">
+                    <span id="label-display-reasoning-id">Display Reasoning</span>
+                    <small id="note-display-reasoning-id" class="text-muted">
+                        (requires Responses API)
+                    </small>
+                </div>
                 <div class="btn-group"
                      role="group"
-                     aria-labelledby="label-display-reasoning-id">
+                     aria-labelledby="label-display-reasoning-id"
+                     aria-describedby="note-display-reasoning-id">
                     <input id="radio-display-reasoning-yes-id"
                            type="radio"
                            class="btn-check"
@@ -120,13 +126,16 @@
         </div>
     </form>
 
+    <!-- error message, hidden until an error occurs -->
+    <div id="div-error-id" class="text-danger mt-3 d-none" role="alert"></div>
+
     <div class="row g-3 mt-3">
         <div class="col-12">
             <label for="textarea-response-id"
                    class="form-label">Response:</label>
             <textarea id="textarea-response-id"
                       class="form-control"
-                      rows="3"
+                      rows="6"
                       readonly></textarea>
         </div>
         <div class="col-12">
@@ -143,6 +152,8 @@
     const clearButton = document.getElementById("button-clear-id");
     const submitSpinner = document.getElementById("spinner-submit-id");
     const questionTextarea = document.getElementById("textarea-question-id");
+    const responseTextarea = document.getElementById("textarea-response-id");
+    const errorDiv = document.getElementById("div-error-id");
 
     questionTextarea.oninput = () => {
         questionTextarea.classList.remove("is-invalid");
@@ -154,6 +165,33 @@
         submitSpinner.classList.toggle("d-none", !isBusy);
     }
 
+    function showError(message) {
+        errorDiv.textContent = `Error: ${message}`;
+        errorDiv.classList.remove("d-none");
+    }
+
+    function clearError() {
+        errorDiv.textContent = "";
+        errorDiv.classList.add("d-none");
+    }
+
+    // Returns the FastAPI "detail" message, or the HTTP status when the
+    // body is not JSON (for example, a proxy error page).
+    async function errorDetail(res) {
+        try {
+            const data = await res.json();
+            if (typeof data.detail === "string") {
+                return data.detail;
+            }
+            if (Array.isArray(data.detail)) {
+                return data.detail.map(item => item.msg).join("; ");
+            }
+        } catch (error) {
+            console.error("Error response is not JSON", error);
+        }
+        return `HTTP ${res.status} ${res.statusText}`.trim();
+    }
+
     submitButton.onclick = async () => {
         const prompt = questionTextarea.value;
         if (prompt.trim() === "") {
@@ -161,6 +199,8 @@
             return;
         }
         setBusy(true);
+        clearError();
+        responseTextarea.value = "";
         try {
             const res = await fetch("/prompt/", {
                 method: "POST",
@@ -171,9 +211,15 @@
                         "radio-display-reasoning-yes-id").checked
                 })
             });
+            if (!res.ok) {
+                showError(await errorDetail(res));
+                return;
+            }
             const data = await res.json();
-            document.getElementById("textarea-response-id").value =
-                res.ok ? data.answer : `Error: ${data.detail}`;
+            responseTextarea.value = data.answer;
+        } catch (error) {
+            console.error("Prompt request failed", error);
+            showError(`Could not get a response (${error.message}).`);
         } finally {
             setBusy(false);
         }
@@ -182,10 +228,12 @@
     clearButton.onclick = () => {
         questionTextarea.value = "";
         questionTextarea.classList.remove("is-invalid");
+        clearError();
     };
 
     document.getElementById("button-clear-response-id").onclick = () => {
-        document.getElementById("textarea-response-id").value = "";
+        responseTextarea.value = "";
+        clearError();
     };
 </script>
 

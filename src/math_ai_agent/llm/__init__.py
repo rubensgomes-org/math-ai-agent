@@ -38,10 +38,22 @@
 
 """llm — LLM sub-package for math_ai_agent.
 
-Re-exports ``Agent`` and ``AgentBusyError`` so callers can use
+Re-exports ``Agent`` and its exceptions so callers can use
 ``from math_ai_agent.llm import Agent``.
 """
 
-from math_ai_agent.llm.agent import Agent, AgentBusyError
+from math_ai_agent.llm.agent import (
+    Agent,
+    AgentBusyError,
+    ContentFilterError,
+    LLMRequestFailedError,
+    TokenLimitError,
+)
 
-__all__ = ["Agent", "AgentBusyError"]
+__all__ = [
+    "Agent",
+    "AgentBusyError",
+    "ContentFilterError",
+    "LLMRequestFailedError",
+    "TokenLimitError",
+]

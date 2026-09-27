@@ -52,7 +52,12 @@ from openai.types.responses import (
 )
 from openai.types.responses.response_reasoning_item import Content, Summary
 
-from math_ai_agent.llm.agent import Agent
+from math_ai_agent.llm.agent import (
+    Agent,
+    ContentFilterError,
+    LLMRequestFailedError,
+    TokenLimitError,
+)
 from math_ai_agent.llm.client import ResponsesClient
 
 # ---------------------------------------------------------------------------
@@ -256,6 +261,7 @@ async def test_create_response_sends_expected_arguments():
         store=False,
         previous_response_id=omit,
         temperature=omit,
+        reasoning=omit,
     )
 
 
@@ -282,7 +288,26 @@ async def test_create_response_stateful_sends_previous_response_id():
         store=True,
         previous_response_id="resp-1",
         temperature=omit,
+        reasoning=omit,
     )
+
+
+@pytest.mark.asyncio
+async def test_create_response_sends_reasoning_summary():
+    """A set reasoning summary is sent as the reasoning parameter."""
+    client = ResponsesClient(
+        _API_KEY, _BASE_URL, _MODEL, _TOOLS, reasoning_summary="detailed"
+    )
+    mock_create = AsyncMock(return_value=_make_response())
+    client.openai_client.responses = SimpleNamespace(create=mock_create)
+
+    await client.create_response(
+        [{"role": "user", "content": "4+4?"}], _INSTRUCTIONS
+    )
+
+    assert mock_create.await_args.kwargs["reasoning"] == {
+        "summary": "detailed"
+    }
 
 
 @pytest.mark.asyncio
@@ -422,28 +447,32 @@ async def test_agent_run_sends_user_prompt_without_system_item(agent_env):
 
 
 @pytest.mark.asyncio
-async def test_agent_run_max_output_tokens_raises_runtime_error(agent_env):
-    """An "incomplete" max_output_tokens response raises RuntimeError."""
+async def test_agent_run_max_output_tokens_raises_token_limit_error(
+    agent_env,
+):
+    """An "incomplete" max_output_tokens response raises TokenLimitError."""
     agent_env.responses = [
         _make_response(
             status="incomplete",
             incomplete_details=SimpleNamespace(reason="max_output_tokens"),
         )
     ]
-    with pytest.raises(RuntimeError, match="Token limit reached"):
+    with pytest.raises(TokenLimitError, match="Token limit reached"):
         await agent_env.agent.run("4+4?")
 
 
 @pytest.mark.asyncio
-async def test_agent_run_content_filter_raises_runtime_error(agent_env):
-    """An "incomplete" content_filter response raises RuntimeError."""
+async def test_agent_run_content_filter_raises_content_filter_error(
+    agent_env,
+):
+    """An "incomplete" content_filter response raises ContentFilterError."""
     agent_env.responses = [
         _make_response(
             status="incomplete",
             incomplete_details=SimpleNamespace(reason="content_filter"),
         )
     ]
-    with pytest.raises(RuntimeError, match="blocked"):
+    with pytest.raises(ContentFilterError, match="blocked for safety"):
         await agent_env.agent.run("4+4?")
 
 
@@ -473,59 +502,41 @@ async def test_agent_run_missing_incomplete_details_raises_value_error(
 
 
 @pytest.mark.asyncio
-async def test_agent_run_failed_raises_runtime_error(agent_env):
-    """A "failed" status raises RuntimeError with the provider message."""
+async def test_agent_run_failed_raises_llm_request_failed_error(agent_env):
+    """A "failed" status raises LLMRequestFailedError with its code."""
     agent_env.responses = [
         _make_response(
             status="failed",
             error=SimpleNamespace(code="server_error", message="upstream 502"),
         )
     ]
-    with pytest.raises(RuntimeError, match="upstream 502"):
+    with pytest.raises(LLMRequestFailedError, match="upstream 502") as info:
         await agent_env.agent.run("4+4?")
+    assert info.value.code == "server_error"
 
 
 @pytest.mark.asyncio
-async def test_agent_run_failed_without_error_raises_runtime_error(agent_env):
-    """A "failed" status with no error object still raises RuntimeError."""
+async def test_agent_run_failed_without_error_raises_llm_error(agent_env):
+    """A "failed" status with no error object has no error code."""
     agent_env.responses = [_make_response(status="failed")]
-    with pytest.raises(RuntimeError, match="unknown error"):
+    with pytest.raises(LLMRequestFailedError, match="unknown error") as info:
         await agent_env.agent.run("4+4?")
+    assert info.value.code is None
 
 
 @pytest.mark.asyncio
-async def test_agent_run_unknown_status_raises_value_error(agent_env):
-    """An unrecognised response status raises ValueError."""
-    agent_env.responses = [_make_response(status="wat")]
-    with pytest.raises(ValueError, match="Unknown response status: wat"):
+@pytest.mark.parametrize("status", ["wat", "queued", "in_progress"])
+async def test_agent_run_unknown_status_raises_value_error(agent_env, status):
+    """A non-final or unrecognised response status raises ValueError."""
+    agent_env.responses = [_make_response(status=status)]
+    expected = f"Non-supported response status: {status}"
+    with pytest.raises(ValueError, match=expected):
         await agent_env.agent.run("4+4?")
 
 
 # ---------------------------------------------------------------------------
 # Agent.run — continue branches
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_agent_run_in_progress_continues(agent_env):
-    """An "in_progress" status loops again instead of terminating."""
-    agent_env.responses = [
-        _make_response(status="in_progress"),
-        _make_response(output=[_make_message("done")]),
-    ]
-    assert await agent_env.agent.run("4+4?") == _answer("done")
-    assert agent_env.responses == []
-
-
-@pytest.mark.asyncio
-async def test_agent_run_queued_continues(agent_env):
-    """A "queued" status loops again instead of terminating."""
-    agent_env.responses = [
-        _make_response(status="queued"),
-        _make_response(output=[_make_message("done")]),
-    ]
-    assert await agent_env.agent.run("4+4?") == _answer("done")
-    assert agent_env.responses == []
 
 
 @pytest.mark.asyncio
@@ -670,11 +681,13 @@ async def test_agent_run_strips_blank_lines_from_answer(agent_env):
 
 
 @pytest.mark.asyncio
-async def test_agent_run_ignores_reasoning_summary(agent_env):
-    """A reasoning item with only a summary leaves reasoning as (none)."""
+async def test_agent_run_uses_summary_without_content(agent_env):
+    """A reasoning item with only a summary shows the summary."""
     agent_env.responses = [
         _make_response(
             output=[_make_reasoning(["Short plan."]), _make_message("8")]
         )
     ]
-    assert await agent_env.agent.run("4+4?") == _answer(final="8")
+    assert await agent_env.agent.run("4+4?") == _answer(
+        final="8", reasoning="Short plan."
+    )
