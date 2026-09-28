@@ -46,12 +46,16 @@ Launches a FastAPI web server with the following endpoints:
 From the project root folder run::
 
     poetry run math-ai-agent
+
+Pass ``--version`` to print the installed version and exit.
 """
 
+import argparse
 import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 from pathlib import Path
 
 import uvicorn
@@ -73,6 +77,7 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 _INDEX_HTML = Path(__file__).parent / "static" / "index.html"
+_DISTRIBUTION_NAME = "math-ai-agent"
 
 
 @asynccontextmanager
@@ -161,11 +166,26 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
     return {"answer": output}
 
 
-def main() -> None:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the command-line arguments; ``--version`` prints and exits."""
+    parser = argparse.ArgumentParser(prog=_DISTRIBUTION_NAME)
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {version(_DISTRIBUTION_NAME)}",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
     """Run the web app with uvicorn on the configured host and port.
 
     ``log_config=None`` stops uvicorn from replacing the logging
     configuration from ``config.yaml`` with its own.
+
+    Args:
+        argv: Command-line arguments; defaults to ``sys.argv[1:]``.
     """
+    _parse_args(argv)
     web = get_config().web
     uvicorn.run(app, host=web.host, port=web.port, log_config=None)

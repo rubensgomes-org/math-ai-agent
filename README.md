@@ -1,13 +1,15 @@
+# Math AI Agent
+
 [![python](https://img.shields.io/badge/python-3.14.7-0969da)](https://www.python.org/downloads/release/python-3147/)
 [![License](https://img.shields.io/badge/License-MIT-0969da)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE)
 [![AI--Assisted](https://img.shields.io/badge/AI--Assisted-Development-8250df)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
 
-# Math AI Agent
-
 A prompt chat webapp that drives an LLM call inside an agentic loop using
 the `calculator_mcp` MCP server for arithmetic operations. The key constraint is
-that the LLM is given explicit system instructions to use the `calculator_mcp`
-for any arithmetic operations.
+that the LLM is given explicit system instructions to use `calculator_mcp` for
+any arithmetic operations.
+
+---
 
 ## Features
 
@@ -19,7 +21,7 @@ for any arithmetic operations.
 - **Plain-text answers** — the model is instructed to reply without LaTeX or
   Markdown, since the web UI renders answers in a plain `<textarea>`
 
-## Non-Supported Features
+## Unsupported Features
 
 - **Server-sent events (SSE)** are not supported for either LLM or MCP
   communication.
@@ -30,12 +32,12 @@ for any arithmetic operations.
   the LLM model selected in the configuration.
 - **Input types** such as images and videos are not supported. Only text
   input is supported.
-- **Tools** available to the LLM are limited to the `Calculator MCP` only. Other
+- **Tools** available to the LLM are limited to `calculator_mcp`. Other
   tool types, such as `built-in tools` (for example, web search and file search)
   and `function calls`, are not supported.
 
 Bear in mind that support for the features listed above also depends on the
-capabilities of the selected LLM model. For example, the default configurable
+capabilities of the selected LLM model. For example, the default configured
 model, NVIDIA Nemotron 3 Super, does not support storing conversation history
 and supports only text input.
 
@@ -45,30 +47,20 @@ This project includes code and documentation created with the assistance of AI
 tools. For details on usage, limits, and review practices, please see the
 [AI Disclaimer](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md).
 
+## Prerequisites
+
+- Python 3.14+
+- pip
+
 ## Installation
 
-### Prerequisites
-
-- UNIX OS (e.g., macOS, Linux)
-- curl 8.7+
-- pip 26.2+
-- poetry 2.4+
-- python 3.14+
-
-### PyPI Package Installation
-
-**IMPORTANT**: release versioning was recently reset to start again at
-version 0.0.1. Uninstall any previously installed version first.
-
-1. Uninstall any previously installed release
+1. Install in the default `pip` location
 
 ```bash
-pip uninstall math-ai-agent
-pip cache purge
+pip install math-ai-agent
 ```
 
-2. Install into the user's home environment. **NOTE**: use --no-cache-dir to
-   avoid issues with an earlier cached version
+2. Alternatively, install in the Python user directory
 
 ```bash
 pip --no-cache-dir install -U --user math-ai-agent
@@ -78,168 +70,62 @@ pip --no-cache-dir install -U --user math-ai-agent
    [math-ai-agent/releases](https://github.com/rubensgomes-org/math-ai-agent/releases)
 
 ```bash
+math-ai-agent --version
 pip show math-ai-agent
 ```
 
-### Git Clone Installation
+## Uninstall
 
-1. `git` clone and install local project package using `poetry`
+- Uninstall as follows:
 
 ```bash
-# use local `dev` folder to install the project
-mkdir -p ~/dev || exit; cd ~/dev
-git clone https://github.com/rubensgomes-org/math-ai-agent.git
-# change to project git local directory
-cd math-ai-agent
-# ensure we are at the project git local root folder
-cd $(git rev-parse --show-toplevel) || exit
-poetry install
+pip uninstall math-ai-agent
+pip cache purge
+```
+
+## Configuration
+
+### `calculator-mcp` Running Locally
+
+- Copy the file
+  [config_local.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_local.yaml)
+  to `${HOME}/cfg/math-ai-agent/config_local.yaml`
+
+- Set `MATHAIAGENT_CONFIG` for `calculator-mcp` running locally
+
+```bash
+export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
+```
+
+- Launch `calculator-mcp` locally following the instructions at
+  [calculator-mcp](https://github.com/rubensgomes-org/calculator-mcp)
+
+### `calculator-mcp` Running Remotely
+
+**Note**: This requires OAuth authentication using a GitHub account. Currently,
+only the project author is authorized.
+
+- Copy the file
+  [config_remote.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_remote.yaml)
+  to `${HOME}/cfg/math-ai-agent/config_remote.yaml`
+
+- Set `MATHAIAGENT_CONFIG` for `calculator-mcp` running remotely
+
+```bash
+export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
 ```
 
 ## Usage
 
-### Configuration
-
-The server ships with a default
-[config.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/src/math_ai_agent/config/config.yaml)
-bundled inside the PyPI package. To override it, set the `MATHAIAGENT_CONFIG`
-environment variable to the absolute path of your custom configuration file:
+- Run:
 
 ```bash
-# assuming config_local.yaml placed in my home folder
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
-```
-
-### Running Using PyPI Package - Calculator MCP Server Local
-
-**NOTE:** requires `calculator-mcp` running locally.
-
-1. Make a copy of
-   [config_local.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_local.yaml)
-   to a local home directory (e.g.,
-   `${HOME}/cfg/math-ai-agent/config_local.yaml`).
-
-2. Launch the PyPI-installed `math-ai-agent` package:
-
-```bash
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
 math-ai-agent
 ```
-
-3. Health check
-
-```bash
-# port is set by web.port in config_local.yaml
-curl -v http://localhost:9090/health
-# Expect: OK
-```
-
-4. To stop, go to the running terminal and press `Ctrl+C`
-
-### Running Using PyPI Package - Calculator MCP Server Remote
-
-**NOTE:** The `calculator-mcp` is deployed
-at https://rubens-calculator-mcp.fastmcp.app/mcp hosted on Prefect Horizon.
-Horizon puts OAuth in front of the server, and the sign-in is through GitHub.
-
-1. Make a copy of
-   [config_remote.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_remote.yaml)
-   to a local home directory (e.g.,
-   `${HOME}/cfg/math-ai-agent/config_remote.yaml`).
-
-2. Delete any previously stored OAuth tokens:
-
-```bash
-rm -fr "${HOME}/.calc-mcp-token"
-```
-
-3. Launch the PyPI-installed `math-ai-agent` package:
-
-```bash
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
-math-ai-agent
-```
-
-4. Authenticate with GitHub -- currently only Rubens can grante this access
-
-5. Health check
-
-```bash
-# port is set by web.port in config_local.yaml
-curl -v http://localhost:9090/health
-# Expect: OK
-```
-
-6. To stop, go to the running terminal and press `Ctrl+C`
-
-### Running Using Git Cloned Project - Calculator MCP Server Local
-
-**NOTE:** requires the `calculator_mcp` running locally as per instructions at
-[calculator-mcp](https://github.com/rubensgomes-org/calculator-mcp)
-
-1. Make a copy of
-   [config_local.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_local.yaml)
-   to a local home directory (e.g.,
-   `${HOME}/cfg/math-ai-agent/config_local.yaml`).
-
-2. Launch `math-ai-agent` from the local Git repo folder
-
-```bash
-# On my machine the project is installed here:
-pushd ~/github/rubens/dev/python/math-ai-agent/
-# ensure we are at the project git local root folder
-cd $(git rev-parse --show-toplevel) || exit
-# config_local.yaml placed in my home folder
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
-# ensure below port does not conflict with locally running MCP server.
-poetry run math-ai-agent
-```
-
-3. Health check
-
-```bash
-curl -v http://localhost:9090/health
-# Expect: OK
-```
-
-4. To stop, go to the running terminal and press `Ctrl+C`
-
-### Calculator MCP Server Running Remotely - OAuth Authentication
-
-**NOTE:** requires OAuth authentication which currently only Rubens is able to
-authorize using his personal GitHub account.
-
-1. Make a copy of
-   [config_remote.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_remote.yaml)
-   to a local home directory (e.g.,
-   `${HOME}/cfg/math-ai-agent/config_remote.yaml`).
-
-2. Launch `math-ai-agent` from the local Git repo folder
-
-```bash
-# On my machine the project is installed here:
-pushd ~/github/rubens/dev/python/math-ai-agent/
-# ensure we are at the project git local root folder
-cd $(git rev-parse --show-toplevel) || exit
-# config_remote.yaml placed in my home folder
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
-# clean up previously created OAuth tokens
-rm -fr ~/.calc-mcp-token
-poetry run math-ai-agent
-```
-
-3. Health check
-
-```bash
-curl -v http://localhost:9090/health
-# Expect: OK
-```
-
-4. To stop, go to the running terminal and press `Ctrl+C`
 
 ## License
 
-The project is licensed under
+The project is licensed under the
 [MIT License](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE).
 
 ---

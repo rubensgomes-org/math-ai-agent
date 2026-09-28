@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `math-ai-agent --version` prints the installed version and exits
+
 ### Changed
+
+- README simplified to PyPI installation, configuration, and usage; Git
+  clone run instructions moved to `docs/DEVELOPMENT_SETUP.md`
+- Build requires `poetry-core>=2.5`
 
 ### Fixed
 

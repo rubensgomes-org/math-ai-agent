@@ -42,6 +42,7 @@
 connect to the MCP server or start OAuth.
 """
 
+from importlib.metadata import version
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -283,10 +284,22 @@ def test_main_runs_uvicorn_with_configured_host_and_port(
 ):
     mock_get_config.return_value.web.host = "0.0.0.0"
     mock_get_config.return_value.web.port = 1234
-    main()
+    main([])
     mock_run.assert_called_once_with(
         app, host="0.0.0.0", port=1234, log_config=None
     )
+
+
+@patch("math_ai_agent.app.uvicorn.run")
+def test_main_version_prints_version_and_exits(mock_run, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["--version"])
+    assert exit_info.value.code == 0
+    package_version = version("math-ai-agent")
+    assert capsys.readouterr().out.strip() == (
+        f"math-ai-agent {package_version}"
+    )
+    mock_run.assert_not_called()
 
 
 @pytest.mark.asyncio

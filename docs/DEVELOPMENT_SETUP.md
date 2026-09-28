@@ -196,3 +196,68 @@ in its own virtual environment.
     poetry update -vv
     poetry lock --regenerate -vv
     ```
+
+### Running Using Git Cloned Project - Calculator MCP Server Local
+
+**NOTE:** requires the `calculator_mcp` running locally as per instructions at
+[calculator-mcp](https://github.com/rubensgomes-org/calculator-mcp)
+
+1. Make a copy of
+   [config_local.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_local.yaml)
+   to a local home directory (e.g.,
+   `${HOME}/cfg/math-ai-agent/config_local.yaml`).
+
+2. Launch `math-ai-agent` from the local Git repo folder
+
+```bash
+# On my machine the project is installed here:
+pushd ~/github/rubens/dev/python/math-ai-agent/
+# ensure we are at the project git local root folder
+cd $(git rev-parse --show-toplevel) || exit
+# config_local.yaml placed in my home folder
+export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
+# ensure below port does not conflict with locally running MCP server.
+poetry run math-ai-agent
+```
+
+3. Health check
+
+```bash
+curl -v http://localhost:9090/health
+# Expect: OK
+```
+
+4. To stop, go to the running terminal and press `Ctrl+C`
+
+### Calculator MCP Server Running Remotely - OAuth Authentication
+
+**NOTE:** requires OAuth authentication which currently only Rubens is able to
+authorize using his personal GitHub account.
+
+1. Make a copy of
+   [config_remote.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_remote.yaml)
+   to a local home directory (e.g.,
+   `${HOME}/cfg/math-ai-agent/config_remote.yaml`).
+
+2. Launch `math-ai-agent` from the local Git repo folder
+
+```bash
+# On my machine the project is installed here:
+pushd ~/github/rubens/dev/python/math-ai-agent/
+# ensure we are at the project git local root folder
+cd $(git rev-parse --show-toplevel) || exit
+# config_remote.yaml placed in my home folder
+export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
+# clean up previously created OAuth tokens
+rm -fr ~/.calc-mcp-token
+poetry run math-ai-agent
+```
+
+3. Health check
+
+```bash
+curl -v http://localhost:9090/health
+# Expect: OK
+```
+
+4. To stop, go to the running terminal and press `Ctrl+C`
