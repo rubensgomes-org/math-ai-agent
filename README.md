@@ -117,11 +117,21 @@ export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
 
 ## Usage
 
-- Run:
+1. Simply run
 
 ```bash
 math-ai-agent
 ```
+
+2. Health check
+
+```bash
+curl -v http://localhost:9090/health
+# Expect: OK
+```
+
+3. To stop, go to the running terminal and press `Ctrl+C`
+
 
 ## License
 
