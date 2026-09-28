@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.11] - 2026-09-28
+
+### Added
+
+### Changed
+
 - README usage documents the health check and how to stop the app
 
 ### Fixed
