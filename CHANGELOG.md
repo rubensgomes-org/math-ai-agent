@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.9] - 2026-09-28
+
+### Added
+
+### Changed
+
 - README documents running the PyPI package against the remote
   `calculator-mcp` on Prefect Horizon with GitHub OAuth
 - App logs when the MCP connection opens and the agent is created
