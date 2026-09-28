@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.10] - 2026-09-28
+
+### Added
+
 - `math-ai-agent --version` prints the installed version and exits
 
 ### Changed
