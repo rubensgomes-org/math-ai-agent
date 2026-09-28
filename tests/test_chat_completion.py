@@ -47,6 +47,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 from openai import omit
 from openai.types.chat import ChatCompletionMessage
 
@@ -391,14 +392,18 @@ def agent_env(app_config):
     """Build an ``Agent`` with a fake MCP client and a patched LLM.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
-    one entry per ``create_response`` call, and whose ``call_tool``
-    mock records every dispatched calculator tool call.
+    one entry per ``create_response`` call, whose ``histories`` list
+    records a snapshot of the history sent on each call, and whose
+    ``call_tool`` mock records every dispatched calculator tool call.
     """
     env = SimpleNamespace(
-        responses=[], call_tool=AsyncMock(return_value=_TOOL_RESULT)
+        responses=[],
+        histories=[],
+        call_tool=AsyncMock(return_value=_TOOL_RESULT),
     )
 
-    async def _next_response(history):  # pylint: disable=unused-argument
+    async def _next_response(history):
+        env.histories.append(list(history))
         return env.responses.pop(0)
 
     env.agent = Agent(
@@ -498,6 +503,44 @@ async def test_agent_run_dispatches_tool_call(agent_env):
     ]
     assert await agent_env.agent.run("4+4?") == "4 + 4 = 8"
     agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
+
+
+@pytest.mark.asyncio
+async def test_agent_run_returns_tool_error_to_llm(agent_env):
+    """A tool error is sent to the LLM as the tool message content."""
+    agent_env.call_tool.side_effect = ToolError(
+        "Error calling tool 'divide': Cannot divide by zero"
+    )
+    agent_env.responses = [
+        _make_chat_completion(
+            content=None,
+            tool_calls=[_make_tool_call(name="divide")],
+            finish_reason="tool_calls",
+        ),
+        _make_chat_completion(content="undefined"),
+    ]
+    assert await agent_env.agent.run("10/0?") == "undefined"
+    assert agent_env.histories[1][-1] == {
+        "role": "tool",
+        "tool_call_id": "call-1",
+        "content": "Error calling tool 'divide': Cannot divide by zero",
+    }
+
+
+@pytest.mark.asyncio
+async def test_agent_run_returns_invalid_json_arguments_to_llm(agent_env):
+    """Invalid JSON arguments are sent to the LLM without a tool call."""
+    agent_env.responses = [
+        _make_chat_completion(
+            content=None,
+            tool_calls=[_make_tool_call(arguments="{bad")],
+            finish_reason="tool_calls",
+        ),
+        _make_chat_completion(content="done"),
+    ]
+    assert await agent_env.agent.run("4+4?") == "done"
+    agent_env.call_tool.assert_not_awaited()
+    assert "invalid JSON arguments" in agent_env.histories[1][-1]["content"]
 
 
 @pytest.mark.asyncio

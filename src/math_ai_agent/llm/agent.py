@@ -53,6 +53,7 @@ import json
 import logging
 from typing import Any
 
+from fastmcp.exceptions import ToolError
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.responses import (
     Response,
@@ -99,7 +100,7 @@ def _next_turn_input(
     if stateful:
         logger.debug("LLM model is operating in stateful mode")
         return tool_outputs, response.id
-    logger.debug("LLM model is operating in stateless")
+    logger.debug("LLM model is operating in stateless mode.")
     output_items = [
         item.model_dump(exclude_none=True) for item in response.output
     ]
@@ -123,6 +124,12 @@ def _format_answer(reasoning: list[str], final_response: str) -> str:
         f"{heading}:\n{text or _EMPTY_SECTION}"
         for heading, text in sections.items()
     )
+
+
+def _tool_error(tool_name: str, message: str) -> str:
+    """Log a failed tool call and return the error text for the LLM."""
+    logger.warning("Calculator MCP tool %s failed: %s", tool_name, message)
+    return message
 
 
 class AgentBusyError(RuntimeError):
@@ -254,10 +261,35 @@ class Agent:
             logger.debug("Using Chat Completions API to send LLM request")
             return await self._run_chat(self._llm, user_prompt)
 
-    async def _call_tool(self, tool_name: str, args: dict) -> str:
-        """Call a calculator MCP tool and return its result as text."""
+    async def _call_tool(self, tool_name: str, arguments: str) -> str:
+        """Call a calculator MCP tool and return its result as text.
+
+        Invalid JSON arguments and tool errors, such as division by
+        zero, are returned as error text so the LLM can recover.
+
+        Args:
+            tool_name: The name of the MCP tool to invoke.
+            arguments: The tool arguments as a JSON object string.
+        """
+        try:
+            args = json.loads(arguments)
+        except json.JSONDecodeError as error:
+            return _tool_error(
+                tool_name,
+                f"Error calling tool '{tool_name}': invalid JSON arguments:"
+                f" {error}",
+            )
+        if not isinstance(args, dict):
+            return _tool_error(
+                tool_name,
+                f"Error calling tool '{tool_name}': arguments must be a JSON"
+                " object",
+            )
         logger.debug("Calling calculator MCP tool %s with %s", tool_name, args)
-        result = await self._calc.call_tool(tool_name, args)
+        try:
+            result = await self._calc.call_tool(tool_name, args)
+        except ToolError as error:
+            return _tool_error(tool_name, str(error))
         logger.debug(
             "Calculator MCP tool %s result:\n%s",
             tool_name,
@@ -340,13 +372,12 @@ class Agent:
                         fn = tool_call.function  # type: ignore[union-attr]
                         tool_name = fn.name
                         tool_call_id = tool_call.id
-                        args = json.loads(fn.arguments)
                         logger.debug(
                             "Calling tool_call_id: %s, tool_name: %s",
                             tool_call_id,
                             tool_name,
                         )
-                        result = await self._call_tool(tool_name, args)
+                        result = await self._call_tool(tool_name, fn.arguments)
                         history.append(
                             {
                                 "role": "tool",
@@ -460,13 +491,14 @@ class Agent:
 
                     tool_outputs: list[Any] = []
                     for tool_call in tool_calls:
-                        args = json.loads(tool_call.arguments)
                         logger.debug(
                             "Calling call_id: %s, tool_name: %s",
                             tool_call.call_id,
                             tool_call.name,
                         )
-                        result = await self._call_tool(tool_call.name, args)
+                        result = await self._call_tool(
+                            tool_call.name, tool_call.arguments
+                        )
                         logger.debug("Tool call result: %s", result)
                         tool_outputs.append(
                             {

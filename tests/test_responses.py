@@ -43,6 +43,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 from openai import omit
 from openai.types.responses import (
     ResponseFunctionToolCall,
@@ -546,6 +547,43 @@ async def test_agent_run_dispatches_tool_call(agent_env):
     ]
     assert await agent_env.agent.run("4+4?") == _answer("4 + 4 = 8")
     agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
+
+
+@pytest.mark.asyncio
+async def test_agent_run_returns_tool_error_to_llm(agent_env):
+    """A tool error is sent to the LLM as the tool output."""
+    agent_env.call_tool.side_effect = ToolError(
+        "Error calling tool 'divide': Cannot divide by zero"
+    )
+    agent_env.responses = [
+        _make_response(output=[_make_function_call(name="divide")]),
+        _make_response(output=[_make_message("undefined")]),
+    ]
+    assert await agent_env.agent.run("10/0?") == _answer("undefined")
+    assert agent_env.histories[1][-1]["output"] == (
+        "Error calling tool 'divide': Cannot divide by zero"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "arguments, message",
+    [
+        ("{bad", "invalid JSON arguments"),
+        ("[4, 4]", "arguments must be a JSON object"),
+    ],
+)
+async def test_agent_run_returns_invalid_arguments_to_llm(
+    agent_env, arguments, message
+):
+    """Invalid tool arguments are sent to the LLM without a tool call."""
+    agent_env.responses = [
+        _make_response(output=[_make_function_call(arguments=arguments)]),
+        _make_response(output=[_make_message("done")]),
+    ]
+    assert await agent_env.agent.run("4+4?") == _answer("done")
+    agent_env.call_tool.assert_not_awaited()
+    assert message in agent_env.histories[1][-1]["output"]
 
 
 @pytest.mark.asyncio

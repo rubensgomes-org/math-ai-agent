@@ -56,8 +56,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, PlainTextResponse
 
 from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm import (
@@ -73,14 +72,15 @@ from math_ai_agent.payload import Payload
 configure_logging()
 logger = logging.getLogger(__name__)
 
-# folder to HTML file
-_STATIC_DIR = Path(__file__).parent / "static"
+_INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     """Open the MCP connection and build the agent for the app's lifetime."""
     async with CalcMCPConnection() as calc:
+        logger.info("Opened the Calculator MCP connection")
+        logger.info("Creating agent for app'slifetime.")
         fastapi_app.state.agent = await Agent.create(calc)
         yield
 
@@ -89,21 +89,16 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
 # Create the FastAPI app instance
 # -------------------------------------------------
 app = FastAPI(lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 # -------------------------------------------------
 # Routes
 # -------------------------------------------------
-@app.get("/", response_class=HTMLResponse)
-async def root() -> str:
-    """Serve the main HTML page.
-
-    Returns:
-        The HTML content of the index page.
-    """
-    logger.debug("Serving root HTML page: %s%s", _STATIC_DIR, "/index.html")
-    return (_STATIC_DIR / "index.html").read_text()
+@app.get("/")
+async def root() -> FileResponse:
+    """Serve the main HTML page."""
+    logger.debug("Serving root HTML page: %s", _INDEX_HTML)
+    return FileResponse(_INDEX_HTML, media_type="text/html")
 
 
 @app.get("/health", response_class=PlainTextResponse)

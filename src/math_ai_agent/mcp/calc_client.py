@@ -46,6 +46,7 @@ the OpenAI function-calling formats.
 import logging
 import os
 from pathlib import Path
+from types import TracebackType
 
 import mcp.types
 from cryptography.fernet import Fernet
@@ -126,10 +127,28 @@ class CalcMCPClient(Client):
         await super().__aenter__()
         return self
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         """Disconnect from the MCP server."""
         logger.debug("Closing CalcMCPClient")
         await super().__aexit__(exc_type, exc, tb)
+
+    async def _function_definitions(self) -> list[dict]:
+        """Return each MCP tool's name, description, and parameters."""
+        mcp_tools: list[mcp.types.Tool] = await self.list_tools()
+        logger.debug("mcp_tools: %s", mcp_tools)
+        functions: list[dict] = []
+        for tool in mcp_tools:
+            function: dict = {"name": tool.name}
+            if tool.description:
+                function["description"] = tool.description
+            function["parameters"] = tool.input_schema
+            functions.append(function)
+        return functions
 
     async def to_chat_completions_tools(self) -> list[dict]:
         """Convert MCP tools to OpenAI function-calling schema.
@@ -156,21 +175,10 @@ class CalcMCPClient(Client):
             "Calling Calculator MCP Server to list tools for the Chat "
             "Completion API."
         )
-        mcp_tools: list[mcp.types.Tool] = await self.list_tools()
-        logger.debug("mcp_tools: %s", mcp_tools)
-        logger.debug("Converting %d MCP tools to OpenAI format", len(mcp_tools))
-        openai_tools: list[dict] = []
-        for tool in mcp_tools:
-            func: dict = {"name": tool.name}
-            if tool.description:
-                func["description"] = tool.description
-            func["parameters"] = tool.input_schema
-            openai_tools.append({"type": "function", "function": func})
-        logger.debug(
-            "Converted %d MCP tools to OpenAI format",
-            len(openai_tools),
-        )
-        return openai_tools
+        return [
+            {"type": "function", "function": function}
+            for function in await self._function_definitions()
+        ]
 
     async def to_responses_tools(self) -> list[dict]:
         """Convert MCP tools to Responses API function schema.
@@ -197,20 +205,7 @@ class CalcMCPClient(Client):
         logger.info(
             "Calling Calculator MCP Server to list tools for the Responses API"
         )
-        mcp_tools: list[mcp.types.Tool] = await self.list_tools()
-        logger.debug("mcp_tools: %s", mcp_tools)
-        logger.debug(
-            "Converting %d MCP tools to Responses format", len(mcp_tools)
-        )
-        responses_tools: list[dict] = []
-        for tool in mcp_tools:
-            func: dict = {"type": "function", "name": tool.name}
-            if tool.description:
-                func["description"] = tool.description
-            func["parameters"] = tool.input_schema
-            responses_tools.append(func)
-        logger.debug(
-            "Converted %d MCP tools to Responses format",
-            len(responses_tools),
-        )
-        return responses_tools
+        return [
+            {"type": "function", **function}
+            for function in await self._function_definitions()
+        ]

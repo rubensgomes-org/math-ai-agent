@@ -73,22 +73,6 @@ async def test_app_is_fastapi_instance():
 
 
 @pytest.mark.asyncio
-async def test_static_files_mount():
-    routes = [route.path for route in app.routes]
-    assert "/static" in routes or any("/static" in r for r in routes)
-
-
-@pytest.mark.asyncio
-async def test_static_files_not_found():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport, base_url="http://test"
-    ) as client:
-        response = await client.get("/static/nonexistent.html")
-        assert response.status_code == 404
-
-
-@pytest.mark.asyncio
 async def test_root_returns_html():
     transport = ASGITransport(app=app)
     async with AsyncClient(

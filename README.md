@@ -64,23 +64,20 @@ version 0.0.1. Uninstall any previously installed version first.
 
 ```bash
 pip uninstall math-ai-agent
-# purging the cache is recommended as well
 pip cache purge
 ```
 
-2. Install into the user's home environment
+2. Install into the user's home environment. **NOTE**: use --no-cache-dir to
+   avoid issues with an earlier cached version
 
 ```bash
-# install "math-ai-agent" and dependencies into user local pip environment
-# NOTE: use --no-cache-dir to avoid issues with an earlier cached version
-pip --no-cache-dir install -U --user math-ai-agent --verbose
+pip --no-cache-dir install -U --user math-ai-agent
 ```
 
 3. Confirm the installed version matches the latest GitHub release at
    [math-ai-agent/releases](https://github.com/rubensgomes-org/math-ai-agent/releases)
 
 ```bash
-# show the installed version
 pip show math-ai-agent
 ```
 
@@ -113,10 +110,9 @@ environment variable to the absolute path of your custom configuration file:
 export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
 ```
 
-### Running Using PyPI Package
+### Running Using PyPI Package - Calculator MCP Server Local
 
-**NOTE:** requires prior installation using
-`pip install -U --user math-ai-agent`.
+**NOTE:** requires `calculator-mcp` running locally.
 
 1. Make a copy of
    [config_local.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_local.yaml)
@@ -126,9 +122,7 @@ export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
 2. Launch the PyPI-installed `math-ai-agent` package:
 
 ```bash
-# config_local.yaml placed in my home folder
 export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
-# using installed package from PyPI:
 math-ai-agent
 ```
 
@@ -142,7 +136,43 @@ curl -v http://localhost:9090/health
 
 4. To stop, go to the running terminal and press `Ctrl+C`
 
-### Running Using Git Cloned Project - MCP Server Running Locally
+### Running Using PyPI Package - Calculator MCP Server Remote
+
+**NOTE:** The `calculator-mcp` is deployed
+at https://rubens-calculator-mcp.fastmcp.app/mcp hosted on Prefect Horizon.
+Horizon puts OAuth in front of the server, and the sign-in is through GitHub.
+
+1. Make a copy of
+   [config_remote.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_remote.yaml)
+   to a local home directory (e.g.,
+   `${HOME}/cfg/math-ai-agent/config_remote.yaml`).
+
+2. Delete any previously stored OAuth tokens:
+
+```bash
+rm -fr "${HOME}/.calc-mcp-token"
+```
+
+3. Launch the PyPI-installed `math-ai-agent` package:
+
+```bash
+export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
+math-ai-agent
+```
+
+4. Authenticate with GitHub -- currently only Rubens can grante this access
+
+5. Health check
+
+```bash
+# port is set by web.port in config_local.yaml
+curl -v http://localhost:9090/health
+# Expect: OK
+```
+
+6. To stop, go to the running terminal and press `Ctrl+C`
+
+### Running Using Git Cloned Project - Calculator MCP Server Local
 
 **NOTE:** requires the `calculator_mcp` running locally as per instructions at
 [calculator-mcp](https://github.com/rubensgomes-org/calculator-mcp)

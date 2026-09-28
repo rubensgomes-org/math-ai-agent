@@ -95,7 +95,7 @@ class CalcMCPConnection:
         tb: TracebackType | None,
     ) -> None:
         """Close the current MCP connection."""
-        logger.debug("Closing the first MCP connection")
+        logger.debug("Closing the MCP connection")
         await self._close()
 
     async def to_chat_completions_tools(self) -> list[dict]:

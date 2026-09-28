@@ -11,7 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- README documents running the PyPI package against the remote
+  `calculator-mcp` on Prefect Horizon with GitHub OAuth
+- App logs when the MCP connection opens and the agent is created
+- `GET /` serves `index.html` as a file; the unused `/static` mount is
+  removed
+
 ### Fixed
+
+- Tool errors, such as division by zero, and invalid tool arguments are
+  returned to the LLM as the tool output instead of failing the prompt
+  with HTTP 500
 
 ## [0.0.8] - 2026-09-27
 

@@ -268,7 +268,7 @@ class ResponsesClient(_BaseLLMClient):
         """
         # The call to the LLM model has:
         # - instructions: you should always add this instruction because there
-        #     no guarantee the LLM model will save this
+        #     is no guarantee the LLM model will save this
         # - input items: this contains the conversation history which may only
         #     require new input items for stateful connections.  The previous
         #     items are based on passing previous_response_id.
