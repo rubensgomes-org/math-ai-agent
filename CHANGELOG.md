@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.13] - 2026-09-29
+
+### Added
+
 - `aca-destroy` workflow destroying the `mathagent` Azure Container App
 
 ### Changed
