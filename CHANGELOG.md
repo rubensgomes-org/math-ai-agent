@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.12] - 2026-09-29
+
+### Added
+
 - `Dockerfile`, `docker-compose.yml`, and `config/config_docker.yaml` for
   running in a container
 - `aca-create` workflow provisioning the `mathagent` Azure Container App
