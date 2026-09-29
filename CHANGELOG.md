@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.14] - 2026-09-29
+
+### Added
+
 - `README.md` Links section with links to the `docs/` files
 
 ### Changed
