@@ -115,6 +115,10 @@ only the project author is authorized.
 export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
 ```
 
+### Overriding the `calculator-mcp` URL
+
+A non-empty `CALCULATOR_MCP_URL` overrides `server.calculator_mcp.url`.
+
 ## Usage
 
 1. Simply run

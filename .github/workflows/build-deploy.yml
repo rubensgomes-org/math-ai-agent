@@ -1,0 +1,178 @@
+# =============================================================================
+# build-deploy
+#
+# Builds the application and its container image, pushes the image to an
+# EXISTING Azure Container Registry, verifies the push, smoke-tests the image
+# and purges the untagged manifests it orphaned. Then updates the EXISTING
+# Azure Container App to run the newly published image with NVIDIA_API_KEY
+# stored as a container app secret and CALCULATOR_MCP_URL set.
+#
+# The EXISTING Azure Container Registry and Container App are expected to be
+# provisioned using one of the workflows in the Terraform IaC `azure-iac`
+# repo.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: build-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Image namespace, used as <environment>/<artifactId>:<tag>.'
+        required: false
+        default: dev
+        type: choice
+        options:
+          - dev
+          - lab
+      tag:
+        description: 'Image tag. Empty defaults to the application version (from pyproject.toml).'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-deploy
+  cancel-in-progress: false
+
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    outputs:
+      registry-name: ${{ steps.registry.outputs.registry-name }}
+    steps:
+      - name: Resolve the registry name
+        id: registry
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the registry name"
+          echo "=============================================================="
+          set -euo pipefail
+          case "${{ inputs.environment }}" in
+            dev) echo "registry-name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
+            lab) echo "registry-name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  build:
+    needs: registry
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-push-python.yml@v0
+    with:
+      environment: ${{ inputs.environment }}
+      tag: ${{ inputs.tag }}
+      registry-name: ${{ needs.registry.outputs.registry-name }}
+      artifact-id: math-ai-agent
+      python-version: '3.14'
+      poetry-version: '2.5.1'
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+  deploy:
+    needs: [registry, build]
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_ID: math-ai-agent
+      ENVIRONMENT: ${{ inputs.environment }}
+      REGISTRY_NAME: ${{ needs.registry.outputs.registry-name }}
+      # Naming convention from azure-iac: rg-rgomesapp-<env>, ca-<app>-<env>.
+      RESOURCE_GROUP: rg-rgomesapp-${{ inputs.environment }}
+      CONTAINER_APP: ca-mathagent-${{ inputs.environment }}
+      # Container app secret name holding NVIDIA_API_KEY.
+      NVIDIA_SECRET_NAME: nvidia-api-key
+      # ACA resolves an app name to its ingress within the same environment.
+      CALCULATOR_MCP_URL: http://ca-mathmcp-${{ inputs.environment }}/mcp
+    steps:
+      - name: Sign in to Azure
+        uses: rubensgomes-org/azure-workflows/.github/actions/azure-login@v0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # Fails fast if Terraform (rubensgomes-org/azure-iac) has not already
+      # provisioned this container app; this workflow never creates one.
+      - name: Ensure the container app is provisioned
+        run: |
+          echo "=============================================================="
+          echo " STEP: Ensure the container app is provisioned"
+          echo "=============================================================="
+          set -euo pipefail
+          if ! az containerapp show \
+              -g "$RESOURCE_GROUP" \
+              -n "$CONTAINER_APP" \
+              --query name -o tsv >/dev/null; then
+            echo "Container app '${CONTAINER_APP}' is not provisioned in" \
+              "resource group '${RESOURCE_GROUP}'." >&2
+            echo "Provision it via rubensgomes-org/azure-iac first." >&2
+            exit 1
+          fi
+
+      - name: Resolve the published image reference
+        id: image
+        run: |
+          echo "=============================================================="
+          echo " STEP: Resolve the published image reference"
+          echo "=============================================================="
+          set -euo pipefail
+          repository="${ENVIRONMENT}/${ARTIFACT_ID}"
+          tag="${{ inputs.tag }}"
+          if [ -z "$tag" ]; then
+            tag="$(az acr repository show-tags \
+              --name "$REGISTRY_NAME" \
+              --repository "$repository" \
+              --orderby time_desc --top 1 -o tsv)"
+          fi
+          login_server="$(az acr show \
+            --name "$REGISTRY_NAME" \
+            --query loginServer -o tsv)"
+          image="${login_server}/${repository}:${tag}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "Resolved image: ${image}"
+
+      # Terraform (azure-iac) resets the app's secrets and env vars on every
+      # aca-create run, so each deploy stores the key again.
+      - name: Store NVIDIA_API_KEY as a container app secret
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Store NVIDIA_API_KEY as a container app secret"
+          echo "=============================================================="
+          set -euo pipefail
+          if [ -z "$NVIDIA_API_KEY" ]; then
+            echo "The NVIDIA_API_KEY repository secret is not set." >&2
+            echo "Set it with scripts/initvars.sh." >&2
+            exit 1
+          fi
+          az containerapp secret set \
+            -g "$RESOURCE_GROUP" \
+            -n "$CONTAINER_APP" \
+            --secrets "${NVIDIA_SECRET_NAME}=${NVIDIA_API_KEY}" \
+            -o none
+
+      - name: Update the container app with the new image
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          echo "=============================================================="
+          echo " STEP: Update the container app with the new image"
+          echo " az containerapp update -g ${RESOURCE_GROUP}" \
+            "-n ${CONTAINER_APP} --image ${IMAGE}"
+          echo "=============================================================="
+          set -euo pipefail
+          az containerapp update \
+            -g "$RESOURCE_GROUP" \
+            -n "$CONTAINER_APP" \
+            --image "$IMAGE" \
+            --set-env-vars \
+              "NVIDIA_API_KEY=secretref:${NVIDIA_SECRET_NAME}" \
+              "CALCULATOR_MCP_URL=${CALCULATOR_MCP_URL}"

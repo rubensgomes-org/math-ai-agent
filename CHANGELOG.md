@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Dockerfile`, `docker-compose.yml`, and `config/config_docker.yaml` for
+  running in a container
+- `aca-create` workflow provisioning the `mathagent` Azure Container App
+- `build-deploy` workflow publishing the image and deploying it to ACA
+- `CALCULATOR_MCP_URL` environment variable overriding
+  `server.calculator_mcp.url`
+
 ### Changed
 
 ### Fixed

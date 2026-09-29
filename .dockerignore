@@ -1,0 +1,70 @@
+# =============================================================================
+# Keeps the Docker build context minimal. pyproject.toml, poetry.lock,
+# README.md, LICENSE, src/ and config/config_docker.yaml are required by the
+# build and must stay.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+
+# --- Version control ---------------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.github
+
+# --- Python build / runtime artifacts ----------------------------------------
+**/__pycache__/
+*.py[cod]
+build/
+dist/
+*.egg-info/
+
+# --- Virtual environments ----------------------------------------------------
+.venv/
+venv/
+.python-version
+
+# --- Test / lint / type-check caches -----------------------------------------
+tests/
+.pytest_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.sonar/
+sonar-project.properties
+
+# --- Editors / IDE / OS ------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+
+# --- Project docs and tooling not needed inside the image --------------------
+docs/
+misc/
+scripts/
+.claude/
+AI_DISCLAIMER.md
+CHANGELOG.md
+CLAUDE.md
+.editorconfig
+.flake8
+.pylintrc
+
+# --- Docker's own files ------------------------------------------------------
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# --- Secrets / local environment ---------------------------------------------
+# "~" is a stray local directory holding OAuth tokens.
+~/
+.env
+.env.*
+*.pem
+*.key
+secrets/

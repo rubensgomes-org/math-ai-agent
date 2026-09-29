@@ -52,6 +52,7 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 DEFAULT_LLM_TIMEOUT_SECONDS = 120.0
+CALCULATOR_MCP_URL_ENV = "CALCULATOR_MCP_URL"
 ReasoningSummary = Literal["auto", "concise", "detailed"]
 
 
@@ -129,10 +130,28 @@ def load_config(path: Path) -> AppConfig:
         return AppConfig.model_validate(yaml.safe_load(f))
 
 
+def _apply_env_overrides(app_config: AppConfig) -> AppConfig:
+    """Return ``app_config`` with environment variable overrides applied.
+
+    A non-empty ``CALCULATOR_MCP_URL`` replaces
+    ``server.calculator_mcp.url``.
+    """
+    mcp_url = os.environ.get(CALCULATOR_MCP_URL_ENV)
+    if not mcp_url:
+        return app_config
+    calculator_mcp = app_config.server.calculator_mcp.model_copy(
+        update={"url": mcp_url}
+    )
+    server = app_config.server.model_copy(
+        update={"calculator_mcp": calculator_mcp}
+    )
+    return app_config.model_copy(update={"server": server})
+
+
 @functools.cache
 def get_config() -> AppConfig:
     """Return the application config, loaded once on first call."""
-    return load_config(_resolve_config_path())
+    return _apply_env_overrides(load_config(_resolve_config_path()))
 
 
 def configure_logging() -> None:

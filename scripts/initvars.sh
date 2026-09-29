@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 ## SPDX-License-Identifier: MIT
 ##
-## Resets this repository's GitHub Actions secrets to the values
-## held by the current shell environment.
+## Resets this repository's GitHub Actions variables and secrets to
+## the values held by the current shell environment.
 ##
 ## Requirements:
 ##  1) Bash functions libraries installed at "${HOME}/lib/sh-lib".
@@ -87,6 +87,66 @@ source "${HOME}/lib/sh-lib/sh_lib.sh" || exit
 
 
 #####################################################################
+## MANAGED GITHUB ACTIONS VARIABLES #################################
+##
+## Keys are Actions variable names exactly as they appear in the
+## repository settings. Values are resolved from the shell
+## environment, falling back to the ARM_* equivalent.
+##
+## Bash does not preserve associative-array order, so
+## ACTION_VARIABLE_ORDER fixes a presentation order.
+#####################################################################
+declare -Ar ACTION_VARIABLES=(
+  [AZURE_CLIENT_ID]=\
+"${AZURE_CLIENT_ID:-${ARM_CLIENT_ID:-}}"
+  [AZURE_SUBSCRIPTION_ID]=\
+"${AZURE_SUBSCRIPTION_ID:-${ARM_SUBSCRIPTION_ID:-}}"
+  [AZURE_TENANT_ID]=\
+"${AZURE_TENANT_ID:-${ARM_TENANT_ID:-}}"
+  [TF_VAR_BACKEND_RESOURCE_GROUP_NAME]=\
+"${TF_VAR_backend_resource_group_name:-}"
+  [TF_VAR_CONTAINER_NAME]="${TF_VAR_container_name:-}"
+  [TF_VAR_LOCATION]="${TF_VAR_location:-}"
+  [TF_VAR_STORAGE_ACCOUNT_ID]="${TF_VAR_storage_account_id:-}"
+  [TF_VAR_TARGET_PORT]="${TF_VAR_target_port:-}"
+)
+
+declare -ar ACTION_VARIABLE_ORDER=(
+  AZURE_CLIENT_ID
+  AZURE_SUBSCRIPTION_ID
+  AZURE_TENANT_ID
+  TF_VAR_BACKEND_RESOURCE_GROUP_NAME
+  TF_VAR_CONTAINER_NAME
+  TF_VAR_LOCATION
+  TF_VAR_STORAGE_ACCOUNT_ID
+  TF_VAR_TARGET_PORT
+)
+
+# Variables this script used to manage and no longer does. The
+# delete phase sweeps these too; the create phase ignores them.
+# GitHub auto-uppercases a variable name on creation, so the retired
+# name here must match what is actually stored remotely.
+declare -ar RETIRED_ACTION_VARIABLES=(
+  TF_VAR_APPS
+)
+
+declare -Ar REQUIRED_VARIABLE_SOURCES=(
+  [AZURE_CLIENT_ID]=\
+"AZURE_CLIENT_ID (or ARM_CLIENT_ID)"
+  [AZURE_SUBSCRIPTION_ID]=\
+"AZURE_SUBSCRIPTION_ID (or ARM_SUBSCRIPTION_ID)"
+  [AZURE_TENANT_ID]=\
+"AZURE_TENANT_ID (or ARM_TENANT_ID)"
+  [TF_VAR_BACKEND_RESOURCE_GROUP_NAME]=\
+"TF_VAR_backend_resource_group_name"
+  [TF_VAR_CONTAINER_NAME]="TF_VAR_container_name"
+  [TF_VAR_LOCATION]="TF_VAR_location"
+  [TF_VAR_STORAGE_ACCOUNT_ID]="TF_VAR_storage_account_id"
+  [TF_VAR_TARGET_PORT]="TF_VAR_target_port"
+)
+
+
+#####################################################################
 ## MANAGED GITHUB ACTIONS SECRETS ####################################
 ##
 ## Keys are Actions secret names exactly as they appear in the
@@ -99,21 +159,29 @@ source "${HOME}/lib/sh-lib/sh_lib.sh" || exit
 #####################################################################
 declare -Ar ACTION_SECRETS=(
   [PYPI_API_TOKEN]="${PYPI_API_TOKEN:-}"
+  [AZURE_CLIENT_SECRET]=\
+"${AZURE_CLIENT_SECRET:-${ARM_CLIENT_SECRET:-}}"
   [SONAR_TOKEN]="${SONAR_TOKEN:-}"
+  [NVIDIA_API_KEY]="${NVIDIA_API_KEY:-}"
 )
 
 declare -ar ACTION_SECRET_ORDER=(
   PYPI_API_TOKEN
+  AZURE_CLIENT_SECRET
   SONAR_TOKEN
+  NVIDIA_API_KEY
 )
 
-# Secrets this script used to manage and no longer does. The delete
-# phase sweeps these too; the create phase ignores them.
+# No retirees yet; kept for symmetry with RETIRED_ACTION_VARIABLES
+# so a future removal has somewhere to go.
 declare -ar RETIRED_ACTION_SECRETS=()
 
 declare -Ar REQUIRED_SECRET_SOURCES=(
   [PYPI_API_TOKEN]="PYPI_API_TOKEN"
+  [AZURE_CLIENT_SECRET]=\
+"AZURE_CLIENT_SECRET (or ARM_CLIENT_SECRET)"
   [SONAR_TOKEN]="SONAR_TOKEN"
+  [NVIDIA_API_KEY]="NVIDIA_API_KEY"
 )
 
 
@@ -123,7 +191,7 @@ declare -Ar REQUIRED_SECRET_SOURCES=(
 # Boolean flag: print the plan and stop, changing nothing.
 declare g_is_dry_run=FALSE
 
-# Boolean flag: delete managed secrets, do not recreate them.
+# Boolean flag: delete managed variables/secrets, do not recreate.
 declare g_is_delete_only=FALSE
 
 
@@ -142,8 +210,8 @@ declare g_is_delete_only=FALSE
 help() {
   cat <<EOF
 
-"${PRG}" resets this repository's GitHub Actions secrets to the
-values held by the current shell environment.
+"${PRG}" resets this repository's GitHub Actions variables and
+secrets to the values held by the current shell environment.
 
 Usage:
   ${PRG} [options]
@@ -153,14 +221,15 @@ General Non Argument Options:
   -d, --debug          prints debug messages
   -h, --help           prints this help
   -n, --dry-run        prints the plan only, changes nothing
-  -o, --delete-only    deletes secrets, does not recreate them
+  -o, --delete-only    deletes variables and secrets, does not
+                        recreate them
   -q, --quiet          prints only error|fatal messages
   -v, --verbose        adds extra details to messages
   -x, --trace           traces commands
 
-By default, every managed Actions secret is deleted and recreated
-from the current shell environment. Pass -o/--delete-only to delete
-them without recreating them.
+By default, every managed Actions variable and secret is deleted
+and recreated from the current shell environment. Pass
+-o/--delete-only to delete them without recreating them.
 EOF
 }
 
@@ -376,6 +445,37 @@ resolve_repository() {
 }
 
 #####################################################################
+## Fails if any managed Actions variable resolved to an empty
+## value.
+## Globals:
+##  ACTION_VARIABLES
+##  ACTION_VARIABLE_ORDER
+##  REQUIRED_VARIABLE_SOURCES
+## Arguments:
+##  None.
+## Returns:
+##   0 when every value is set; 1 otherwise.
+#####################################################################
+validate_variable_values() {
+  local -a missing=()
+  local name
+
+  for name in "${ACTION_VARIABLE_ORDER[@]}"; do
+    [[ -z "${ACTION_VARIABLES[${name}]}" ]] && missing+=("${name}")
+  done
+
+  (( ${#missing[@]} == 0 )) && return 0
+
+  msg::error "%d variable(s) have no value.\n" "${#missing[@]}"
+  for name in "${missing[@]}"; do
+    msg::error "  %-38s <- %s\n" "${name}" \
+      "${REQUIRED_VARIABLE_SOURCES[${name}]:-${name}}"
+  done
+
+  return 1
+}
+
+#####################################################################
 ## Fails if any managed Actions secret resolved to an empty value.
 ## Globals:
 ##  ACTION_SECRETS
@@ -438,6 +538,37 @@ print_gh_environment() {
 }
 
 #####################################################################
+## Prints the Actions variables this run will change. Values are
+## shown -- GitHub renders repository variables in plain text, so
+## none of this is sensitive.
+## Globals:
+##  ACTION_VARIABLES
+##  ACTION_VARIABLE_ORDER
+## Arguments:
+##  1: TRUE when running delete-only, FALSE otherwise.
+## Outputs:
+##  Writes the variable table to stdout.
+## Returns:
+##   0 always.
+#####################################################################
+print_planned_variables() {
+  local -r is_delete_only="${1:?is_delete_only is required}"
+  local action="delete and recreate"
+  local name
+
+  [[ "${is_delete_only}" == TRUE ]] && action="delete"
+
+  printf "Actions variables to %s (%d):\n" \
+    "${action}" "${#ACTION_VARIABLE_ORDER[@]}"
+
+  for name in "${ACTION_VARIABLE_ORDER[@]}"; do
+    printf "  %-38s = %s\n" "${name}" "${ACTION_VARIABLES[${name}]}"
+  done
+
+  printf "\n"
+}
+
+#####################################################################
 ## Prints the Actions secrets this run will change. Values are
 ## never shown.
 ## Globals:
@@ -467,7 +598,8 @@ print_planned_secrets() {
 }
 
 #####################################################################
-## Prompts for confirmation before any Actions secret is changed.
+## Prompts for confirmation before any Actions variable or secret
+## is changed.
 ## Arguments:
 ##  1: target repository ("OWNER/REPO").
 ##  2: TRUE when running delete-only, FALSE otherwise.
@@ -481,7 +613,7 @@ confirm_changes() {
 
   [[ "${is_delete_only}" == TRUE ]] && action="Delete"
 
-  printf "%s these Actions secrets on %s?\n" \
+  printf "%s these Actions variables and secrets on %s?\n" \
     "${action}" "${repo}" >&2
 
   msg::yes_no
@@ -557,6 +689,44 @@ gh_create_one() {
 }
 
 #####################################################################
+## Deletes every managed variable that currently exists remotely,
+## plus any RETIRED_ACTION_VARIABLES. Only names present remotely
+## are deleted -- a partially-populated repository is the normal
+## case.
+## Globals:
+##  ACTION_VARIABLE_ORDER
+##  RETIRED_ACTION_VARIABLES
+## Arguments:
+##  1: target repository ("OWNER/REPO").
+## Outputs:
+##  Writes progress to stdout.
+## Returns:
+##   0 on success; 1 on the first failed delete.
+#####################################################################
+delete_action_variables() {
+  local -r repo="${1:?repo is required}"
+  local remote
+  local name
+
+  remote="$(list_remote_names "variable" "${repo}")" || return 1
+
+  printf "Deleting Actions variables...\n"
+
+  for name in "${ACTION_VARIABLE_ORDER[@]}" \
+      "${RETIRED_ACTION_VARIABLES[@]}"; do
+
+    if ! grep -Fxq "${name}" <<< "${remote}"; then
+      msg::debug "  skip   %s (not present)\n" "${name}"
+      continue
+    fi
+
+    msg::debug "  delete %s\n" "${name}"
+    gh_delete_one "variable" "${name}" "${repo}" || return 1
+
+  done
+}
+
+#####################################################################
 ## Deletes every managed secret that currently exists remotely,
 ## plus any RETIRED_ACTION_SECRETS. Only names present remotely are
 ## deleted -- a partially-populated repository is the normal case.
@@ -590,6 +760,35 @@ delete_action_secrets() {
     msg::debug "  delete %s\n" "${name}"
     gh_delete_one "secret" "${name}" "${repo}" || return 1
 
+  done
+}
+
+#####################################################################
+## Creates every managed variable from ACTION_VARIABLES. gh's "set"
+## is an upsert, so this also repairs a run interrupted between the
+## delete and create phases.
+## Globals:
+##  ACTION_VARIABLES
+##  ACTION_VARIABLE_ORDER
+## Arguments:
+##  1: target repository ("OWNER/REPO").
+## Outputs:
+##  Writes progress to stdout.
+## Returns:
+##   0 on success; 1 on the first failed create.
+#####################################################################
+create_action_variables() {
+  local -r repo="${1:?repo is required}"
+  local name
+  local value
+
+  printf "Creating Actions variables...\n"
+
+  for name in "${ACTION_VARIABLE_ORDER[@]}"; do
+    value="${ACTION_VARIABLES[${name}]}"
+    msg::debug "  create %s=%s\n" "${name}" "${value}"
+    gh_create_one "variable" "${name}" "${value}" "${repo}" \
+      || return 1
   done
 }
 
@@ -702,10 +901,12 @@ main() {
   repo="$(resolve_repository)" || return
 
   if [[ "${g_is_delete_only}" != TRUE ]]; then
+    validate_variable_values || return
     validate_secret_values || return
   fi
 
   print_gh_environment "${repo}"
+  print_planned_variables "${g_is_delete_only}"
   print_planned_secrets "${g_is_delete_only}"
 
   if [[ "${g_is_dry_run}" == TRUE ]]; then
@@ -718,9 +919,11 @@ main() {
     exit 0
   fi
 
+  delete_action_variables "${repo}" || return
   delete_action_secrets "${repo}" || return
 
   if [[ "${g_is_delete_only}" != TRUE ]]; then
+    create_action_variables "${repo}" || return
     create_action_secrets "${repo}" || return
   fi
 

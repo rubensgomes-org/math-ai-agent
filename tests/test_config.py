@@ -260,6 +260,25 @@ def test_get_config_reads_env_path():
 
 
 @pytest.mark.usefixtures("env_config")
+def test_get_config_calculator_mcp_url_override(monkeypatch):
+    monkeypatch.setenv("CALCULATOR_MCP_URL", "http://ca-mathmcp-dev/mcp")
+    mcp = config.get_config().server.calculator_mcp
+    assert mcp.url == "http://ca-mathmcp-dev/mcp"
+    assert mcp.token_dir == "/tmp/tokens"
+
+
+@pytest.mark.parametrize("value", [None, ""])
+@pytest.mark.usefixtures("env_config")
+def test_get_config_calculator_mcp_url_unset_keeps_file(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("CALCULATOR_MCP_URL", raising=False)
+    else:
+        monkeypatch.setenv("CALCULATOR_MCP_URL", value)
+    url = config.get_config().server.calculator_mcp.url
+    assert url == "http://localhost:9000/mcp"
+
+
+@pytest.mark.usefixtures("env_config")
 def test_get_config_is_cached(monkeypatch):
     first = config.get_config()
     monkeypatch.delenv("MATHAIAGENT_CONFIG")

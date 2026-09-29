@@ -1,0 +1,184 @@
+# =============================================================================
+# Container configuration used by the Docker image (see Dockerfile).
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+
+# =============================================================================
+# LLM Configuration
+# =============================================================================
+llm:
+    # OpenAI API the LLM client uses:
+    #   "responses" -> POST /v1/responses         (primary OpenAI API)
+    #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
+    # Both work against NVIDIA nemotron models
+    api_style: "responses"
+    # Base NVIDIA LLM models URL
+    model_base_url: "https://integrate.api.nvidia.com/v1"
+    # Nemotron frontier NVIDIA models for agentic workflows, coding and tool use
+    # see list of NVIDIA models: https://integrate.api.nvidia.com/v1/models
+    # https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b/modelcard
+    model: "nvidia/nemotron-3-super-120b-a12b"
+    # Name of the environment variable holding the API key.
+    # Get a key from https://build.nvidia.com (keys start with "nvapi-").
+    api_key_env: "NVIDIA_API_KEY"
+    # System prompt sent to the **stateless** LLM on every request.
+    # Seconds to wait for each LLM response before failing.
+    timeout_seconds: 120
+    # Prompts processed at once; more get HTTP 503 until one finishes.
+    max_concurrent_prompts: 10
+    # Responses API only: store responses on the server and send only new
+    # items each turn via previous_response_id. NVIDIA and OpenRouter do
+    # not support it; OpenAI does and keeps stored responses for 30 days.
+    stateful: false
+    # Sampling temperature between 0 and 2. Higher values like 0.8 make the
+    # output more random, while lower values like 0.2 make it more focused
+    # and deterministic.
+    temperature: 0.2
+    # Responses API only: reasoning summary detail ("auto", "concise", or
+    # "detailed"). Remove it for models without reasoning, which may reject
+    # the request.
+    reasoning_summary: "detailed"
+    system_instructions: >-
+        You are a careful math assistant tutor helping solve math problems.
+        Always write a short plan first. Do NOT do arithmetic in your head.
+        For every math operation, request a tool call to the calculator.
+        After tool results, continue. Provide final answer with explanation.
+        Respond in plain text only. Do NOT use LaTeX, Markdown, or any other
+        special formatting: no backslashes, no asterisks, no dollar-sign or
+        parenthesis math delimiters. Write math inline, like 4 x 3 = 12.
+        Your answer is shown in a plain text box that cannot render
+        formatting.
+
+# =============================================================================
+# Calculator MCP Server Configuration
+# =============================================================================
+server:
+    calculator_mcp:
+        # Calculator MCP Server running on the Docker host
+        url: "http://host.docker.internal:8080/mcp"
+        is_oauth: false
+        # token_dir not needed when OAuth is not used.
+        token_dir: ""
+        # callback_port not needed when OAuth is not used.
+        callback_port: 0
+
+# =============================================================================
+# Web App Configuration (used by the math-ai-agent command)
+# =============================================================================
+web:
+    # Listen on all interfaces so the published port is reachable.
+    host: "0.0.0.0"
+    # Azure Container Apps uses one target port (8080) for every app.
+    port: 8080
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logging:
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+        # Colors level name and message; plain if stderr is not a TTY or NO_COLOR
+        # set environment variable NO_COLOR=true for plain text with no color.
+        standard:
+            (): colorlog.ColoredFormatter
+            fmt: "%(asctime)s %(log_color)s[%(levelname)s]%(reset)s %(fg_147)s%(name)s %(filename)s:%(lineno)d%(reset)s: %(log_color)s%(message)s%(reset)s"
+            datefmt: "%H:%M:%S"
+            log_colors:
+                DEBUG: cyan
+                INFO: light_green
+                WARNING: yellow
+                ERROR: red
+                CRITICAL: bold_red
+            stream: ext://sys.stderr
+    handlers:
+        console:
+            class: logging.StreamHandler
+            formatter: standard
+            stream: ext://sys.stderr
+    loggers:
+        math_ai_agent:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # MCP protocol tracing — set to DEBUG to see full JSON-RPC messages
+        mcp.client.streamable_http:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # FastMCP client: connection, session, and tool-call activity
+        fastmcp.client:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # FastMCP OAuth client (fastmcp/client/auth/oauth.py)
+        fastmcp.client.auth.oauth:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # FastMCP client tool calls (fastmcp/client/mixins/tools.py)
+        fastmcp.client.mixins.tools:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # FastMCP client core (fastmcp/client/client.py)
+        fastmcp.client.client:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # HTTP request/response summaries — set to DEBUG for detail
+        httpx:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # OpenAI SDK logging — set to DEBUG for request/response detail
+        openai:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
+        httpcore:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # Server: startup, shutdown, and errors
+        uvicorn:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # Server: HTTP request lines (method, path, status)
+        uvicorn.access:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # Integration tests (via pytest)
+        tests:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+        # Integration tests (run standalone)
+        __main__:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+    root:
+        level: WARNING
+        handlers:
+            - console
