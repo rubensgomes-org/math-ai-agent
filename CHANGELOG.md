@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `README.md` Links section with links to the `docs/` files
+
 ### Changed
+
+- `README.md` badges: Python 3.14+, Poetry, Azure, and AI Assisted
 
 ### Fixed
 

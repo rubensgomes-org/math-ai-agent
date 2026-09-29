@@ -1,8 +1,11 @@
 # Math AI Agent
 
-[![python](https://img.shields.io/badge/python-3.14.7-0969da)](https://www.python.org/downloads/release/python-3147/)
+[![Python](https://img.shields.io/badge/Python-3.14%2B-0969da?logo=python)](https://www.python.org/downloads/release/python-3147/)
+[![Poetry](https://img.shields.io/badge/Poetry-2.5%2B-0969da?logo=poetry)](https://python-poetry.org/)
+[![Microsoft](https://img.shields.io/badge/Microsoft-Azure-0969da)](https://azure.microsoft.com/en-us)
+[![AI Assisted](https://img.shields.io/badge/AI%20Assisted-Development-d29922)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
 [![License](https://img.shields.io/badge/License-MIT-0969da)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE)
-[![AI--Assisted](https://img.shields.io/badge/AI--Assisted-Development-8250df)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
+
 
 A prompt chat webapp that drives an LLM call inside an agentic loop using
 the `calculator_mcp` MCP server for arithmetic operations. The key constraint is
@@ -141,6 +144,24 @@ curl -v http://localhost:9090/health
 
 The project is licensed under the
 [MIT License](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE).
+
+## Links
+
+- [GitHub Project](https://github.com/rubensgomes-org/math-ai-agent)
+- [Agent, LLM, MCP Diagram](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/AGENT_LLM_MCP_DIAGRAM.md)
+- [Class Diagram](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/CLASS_DIAGRAM.md)
+- [Development Setup](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/DEVELOPMENT_SETUP.md)
+- [Docker](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/DOCKER.md)
+- [LangChain Notes](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/lang-chain.md)
+- [LLM Models](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/LLM_MODELS.md)
+- [LLM Tool Calls and the MCP Server](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/LLM_MCP.md)
+- [OAuth Authentication Diagram](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/OAUTH_DIAGRAM.md)
+- [Ollama LLM Models](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/OLLAMA.md)
+- [PyCharm](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/PYCHARM.md)
+- [Python Coroutines](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/PYTHON_COROUTINE.md)
+- [Python Execution](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/PYTHON_EXECUTION.md)
+- [Release Process](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/RELEASE.md)
+- [Tests](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/TESTS.md)
 
 ---
 Author: [Rubens Gomes](https://rubensgomes.com/)
