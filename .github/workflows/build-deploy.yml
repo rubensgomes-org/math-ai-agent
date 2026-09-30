@@ -1,5 +1,5 @@
 # =============================================================================
-# build-deploy
+# Build and Deploy to ACA
 #
 # Builds the application and its container image, pushes the image to an
 # EXISTING Azure Container Registry, verifies the push, smoke-tests the image
@@ -16,7 +16,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: build-deploy
+name: Build and Deploy to ACA
 
 on:
   workflow_dispatch:
@@ -43,23 +43,27 @@ concurrency:
 
 jobs:
   registry:
+    name: Resolve the ACR registry name
     runs-on: ubuntu-latest
     outputs:
       registry-name: ${{ steps.registry.outputs.registry-name }}
     steps:
       - name: Resolve the registry name
         id: registry
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
         run: |
           echo "=============================================================="
           echo " STEP: Resolve the registry name"
           echo "=============================================================="
           set -euo pipefail
-          case "${{ inputs.environment }}" in
+          case "$ENVIRONMENT" in
             dev) echo "registry-name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
             lab) echo "registry-name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
           esac
 
   build:
+    name: Build and push image to ACR registry
     needs: registry
     uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-push-python.yml@v0
     with:
@@ -76,6 +80,7 @@ jobs:
       azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
 
   deploy:
+    name: Deploy image to ACA container app
     needs: [registry, build]
     runs-on: ubuntu-latest
     env:
@@ -118,13 +123,15 @@ jobs:
 
       - name: Resolve the published image reference
         id: image
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
           echo "=============================================================="
           echo " STEP: Resolve the published image reference"
           echo "=============================================================="
           set -euo pipefail
           repository="${ENVIRONMENT}/${ARTIFACT_ID}"
-          tag="${{ inputs.tag }}"
+          tag="$TAG"
           if [ -z "$tag" ]; then
             tag="$(az acr repository show-tags \
               --name "$REGISTRY_NAME" \

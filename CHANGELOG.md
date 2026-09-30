@@ -11,7 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- GitHub workflows and jobs have descriptive display names
+- `build-verify` runs on push; Sonar runs by default in it and `release`
+- `release` no longer reinstalls dependencies after Poetry setup
+- `cryptography` pinned to `50.0.2`
+
 ### Fixed
+
+- Workflow inputs are passed to shell steps via `env` to prevent script
+  injection
+- Sonar analyzes `.github` and reports to `rubensgomes-org_math-ai-agent`
+  instead of the shared `rubensgomes-org` key
 
 ## [0.0.14] - 2026-09-29
 

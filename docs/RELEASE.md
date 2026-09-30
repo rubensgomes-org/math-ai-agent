@@ -1,7 +1,7 @@
 # Release Process
 
 The release is run from the `release.yml` GitHub Actions workflow. Prior to
-running the `release` workflow, several GitHub Actions secrets must be
+running the `Release to PyPI` workflow, several GitHub Actions secrets must be
 provisioned in this project's GitHub Actions settings.
 
 **Currently, only Rubens Gomes is authorized to push a release.**
@@ -39,7 +39,7 @@ Actions secrets to delete and recreate (2):
 
 ## Starting a Release
 
-- From the project `GitHub Actions` page run the `release` workflow.
+- From the project `GitHub Actions` page run the `Release to PyPI` workflow.
 
 ---
 Author: [Rubens Gomes](https://rubensgomes.com/)

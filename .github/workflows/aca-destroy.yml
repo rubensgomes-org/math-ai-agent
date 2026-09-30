@@ -1,5 +1,5 @@
 # =============================================================================
-# aca-destroy
+# Destroy ACA
 #
 # DESTRUCTIVE. Destroys the container apps module only, by calling the
 # reusable ACA Destroy workflow in the Terraform IaC `azure-iac` repo.
@@ -11,7 +11,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: aca-destroy
+name: Destroy ACA
 
 on:
   workflow_dispatch:
@@ -44,6 +44,7 @@ concurrency:
 
 jobs:
   destroy:
+    name: Destroy the ACA container app
     uses: rubensgomes-org/azure-iac/.github/workflows/aca-destroy.yml@v0
     with:
       environment_name: ${{ inputs.environment_name }}

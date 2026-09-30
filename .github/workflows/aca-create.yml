@@ -1,5 +1,5 @@
 # =============================================================================
-# aca-create
+# Create ACA
 #
 # Provisions the Azure Container App estate (resource groups, networking,
 # log analytics, managed identity, key vault, ACR, container app environment
@@ -11,7 +11,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: aca-create
+name: Create ACA
 
 on:
   workflow_dispatch:
@@ -33,18 +33,22 @@ concurrency:
 
 jobs:
   resolve-acr:
+    name: Resolve the ACR registry name
     runs-on: ubuntu-latest
     outputs:
       acr_name: ${{ steps.resolve.outputs.acr_name }}
     steps:
       - id: resolve
+        env:
+          ENVIRONMENT_NAME: ${{ inputs.environment_name }}
         run: |
-          case "${{ inputs.environment_name }}" in
+          case "$ENVIRONMENT_NAME" in
             dev) echo "acr_name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
             lab) echo "acr_name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
           esac
 
   create:
+    name: Create ACA container app
     needs: resolve-acr
     uses: rubensgomes-org/azure-iac/.github/workflows/aca-create.yml@v0
     with:

@@ -2,6 +2,10 @@
 
 [![Python](https://img.shields.io/badge/Python-3.14%2B-0969da?logo=python)](https://www.python.org/downloads/release/python-3147/)
 [![Poetry](https://img.shields.io/badge/Poetry-2.5%2B-0969da?logo=poetry)](https://python-poetry.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.142%2B-8250df?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![FastMCP](https://img.shields.io/badge/FastMCP-4-8250df)](https://gofastmcp.com/getting-started/welcome)
+[![OpenAI](https://img.shields.io/badge/OpenAI-3.22%2B-8250df?logo=openai)](https://github.com/openai/openai-python)
+[![GitHub](https://img.shields.io/badge/GitHub-Actions-0969da?logo=github+actions)](https://github.com/features/actions)
 [![Microsoft](https://img.shields.io/badge/Microsoft-Azure-0969da)](https://azure.microsoft.com/en-us)
 [![AI Assisted](https://img.shields.io/badge/AI%20Assisted-Development-d29922)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
 [![License](https://img.shields.io/badge/License-MIT-0969da)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE)
@@ -138,7 +142,6 @@ curl -v http://localhost:9090/health
 ```
 
 3. To stop, go to the running terminal and press `Ctrl+C`
-
 
 ## License
 

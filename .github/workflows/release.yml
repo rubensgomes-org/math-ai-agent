@@ -1,5 +1,5 @@
 # =============================================================================
-# release
+# Release to PyPI
 #
 # Runs the same checks as build-verify (the verify job must pass before
 # anything is pushed or published), then resolves the version from
@@ -15,7 +15,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: release
+name: Release to PyPI
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
         description: 'Run the SonarCloud analysis and quality gate.'
         required: false
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -37,6 +37,7 @@ jobs:
   # Same reusable workflow as build-verify.yml, so a release runs exactly
   # the checks and tests that build-verify runs.
   verify:
+    name: Run static analysis, tests, and SonarCloud scan
     uses: rubensgomes-org/azure-workflows/.github/workflows/poetry-build-verify.yml@v0
     with:
       run-sonar: ${{ inputs.run-sonar }}
@@ -44,7 +45,7 @@ jobs:
       sonar-token: ${{ secrets.SONAR_TOKEN }}
 
   release:
-    name: release
+    name: Build and publish package to PyPI
     needs: verify
     runs-on: ubuntu-latest
     permissions:
@@ -214,16 +215,6 @@ jobs:
 
       - name: Set up Python and Poetry
         uses: rubensgomes-org/azure-workflows/.github/actions/setup-python-poetry@v0
-
-      - name: Install tools and dependencies
-        shell: bash
-        run: |
-          echo "=============================================================="
-          echo " STEP: Install tools and dependencies"
-          echo "=============================================================="
-          set -euo pipefail
-
-          poetry --no-cache -v install
 
       - name: Build the package
         shell: bash
