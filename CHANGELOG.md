@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.15] - 2026-10-01
+
+### Added
+
 - `docs/SEQUENCE_DIAGRAM.md` and `docs/mcp_sequence.drawio` MCP client
   sequence diagram
 - MCP Client Layers section in `docs/CLASS_DIAGRAM.md`
