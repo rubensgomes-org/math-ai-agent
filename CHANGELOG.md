@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub workflows and jobs have descriptive display names
 - `build-verify` runs on push; Sonar runs by default in it and `release`
 - `release` no longer reinstalls dependencies after Poetry setup
+- `release` builds and publishes through the shared `poetry-publish-pypi`
+  workflow
 - `cryptography` pinned to `50.0.2`
 
 ### Fixed

@@ -82,7 +82,7 @@ _DISTRIBUTION_NAME = "math-ai-agent"
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
-    """Initialize and connect to MCP server and build the agent for the app's lifetime."""
+    """Connect to the MCP server and build the agent for the app's lifetime."""
     logger.info("Starting application...")
     async with CalcFastMCPConnection() as calc:
         logger.info("Established the Calculator MCP connection")
@@ -167,6 +167,9 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
     return {"answer": output}
 
 
+# -------------------------------------------------
+# main() and related functions
+# -------------------------------------------------
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     """Parse the command-line arguments; ``--version`` prints and exits."""
     parser = argparse.ArgumentParser(prog=_DISTRIBUTION_NAME)
