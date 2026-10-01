@@ -70,7 +70,7 @@ from math_ai_agent.llm import (
     LLMRequestFailedError,
     TokenLimitError,
 )
-from math_ai_agent.mcp.calc_connection import CalcMCPConnection
+from math_ai_agent.mcp.calc_connection import CalcFastMCPConnection
 from math_ai_agent.payload import Payload
 
 configure_logging()
@@ -82,12 +82,13 @@ _DISTRIBUTION_NAME = "math-ai-agent"
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
-    """Open the MCP connection and build the agent for the app's lifetime."""
-    async with CalcMCPConnection() as calc:
-        logger.info("Opened the Calculator MCP connection")
-        logger.info("Creating agent for app'slifetime.")
+    """Initialize and connect to MCP server and build the agent for the app's lifetime."""
+    logger.info("Starting application...")
+    async with CalcFastMCPConnection() as calc:
+        logger.info("Established the Calculator MCP connection")
         fastapi_app.state.agent = await Agent.create(calc)
         yield
+        logger.info("Shutting down the application...")
 
 
 # -------------------------------------------------

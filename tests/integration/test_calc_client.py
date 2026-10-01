@@ -49,7 +49,7 @@ import asyncio
 import json
 import logging
 
-from math_ai_agent.mcp.calc_client import CalcMCPClient
+from math_ai_agent.mcp.calc_client import CalcFastMCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ _SAMPLE_ARGS: dict[str, dict[str, float | int]] = {
 
 async def run_client() -> None:
     """Connect to the MCP server, list and call each tool."""
-    calcmcp_client = CalcMCPClient()
+    calcmcp_client = CalcFastMCPClient()
 
     async with calcmcp_client:
         openai_tools = await calcmcp_client.to_chat_completions_tools()

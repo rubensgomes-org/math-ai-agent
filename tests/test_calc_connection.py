@@ -44,13 +44,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from math_ai_agent.mcp.calc_connection import CalcMCPConnection
+from math_ai_agent.mcp.calc_connection import CalcFastMCPConnection
 
 _ARGS = {"a": 4, "b": 4}
 
 
 class _FakeClient:
-    """Stand-in for ``CalcMCPClient`` that tracks its connection state."""
+    """Stand-in for ``CalcFastMCPClient`` that tracks its connection state."""
 
     def __init__(self, result="8"):
         self.connected = False
@@ -84,7 +84,7 @@ class _FakeClient:
 def _connection(*clients):
     """Build a connection whose factory returns ``clients`` in order."""
     factory = MagicMock(side_effect=list(clients))
-    return CalcMCPConnection(client_factory=factory), factory
+    return CalcFastMCPConnection(client_factory=factory), factory
 
 
 # ---------------------------------------------------------------------------
@@ -93,11 +93,11 @@ def _connection(*clients):
 
 
 @pytest.mark.asyncio
-async def test_opens_on_enter_and_closes_on_exit():
+async def test_connects_on_enter_and_disconnects_on_exit():
     client = _FakeClient()
     conn, factory = _connection(client)
-    async with conn as opened:
-        assert opened is conn
+    async with conn as connected:
+        assert connected is conn
         assert client.connected
     factory.assert_called_once()
     assert client.exit_count == 1
@@ -118,9 +118,9 @@ async def test_tool_listing_delegates_to_client(method, expected):
 
 
 @pytest.mark.asyncio
-async def test_tool_listing_before_open_raises():
+async def test_tool_listing_before_connect_raises():
     conn, _ = _connection(_FakeClient())
-    with pytest.raises(RuntimeError, match="not open"):
+    with pytest.raises(RuntimeError, match="not connected"):
         await conn.to_chat_completions_tools()
 
 
@@ -211,17 +211,17 @@ async def test_failed_reconnect_is_retried_on_next_call():
     assert factory.call_count == 3
 
 
-class _FailingCloseClient(_FakeClient):
-    """Fake client whose close raises."""
+class _FailingDisconnectClient(_FakeClient):
+    """Fake client whose disconnect raises."""
 
     async def __aexit__(self, exc_type, exc, tb):
-        raise RuntimeError("close failed")
+        raise RuntimeError("disconnect failed")
 
 
 @pytest.mark.asyncio
-async def test_close_error_is_logged_not_raised(caplog):
-    conn, _ = _connection(_FailingCloseClient())
+async def test_disconnect_error_is_logged_not_raised(caplog):
+    conn, _ = _connection(_FailingDisconnectClient())
     with caplog.at_level(logging.WARNING):
         async with conn:
             pass
-    assert "Error closing the calculator MCP client" in caplog.text
+    assert "Error disconnecting the calculator MCP client" in caplog.text

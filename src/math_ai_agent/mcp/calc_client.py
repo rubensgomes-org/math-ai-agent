@@ -38,7 +38,7 @@
 
 """Calculator MCP client.
 
-Provides the ``CalcMCPClient`` class which extends ``fastmcp.Client``
+Provides the ``CalcFastMCPClient`` class which extends ``fastmcp.Client``
 to connect to a remote calculator MCP server and convert its tools to
 the OpenAI function-calling formats.
 """
@@ -82,19 +82,20 @@ def _create_token_store(token_dir: str) -> FileTreeStore:
     )
 
 
-class CalcMCPClient(Client):
-    """Calculator MCP client extending ``fastmcp.Client``.
+class CalcFastMCPClient(Client):
+    """Calculator FastMCP client extending ``fastmcp.Client``.
 
     Builds the correct transport and auth from ``config.yaml``.
 
     Usage::
 
-        async with CalcMCPClient() as calc:
+        async with CalcFastMCPClient() as calc:
             result = await calc.call_tool("add", {"a": 1, "b": 2})
     """
 
     def __init__(self) -> None:
-        """Initialize the calculator MCP client."""
+        """Initialize the calculator FastMCP client."""
+        logger.debug("Initializing FastMCP client")
         mcp_config = get_config().server.calculator_mcp
         url = mcp_config.url
         logger.info("Creating MCP client with MCP server URL: %s", url)
@@ -121,9 +122,9 @@ class CalcMCPClient(Client):
         else:
             super().__init__(url)
 
-    async def __aenter__(self) -> "CalcMCPClient":
-        """Connect to the MCP server."""
-        logger.debug("Connecting to Calculator MCP server")
+    async def __aenter__(self) -> "CalcFastMCPClient":
+        """Connect to the FastMCP server."""
+        logger.debug("Connecting to Calculator FastMCP server")
         await super().__aenter__()
         return self
 
@@ -134,7 +135,7 @@ class CalcMCPClient(Client):
         tb: TracebackType | None,
     ) -> None:
         """Disconnect from the MCP server."""
-        logger.debug("Closing CalcMCPClient")
+        logger.debug("Closing CalcFastMCPClient")
         await super().__aexit__(exc_type, exc, tb)
 
     async def _function_definitions(self) -> list[dict]:

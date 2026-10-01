@@ -53,7 +53,7 @@ from math_ai_agent.config.config import (
     get_config,
 )
 from math_ai_agent.llm.client import ChatCompletionClient
-from math_ai_agent.mcp.calc_client import CalcMCPClient
+from math_ai_agent.mcp.calc_client import CalcFastMCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ async def get_mcp_tools() -> list[dict]:
         MCP server.
     """
     logger.info("Connecting to Calculator MCP server")
-    async with CalcMCPClient() as calcmcp_client:
+    async with CalcFastMCPClient() as calcmcp_client:
         tools = await calcmcp_client.to_chat_completions_tools()
         logger.info("Discovered %d MCP tool(s)", len(tools))
         return tools

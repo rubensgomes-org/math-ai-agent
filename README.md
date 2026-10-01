@@ -158,6 +158,7 @@ The project is licensed under the
 - [LangChain Notes](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/lang-chain.md)
 - [LLM Models](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/LLM_MODELS.md)
 - [LLM Tool Calls and the MCP Server](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/LLM_MCP.md)
+- [MCP Client Sequence Diagram](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/SEQUENCE_DIAGRAM.md)
 - [OAuth Authentication Diagram](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/OAUTH_DIAGRAM.md)
 - [Ollama LLM Models](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/OLLAMA.md)
 - [PyCharm](https://github.com/rubensgomes-org/math-ai-agent/blob/main/docs/PYCHARM.md)

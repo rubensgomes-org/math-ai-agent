@@ -32,15 +32,15 @@ This is the real design decision.
 
 `create_agent()` expects LangChain `BaseTool` objects, not OpenAI JSON tool
 schemas. So the schemas produced by
-`CalcMCPClient.to_chat_completions_tools()` and
+`CalcFastMCPClient.to_chat_completions_tools()` and
 `to_responses_tools()` are not directly usable.
 
 Two options:
 
 1. **`langchain-mcp-adapters`** (0.3.2) — talks to the MCP server directly.
-   Rejected: it bypasses `CalcMCPClient`, and with it the FastMCP OAuth flow,
-   and the Fernet-encrypted token store.
-2. **Wrap `call_tool` in `StructuredTool`** — keeps `CalcMCPClient` as the
+   Rejected: it bypasses `CalcFastMCPClient`, and with it the FastMCP OAuth
+   flow, and the Fernet-encrypted token store.
+2. **Wrap `call_tool` in `StructuredTool`** — keeps `CalcFastMCPClient` as the
    transport and feeds each MCP `inputSchema` straight in as `args_schema`
    (LangChain accepts a raw JSON-Schema dict there).
 
@@ -64,12 +64,12 @@ from math_ai_agent.config.config import (
     get_model,
     get_model_base_url,
 )
-from math_ai_agent.mcp.calc_client import CalcMCPClient, call_tool
+from math_ai_agent.mcp.calc_client import CalcFastMCPClient, call_tool
 
 
 async def _build_tools() -> list[StructuredTool]:
     """Wrap each calculator MCP tool as a LangChain StructuredTool."""
-    async with CalcMCPClient() as calc:
+    async with CalcFastMCPClient() as calc:
         mcp_tools = await calc.list_tools()
 
     async def _run(tool_name: str, **kwargs: Any) -> str:

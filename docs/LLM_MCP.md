@@ -23,7 +23,7 @@ a tool call. In both agent loops, `tool_call.name` (Responses API) or
 tools.
 
 `Agent._call_tool()` then sends the tool name and arguments to the MCP
-server over the shared `CalcMCPConnection`.
+server over the shared `CalcFastMCPConnection`.
 
 ## The Calculator MCP Server
 
@@ -78,7 +78,7 @@ more providers.
   `llm.stateful` is `true`. By default it sends `store=False` and
   replays every output item, including the model's reasoning items, on
   each turn. NVIDIA and OpenRouter only support this stateless mode.
-- **Tool schemas.** `CalcMCPClient.to_chat_completions_tools()` builds
+- **Tool schemas.** `CalcFastMCPClient.to_chat_completions_tools()` builds
   the Chat Completions format and `to_responses_tools()` builds the
   Responses format from the same MCP tool list.
 

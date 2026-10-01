@@ -9,8 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/SEQUENCE_DIAGRAM.md` and `docs/mcp_sequence.drawio` MCP client
+  sequence diagram
+- MCP Client Layers section in `docs/CLASS_DIAGRAM.md`
+- Application startup and shutdown log messages
+
 ### Changed
 
+- `CalcMCPClient` renamed to `CalcFastMCPClient`
+- `CalcMCPConnection` renamed to `CalcFastMCPConnection`; its messages say
+  connected/disconnected instead of open/closed
 - GitHub workflows and jobs have descriptive display names
 - `build-verify` runs on push; Sonar runs by default in it and `release`
 - `release` no longer reinstalls dependencies after Poetry setup

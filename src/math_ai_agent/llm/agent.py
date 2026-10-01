@@ -63,7 +63,7 @@ from openai.types.responses import (
 
 from math_ai_agent.config.config import get_api_key, get_config
 from math_ai_agent.llm.client import ChatCompletionClient, ResponsesClient
-from math_ai_agent.mcp.calc_connection import CalcMCPConnection
+from math_ai_agent.mcp.calc_connection import CalcFastMCPConnection
 
 logger = logging.getLogger(__name__)
 
@@ -161,14 +161,14 @@ class LLMRequestFailedError(RuntimeError):
 class Agent:
     """Runs prompts through the LLM and the calculator MCP server.
 
-    Holds one ``CalcMCPConnection`` and one LLM client, so they are
+    Holds one ``CalcFastMCPConnection`` and one LLM client, so they are
     reused across prompts.  The caller owns the MCP connection and
     must keep it open while the agent is in use.
     """
 
     def __init__(
         self,
-        calc: CalcMCPConnection,
+        calc: CalcFastMCPConnection,
         llm: ChatCompletionClient | ResponsesClient,
         system_instructions: str,
         max_concurrent_prompts: int,
@@ -180,7 +180,7 @@ class Agent:
         self._prompt_slots = asyncio.Semaphore(max_concurrent_prompts)
 
     @classmethod
-    async def create(cls, calc: CalcMCPConnection) -> "Agent":
+    async def create(cls, calc: CalcFastMCPConnection) -> "Agent":
         """Discover the MCP tools and build the configured LLM client.
 
         Args:

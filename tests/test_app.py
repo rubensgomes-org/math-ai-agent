@@ -310,7 +310,7 @@ async def test_lifespan_builds_agent_and_closes_mcp_client():
     agent = MagicMock()
     fastapi_app = MagicMock()
     with (
-        patch.object(app_module, "CalcMCPConnection", return_value=calc),
+        patch.object(app_module, "CalcFastMCPConnection", return_value=calc),
         patch.object(
             app_module.Agent, "create", AsyncMock(return_value=agent)
         ) as mock_create,

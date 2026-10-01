@@ -50,7 +50,7 @@ from cryptography.fernet import Fernet
 from fastmcp import Client
 
 from math_ai_agent.mcp import calc_client
-from math_ai_agent.mcp.calc_client import CalcMCPClient
+from math_ai_agent.mcp.calc_client import CalcFastMCPClient
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -88,9 +88,9 @@ def patch_oauth(monkeypatch, app_config, tmp_path):
 
 
 def _make_calc(call_result="42", tools=None):
-    """Create a ``CalcMCPClient`` with mocked ``call_tool``/``list_tools``."""
+    """Create a ``CalcFastMCPClient`` with mocked tool methods."""
     with patch.object(Client, "__init__", return_value=None):
-        calc = CalcMCPClient()
+        calc = CalcFastMCPClient()
 
     calc.call_tool = AsyncMock(return_value=call_result)
     calc.list_tools = AsyncMock(return_value=tools or [])
@@ -104,7 +104,7 @@ def _make_calc(call_result="42", tools=None):
 
 def test_init_no_oauth(patch_no_oauth):
     mock_init = patch_no_oauth
-    calc = CalcMCPClient()
+    calc = CalcFastMCPClient()
     assert isinstance(calc, Client)
     mock_init.assert_called_once_with(_URL)
 
@@ -116,7 +116,7 @@ def test_init_no_oauth(patch_no_oauth):
 
 def test_init_with_oauth(patch_oauth):
     mock_init, mock_oauth = patch_oauth
-    calc = CalcMCPClient()
+    calc = CalcFastMCPClient()
     assert isinstance(calc, Client)
     mock_init.assert_called_once()
     assert mock_oauth.call_args.kwargs["callback_port"] == 10000
@@ -131,7 +131,7 @@ def test_init_oauth_missing_env_raises(monkeypatch, app_config, tmp_path):
     app_config.server.calculator_mcp.token_dir = str(tmp_path)
     with patch.object(Client, "__init__", return_value=None):
         with pytest.raises(KeyError):
-            CalcMCPClient()
+            CalcFastMCPClient()
 
 
 def test_create_token_store_expands_home_and_creates_dir(monkeypatch, tmp_path):
