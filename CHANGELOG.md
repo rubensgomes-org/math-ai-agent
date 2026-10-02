@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.17] - 2026-10-02
+
+### Added
+
+### Changed
+
 - `build-verify` job name marks the SonarCloud scan as optional
 
 ### Fixed
