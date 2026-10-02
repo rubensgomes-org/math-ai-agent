@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Grammar in `AI_DISCLAIMER.md`.
+
 ## [0.0.19] - 2026-10-02
 
 ### Added
