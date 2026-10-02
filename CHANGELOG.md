@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.18] - 2026-10-02
+
+### Added
+
+### Changed
+
 - Config files explain how to size `max_concurrent_prompts`
 - `.gitignore` ignores `uv.lock`
 
