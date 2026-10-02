@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.19] - 2026-10-02
+
+### Added
+
+### Changed
+
 - README badges restyled; installation steps simplified to a single
   `pip install`
 
