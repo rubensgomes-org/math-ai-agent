@@ -19,7 +19,11 @@ llm:
     # System prompt sent to the **stateless** LLM on every request.
     # Seconds to wait for each LLM response before failing.
     timeout_seconds: 120
+    # Concurrent prompts ≈ prompts per second × average seconds per prompt.
     # Prompts processed at once; more get HTTP 503 until one finishes.
+    # Each prompt makes several LLM calls, so the LLM provider's rate limits
+    # and latency are the main bottleneck. Raise it if your provider's rate
+    # limits can handle more parallel work.
     max_concurrent_prompts: 10
     # Responses API only: store responses on the server and send only new
     # items each turn via previous_response_id. NVIDIA and OpenRouter do

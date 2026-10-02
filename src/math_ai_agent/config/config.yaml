@@ -18,7 +18,11 @@ llm:
     api_key_env: "NVIDIA_API_KEY"
     # Seconds to wait for each LLM response before failing.
     timeout_seconds: 120
+    # Concurrent prompts ≈ prompts per second × average seconds per prompt.
     # Prompts processed at once; more get HTTP 503 until one finishes.
+    # Each prompt makes several LLM calls, so the LLM provider's rate limits
+    # and latency are the main bottleneck. Raise it if your provider's rate
+    # limits can handle more parallel work.
     max_concurrent_prompts: 10
     # Responses API only: store responses on the server and send only new
     # items each turn via previous_response_id. NVIDIA and OpenRouter do
@@ -28,6 +32,10 @@ llm:
     # output more random, while lower values like 0.2 make it more focused
     # and deterministic.
     temperature: 0.2
+    # Responses API only: reasoning summary detail ("auto", "concise", or
+    # "detailed"). Remove it for models without reasoning, which may reject
+    # the request.
+    reasoning_summary: "detailed"
     # System prompt sent to the LLM on every request.
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.

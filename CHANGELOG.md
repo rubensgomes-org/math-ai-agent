@@ -11,7 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Config files explain how to size `max_concurrent_prompts`
+- `.gitignore` ignores `uv.lock`
+
 ### Fixed
+
+- Bundled `config.yaml` sets `reasoning_summary`, so the reasoning section
+  is no longer `(none)`
 
 ## [0.0.17] - 2026-10-02
 

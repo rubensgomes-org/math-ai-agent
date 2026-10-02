@@ -46,6 +46,9 @@ dist/
 wheels/
 pip-wheel-metadata/
 
+# uv lock file (project uses Poetry; poetry.lock is authoritative)
+uv.lock
+
 # PyInstaller
 *.manifest
 *.spec
