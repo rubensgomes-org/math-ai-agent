@@ -1,15 +1,14 @@
 # Math AI Agent
 
-[![Python](https://img.shields.io/badge/Python-3.14%2B-0969da?logo=python)](https://www.python.org/downloads/release/python-3147/)
-[![Poetry](https://img.shields.io/badge/Poetry-2.5%2B-0969da?logo=poetry)](https://python-poetry.org/)
+[![python](https://img.shields.io/badge/python-3.14%2B-0969da?logo=python)](https://www.python.org/downloads/release/python-3147/)
+[![poetry](https://img.shields.io/badge/poetry-2.5%2B-0969da?logo=poetry)](https://python-poetry.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.142%2B-8250df?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![FastMCP](https://img.shields.io/badge/FastMCP-4-8250df)](https://gofastmcp.com/getting-started/welcome)
 [![OpenAI](https://img.shields.io/badge/OpenAI-3.22%2B-8250df?logo=openai)](https://github.com/openai/openai-python)
 [![GitHub](https://img.shields.io/badge/GitHub-Actions-0969da?logo=github+actions)](https://github.com/features/actions)
 [![Microsoft](https://img.shields.io/badge/Microsoft-Azure-0969da)](https://azure.microsoft.com/en-us)
-[![AI Assisted](https://img.shields.io/badge/AI%20Assisted-Development-d29922)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
-[![License](https://img.shields.io/badge/License-MIT-0969da)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE)
-
+[![AI](https://img.shields.io/badge/AI-Assisted-d29922?logo=claude+code)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/AI_DISCLAIMER.md)
+[![license](https://img.shields.io/badge/license-MIT-1a7f37)](https://github.com/rubensgomes-org/math-ai-agent/blob/main/LICENSE)
 
 A prompt chat webapp that drives an LLM call inside an agentic loop using
 the `calculator_mcp` MCP server for arithmetic operations. The key constraint is
@@ -32,7 +31,7 @@ any arithmetic operations.
 
 - **Server-sent events (SSE)** are not supported for either LLM or MCP
   communication.
-- **Streaming communication channels**, such as HTTP Streamable, are not
+- **Streaming communication channels**, such as Streamable HTTP, are not
   supported. In other words, both the LLM model and the MCP server are expected
   to generate the entire output before sending it.
 - **Stateful Responses API** communication may not be supported, depending on
@@ -61,19 +60,13 @@ tools. For details on usage, limits, and review practices, please see the
 
 ## Installation
 
-1. Install in the default `pip` location
+1. Install using `pip`
 
 ```bash
 pip install math-ai-agent
 ```
 
-2. Alternatively, install in the Python user directory
-
-```bash
-pip --no-cache-dir install -U --user math-ai-agent
-```
-
-3. Confirm the installed version matches the latest GitHub release at
+2. Confirm the installed version matches the latest GitHub release at
    [math-ai-agent/releases](https://github.com/rubensgomes-org/math-ai-agent/releases)
 
 ```bash
@@ -82,8 +75,6 @@ pip show math-ai-agent
 ```
 
 ## Uninstall
-
-- Uninstall as follows:
 
 ```bash
 pip uninstall math-ai-agent
