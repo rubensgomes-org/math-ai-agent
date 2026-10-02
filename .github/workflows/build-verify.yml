@@ -2,9 +2,9 @@
 # Build and Verify
 #
 # Installs dependencies, then runs static type checking, static code
-# analysis, and unit test coverage, then blocks on the SonarCloud quality
-# gate. Runs on push or manual dispatch; Sonar runs on push and when
-# dispatched with run-sonar enabled (the default).
+# analysis, and unit test coverage. Runs on push or manual dispatch; the
+# SonarCloud scan and quality gate run only when dispatched with run-sonar
+# checked.
 #
 # This project's source code and documentation were generated with the
 # assistance of Artificial Intelligence (AI). For more information, please
@@ -32,10 +32,10 @@ concurrency:
 
 jobs:
     build-verify:
-        name: Run static analysis, tests, and SonarCloud scan
+        name: Run static analysis, tests, and optional SonarCloud scan
         uses: rubensgomes-org/azure-workflows/.github/workflows/poetry-build-verify.yml@v0
         with:
-            run-sonar: ${{ github.event_name != 'workflow_dispatch' || inputs.run-sonar }}
+            run-sonar: ${{ inputs.run-sonar == true }}
         secrets:
-            # Required unless dispatched with run-sonar disabled.
+            # Required only when dispatched with run-sonar checked.
             sonar-token: ${{ secrets.SONAR_TOKEN }}
