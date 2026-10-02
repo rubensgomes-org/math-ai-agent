@@ -21,7 +21,7 @@ on:
                 description: 'Run the SonarCloud analysis and quality gate.'
                 required: false
                 type: boolean
-                default: true
+                default: false
 
 permissions:
     contents: read

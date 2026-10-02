@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `build-verify` no longer runs Sonar by default
+
 ### Fixed
 
 ## [0.0.15] - 2026-10-01
