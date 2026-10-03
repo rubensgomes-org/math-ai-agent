@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.21] - 2026-10-03
+
+### Added
+
 - PyCharm setup steps with screenshots in `docs/PYCHARM.md`.
 
 ### Changed
