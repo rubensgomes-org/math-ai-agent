@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -38,8 +38,8 @@
 
 """Shared calculator MCP session that reconnects when it drops.
 
-Provides the ``CalcFastMCPConnection`` class, which owns one connected
-``CalcFastMCPClient`` for the app's lifetime and replaces it with a new one
+Provides the ``CalcMCPClientMgr`` class, which owns one connected
+``CalcMCPClient`` for the app's lifetime and replaces it with a new one
 when the session with the MCP server is lost.
 """
 
@@ -51,13 +51,13 @@ from types import TracebackType
 
 from fastmcp.client.client import CallToolResult
 
-from math_ai_agent.mcp.calc_client import CalcFastMCPClient
+from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 logger = logging.getLogger(__name__)
 
 
-class CalcFastMCPConnection:
-    """One calculator FastMCP session shared by every request.
+class CalcMCPClientMgr:
+    """Manage the one calculator MCP client shared by every request.
 
     A failed call whose client is no longer connected is retried once on
     a new session.  Failures that leave the client connected, such as
@@ -65,29 +65,30 @@ class CalcFastMCPConnection:
 
     Usage::
 
-        async with CalcFastMCPConnection() as calc:
+        async with CalcMCPClientMgr() as calc:
             result = await calc.call_tool("add", {"a": 1, "b": 2})
     """
 
     def __init__(
         self,
-        client_factory: Callable[[], CalcFastMCPClient] = CalcFastMCPClient,
+        client_factory: Callable[[], CalcMCPClient] = CalcMCPClient,
     ) -> None:
-        """Create the connection without connecting a session.
+        """Set up the object without connecting to the MCP server yet.
 
         Args:
-            client_factory: Builds each new, unconnected MCP client.
+            client_factory: A function with no arguments that returns a
+                new CalcMCPClient.
         """
-        logger.debug("Initializing CalcFastMCPConnection")
+        logger.debug("Initializing CalcMCPClientMgr")
         self._client_factory = client_factory
         self._reconnect_lock = asyncio.Lock()
         self._exit_stack = AsyncExitStack()
-        self._client: CalcFastMCPClient | None = None
+        self._client: CalcMCPClient | None = None
 
-    async def __aenter__(self) -> "CalcFastMCPConnection":
-        """Connect to the MCP server."""
-        logger.debug("Connecting to the MCP server")
-        await self._connect()
+    async def __aenter__(self) -> "CalcMCPClientMgr":
+        """Connect to the MCP server when an ``async with`` block starts."""
+        logger.debug("Connecting to the calculator MCP server")
+        await self._open()
         return self
 
     async def __aexit__(
@@ -96,22 +97,24 @@ class CalcFastMCPConnection:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        """Disconnect the current MCP session."""
-        logger.debug("Disconnecting the MCP session")
-        await self._disconnect()
+        """Disconnect from the MCP server at the end of ``async with``."""
+        logger.debug("Disconnecting from the calculator MCP server")
+        await self._close()
 
     async def to_chat_completions_tools(self) -> list[dict]:
-        """Return the MCP tools in the Chat Completions format."""
-        logger.debug("Return the MCP tools in the Chat Completions API format")
+        """List the calculator tools in the Chat Completions API format."""
+        logger.debug("Listing calculator tools in the Chat Completions format")
         return await self._connected_client().to_chat_completions_tools()
 
     async def to_responses_tools(self) -> list[dict]:
-        """Return the MCP tools in the Responses API format."""
-        logger.debug("Return the MCP tools in the Responses API format")
+        """List the calculator tools in the Responses API format."""
+        logger.debug("Listing calculator tools in the Responses API format")
         return await self._connected_client().to_responses_tools()
 
     async def call_tool(self, tool_name: str, args: dict) -> CallToolResult:
-        """Call an MCP tool, retrying once if the session is lost.
+        """Run a calculator tool on the MCP server and return its result.
+
+        If the connection is lost, reconnect and try once more.
 
         Args:
             tool_name: The name of the MCP tool to invoke.
@@ -122,7 +125,7 @@ class CalcFastMCPConnection:
 
         Raises:
             Exception: If the tool call fails for a reason other than a
-                lost session, or fails again after reconnecting.
+                lost connection, or fails again after reconnecting.
         """
         client = self._client
         if client is None or not client.is_connected():
@@ -135,44 +138,47 @@ class CalcFastMCPConnection:
             if client.is_connected():
                 raise
             logger.warning(
-                "MCP connection lost while calling tool %s; reconnecting: %r",
+                "Calculator MCP connection lost while calling tool %s; "
+                "reconnecting: %r",
                 tool_name,
                 error,
             )
         client = await self._reconnect(client)
         return await client.call_tool(tool_name, args)
 
-    def _connected_client(self) -> CalcFastMCPClient:
-        """Return the current client, or fail if none is connected."""
+    def _connected_client(self) -> CalcMCPClient:
+        """Return the current client; raise RuntimeError if there is none."""
         if self._client is None:
-            raise RuntimeError("CalcFastMCPConnection is not connected")
+            raise RuntimeError("CalcMCPClientMgr is not connected")
         return self._client
 
-    async def _reconnect(
-        self, failed: CalcFastMCPClient | None
-    ) -> CalcFastMCPClient:
-        """Replace the failed client with a new, connected one.
+    async def _reconnect(self, failed: CalcMCPClient | None) -> CalcMCPClient:
+        """Throw away the broken client and connect a new one.
 
-        Tasks that fail on the same client at once reconnect only once;
-        the others reuse the client connected by the first.
+        If several tasks hit the same broken client at the same time,
+        only the first one reconnects; the others reuse its new client.
         """
         async with self._reconnect_lock:
             if self._client is not failed and self._client is not None:
                 return self._client
-            await self._disconnect()
+            await self._close()
             logger.info("Reconnecting to the calculator MCP server")
-            return await self._connect()
+            return await self._open()
 
-    async def _connect(self) -> CalcFastMCPClient:
+    async def _open(self) -> CalcMCPClient:
         """Connect a new MCP client and make it the current one."""
+        # The exit stack lets _close disconnect this client later.
         exit_stack = AsyncExitStack()
-        logger.debug("Creating the FastMCP client")
+        logger.debug("Creating a calculator MCP client")
         client = await exit_stack.enter_async_context(self._client_factory())
         self._exit_stack, self._client = exit_stack, client
         return client
 
-    async def _disconnect(self) -> None:
-        """Disconnect the current MCP client, logging any error."""
+    async def _close(self) -> None:
+        """Disconnect and forget the current client.
+
+        Errors while disconnecting are logged, not raised.
+        """
         self._client = None
         try:
             await self._exit_stack.aclose()

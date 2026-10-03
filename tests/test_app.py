@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -46,7 +46,8 @@ from importlib.metadata import version
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Request, Response
+from openai import APIConnectionError, InternalServerError
 
 from math_ai_agent import app as app_module
 from math_ai_agent.app import Payload, app, lifespan, main
@@ -199,6 +200,36 @@ async def test_prompt_returns_502_when_llm_request_fails(mock_agent):
         assert "request failed" in response.json()["detail"]
 
 
+_LLM_REQUEST = Request("POST", "https://llm.test/v1/responses")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        InternalServerError(
+            "Internal server error",
+            response=Response(500, request=_LLM_REQUEST),
+            body=None,
+        ),
+        APIConnectionError(request=_LLM_REQUEST),
+    ],
+)
+async def test_prompt_returns_502_when_llm_service_fails(
+    mock_agent, caplog, error
+):
+    mock_agent.run.side_effect = error
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 502
+        assert "unavailable" in response.json()["detail"]
+    assert "LLM service error" in caplog.text
+    assert "Traceback" not in caplog.text
+
+
 @pytest.mark.asyncio
 async def test_prompt_returns_500_on_unexpected_error(mock_agent, caplog):
     mock_agent.run.side_effect = ValueError("Non-supported finish_reason")
@@ -303,14 +334,15 @@ def test_main_version_prints_version_and_exits(mock_run, capsys):
 
 
 @pytest.mark.asyncio
-async def test_lifespan_builds_agent_and_closes_mcp_client():
+async def test_lifespan_builds_agent_and_closes_clients():
     calc = MagicMock()
     calc.__aenter__ = AsyncMock(return_value=calc)
     calc.__aexit__ = AsyncMock(return_value=None)
     agent = MagicMock()
+    agent.close = AsyncMock()
     fastapi_app = MagicMock()
     with (
-        patch.object(app_module, "CalcFastMCPConnection", return_value=calc),
+        patch.object(app_module, "CalcMCPClientMgr", return_value=calc),
         patch.object(
             app_module.Agent, "create", AsyncMock(return_value=agent)
         ) as mock_create,
@@ -318,5 +350,7 @@ async def test_lifespan_builds_agent_and_closes_mcp_client():
         async with lifespan(fastapi_app):
             assert fastapi_app.state.agent is agent
             calc.__aexit__.assert_not_awaited()
+            agent.close.assert_not_awaited()
     mock_create.assert_awaited_once_with(calc)
+    agent.close.assert_awaited_once()
     calc.__aexit__.assert_awaited_once()

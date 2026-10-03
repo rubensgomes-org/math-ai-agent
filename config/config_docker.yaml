@@ -20,8 +20,8 @@ llm:
     model_base_url: "https://integrate.api.nvidia.com/v1"
     # Nemotron frontier NVIDIA models for agentic workflows, coding and tool use
     # see list of NVIDIA models: https://integrate.api.nvidia.com/v1/models
-    # https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b/modelcard
-    model: "nvidia/nemotron-3-super-120b-a12b"
+    # https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard
+    model: "nvidia/nemotron-3-ultra-550b-a55b"
     # Name of the environment variable holding the API key.
     # Get a key from https://build.nvidia.com (keys start with "nvapi-").
     api_key_env: "NVIDIA_API_KEY"
@@ -105,67 +105,52 @@ logging:
             formatter: standard
             stream: ext://sys.stderr
     loggers:
+        #############################################################
+        # ---------- >>> math_ai_agent <<< -------------------------#
+        #############################################################
         math_ai_agent:
             level: DEBUG
             handlers:
                 - console
             propagate: false
-        # MCP protocol tracing — set to DEBUG to see full JSON-RPC messages
-        mcp.client.streamable_http:
-            level: INFO
-            handlers:
-                - console
-            propagate: false
-        # FastMCP client: connection, session, and tool-call activity
-        fastmcp.client:
+        #############################################################
+        # ---------- >>> fastmcp <<< -------------------------------#
+        #############################################################
+        fastmcp:
             level: DEBUG
             handlers:
                 - console
             propagate: false
-        # FastMCP OAuth client (fastmcp/client/auth/oauth.py)
-        fastmcp.client.auth.oauth:
+        #############################################################
+        # ---------- >>> mcp <<< -----------------------------------#
+        #############################################################
+        mcp:
             level: DEBUG
             handlers:
                 - console
             propagate: false
-        # FastMCP client tool calls (fastmcp/client/mixins/tools.py)
-        fastmcp.client.mixins.tools:
-            level: DEBUG
-            handlers:
-                - console
-            propagate: false
-        # FastMCP client core (fastmcp/client/client.py)
-        fastmcp.client.client:
-            level: DEBUG
-            handlers:
-                - console
-            propagate: false
+        #############################################################
+        # ---------- >>> httpx <<< ---------------------------------#
+        #############################################################
         # HTTP request/response summaries — set to DEBUG for detail
         httpx:
             level: INFO
             handlers:
                 - console
             propagate: false
-        # OpenAI SDK logging — set to DEBUG for request/response detail
-        openai:
-            level: INFO
-            handlers:
-                - console
-            propagate: false
+        #############################################################
+        # ---------- >>> httpcore <<< ------------------------------#
+        #############################################################
         # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
         httpcore:
-            level: INFO
+            level: DEBUG
             handlers:
                 - console
             propagate: false
-        # Server: startup, shutdown, and errors
-        uvicorn:
-            level: INFO
-            handlers:
-                - console
-            propagate: false
-        # Server: HTTP request lines (method, path, status)
-        uvicorn.access:
+        #############################################################
+        # ---------- >>> openai <<< --------------------------------#
+        #############################################################
+        openai:
             level: INFO
             handlers:
                 - console
@@ -176,7 +161,15 @@ logging:
             handlers:
                 - console
             propagate: false
-        # Integration tests (run standalone)
+        #############################################################
+        # ---------- >>> uvicorn <<< -------------------------------#
+        #############################################################
+        # Server: startup, shutdown, and errors
+        uvicorn:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
         __main__:
             level: DEBUG
             handlers:

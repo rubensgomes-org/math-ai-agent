@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -39,12 +39,12 @@
 """LLM client wrappers around the OpenAI SDK.
 
 Provides two thin transports over ``AsyncOpenAI``, sharing the
-``_BaseLLMClient`` base that validates parameters and builds the
+``LLMClient`` base that validates parameters and builds the
 underlying client:
 
 * ``ResponsesClient`` -- uses the Responses API
   (``POST /v1/responses``), the primary OpenAI API.
-* ``ChatCompletionClient`` -- uses the legacy Chat Completions API
+* ``ChatCompletionsClient`` -- uses the legacy Chat Completions API
   (``POST /v1/chat/completions``).
 
 These classes know only how to talk to the inference endpoint.  The
@@ -91,7 +91,7 @@ def _to_json(value: Any) -> str:
     return json.dumps(value, indent=2, default=_encode)
 
 
-class _BaseLLMClient:
+class LLMClient:
     """Shared validation and ``AsyncOpenAI`` construction.
 
     Each instance holds its own ``AsyncOpenAI`` client,
@@ -109,7 +109,8 @@ class _BaseLLMClient:
     ) -> None:
         """Create an ``AsyncOpenAI`` client for the LLM.
 
-        All parameters are validated and must be non-empty.
+        ``api_key``, ``base_url``, ``model`` and ``tools`` must be
+        non-empty.
 
         Args:
             api_key: API key for the OpenAI-compatible service.
@@ -121,7 +122,7 @@ class _BaseLLMClient:
                 provider default.
 
         Raises:
-            ValueError: If any parameter is empty or ``None``.
+            ValueError: If a required parameter is empty or ``None``.
         """
         if not api_key:
             logger.error("api_key is empty or None")
@@ -142,10 +143,6 @@ class _BaseLLMClient:
             model,
             len(tools),
         )
-        # logger.debug(
-        #     "Tool definitions being set on the LLM client:\n%s",
-        #     json.dumps(tools, indent=2),
-        # )
         self.openai_client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
@@ -155,8 +152,13 @@ class _BaseLLMClient:
         self.model = model
         self.temperature = temperature
 
+    async def close(self) -> None:
+        """Close the underlying ``AsyncOpenAI`` HTTP connections."""
+        logger.debug("Closing LLM %s", type(self).__name__)
+        await self.openai_client.close()
 
-class ChatCompletionClient(_BaseLLMClient):
+
+class ChatCompletionsClient(LLMClient):
     """Async OpenAI client for the legacy Chat Completions API."""
 
     async def create_response(
@@ -208,8 +210,27 @@ class ChatCompletionClient(_BaseLLMClient):
         )
         return response
 
+    @staticmethod
+    def report_usage(response: ChatCompletion) -> None:
+        """Log the token usage reported in ``response``.
 
-class ResponsesClient(_BaseLLMClient):
+        Args:
+            response: The ``ChatCompletion`` returned by the model.
+        """
+        usage = response.usage
+        if usage is not None:
+            logger.info(
+                "Token usage in the current request:"
+                " prompt=%d completion=%d total=%d",
+                usage.prompt_tokens,
+                usage.completion_tokens,
+                usage.total_tokens,
+            )
+        else:
+            logger.warning("No token usage reported in the response.")
+
+
+class ResponsesClient(LLMClient):
     """Async OpenAI client for the Responses API.
 
     The system prompt is supplied by the caller and sent as the
@@ -231,7 +252,7 @@ class ResponsesClient(_BaseLLMClient):
         stateful: bool = False,
         reasoning_summary: ReasoningSummary | None = None,
     ) -> None:
-        """Create the client; see ``_BaseLLMClient`` for the other args.
+        """Create the client; see ``LLMClient`` for the other args.
 
         Args:
             stateful: Store responses on the server so turns can be
@@ -247,14 +268,14 @@ class ResponsesClient(_BaseLLMClient):
 
     async def create_response(
         self,
-        input_items: list[Any],
+        history: list[Any],
         instructions: str,
         previous_response_id: str | None = None,
     ) -> Response:
         """Send input items and return the response.
 
         Args:
-            input_items: Responses API input Items: the whole
+            history: Responses API input Items: the whole
                 conversation when stateless, or only the new items when
                 continuing ``previous_response_id``.
             instructions: System prompt sent as the top-level
@@ -280,21 +301,21 @@ class ResponsesClient(_BaseLLMClient):
             "System instructions:\n%s\n"
             "Input items:\n%s\n"
             "Tools:\n%s",
-            len(input_items),
+            len(history),
             self.model,
             previous_response_id,
             instructions,
-            _to_json(input_items),
+            _to_json(history),
             TOOLS_REMOVED_FROM_LOGS,
             # _to_json(self.tools),
         )
-        # See the note in ChatCompletionClient.create_response: this
+        # See the note in ChatCompletionsClient.create_response: this
         # call never streams, so narrow it back to ``Response``.
         response = cast(
             Response,
             await self.openai_client.responses.create(
                 model=self.model,
-                input=input_items,  # type: ignore[arg-type]
+                input=history,  # type: ignore[arg-type]
                 # Models without reasoning may reject this field.
                 reasoning=(
                     {"summary": self.reasoning_summary}
@@ -327,3 +348,22 @@ class ResponsesClient(_BaseLLMClient):
             ),
         )
         return response
+
+    @staticmethod
+    def report_usage(response: Response) -> None:
+        """Log the token usage reported in ``response``.
+
+        Args:
+            response: The ``Response`` returned by the model.
+        """
+        usage = response.usage
+        if usage is not None:
+            logger.info(
+                "Token usage in the current request:"
+                " input=%d output=%d total=%d",
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.total_tokens,
+            )
+        else:
+            logger.warning("No token usage reported in the response.")

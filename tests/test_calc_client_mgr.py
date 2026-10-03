@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -36,7 +36,7 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Unit tests for :mod:`math_ai_agent.mcp.calc_connection`."""
+"""Unit tests for :mod:`math_ai_agent.mcp.calc_client_mgr`."""
 
 import asyncio
 import logging
@@ -44,13 +44,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from math_ai_agent.mcp.calc_connection import CalcFastMCPConnection
+from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
 
 _ARGS = {"a": 4, "b": 4}
 
 
 class _FakeClient:
-    """Stand-in for ``CalcFastMCPClient`` that tracks its connection state."""
+    """Stand-in for ``CalcMCPClient`` that tracks its connection state."""
 
     def __init__(self, result="8"):
         self.connected = False
@@ -84,7 +84,7 @@ class _FakeClient:
 def _connection(*clients):
     """Build a connection whose factory returns ``clients`` in order."""
     factory = MagicMock(side_effect=list(clients))
-    return CalcFastMCPConnection(client_factory=factory), factory
+    return CalcMCPClientMgr(client_factory=factory), factory
 
 
 # ---------------------------------------------------------------------------

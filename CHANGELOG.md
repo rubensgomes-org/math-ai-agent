@@ -9,9 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- PyCharm setup steps with screenshots in `docs/PYCHARM.md`.
+
 ### Changed
 
+- Model `nvidia/nemotron-3-super-120b-a12b`, which reached end of life,
+  replaced by `nvidia/nemotron-3-ultra-550b-a55b`.
+- `CalcFastMCPConnection` renamed to `CalcMCPClientMgr`, and its module
+  `mcp/calc_connection.py` to `mcp/calc_client_mgr.py`.
+- `CalcFastMCPClient` renamed to `CalcMCPClient`.
+- `ChatCompletionClient` renamed to `ChatCompletionsClient`, and
+  `_BaseLLMClient` to `LLMClient`.
+- Token usage is logged by each LLM client's `report_usage()`.
+- Logging config grouped by library; `openai` raised to `>=3.24.0`.
+
 ### Fixed
+
+- LLM provider HTTP and connection errors return 502 instead of 500.
+- The LLM client's HTTP connections are closed on shutdown.
 
 ## [0.0.20] - 2026-10-02
 

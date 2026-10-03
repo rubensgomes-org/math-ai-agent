@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -57,12 +57,12 @@ import sys
 
 from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm.agent import Agent
-from math_ai_agent.mcp.calc_connection import CalcFastMCPConnection
+from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
 
 logger = logging.getLogger(__name__)
 
 
-async def show_tools(calc: CalcFastMCPConnection) -> None:
+async def show_tools(calc: CalcMCPClientMgr) -> None:
     """Log the Responses-format tool definitions from the MCP server."""
     tools = await calc.to_responses_tools()
     logger.info("Discovered %d MCP tool(s) in Responses format", len(tools))
@@ -74,7 +74,7 @@ async def main() -> None:
     """Entry point for the Responses API integration test."""
     logger.info("Running integration test for ResponsesClient")
     get_config().llm.api_style = "responses"
-    async with CalcFastMCPConnection() as calc:
+    async with CalcMCPClientMgr() as calc:
         await show_tools(calc)
         agent = await Agent.create(calc)
         user_input = (

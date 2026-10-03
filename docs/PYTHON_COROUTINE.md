@@ -140,7 +140,7 @@ These limits come from outside the shared clients:
 The app guards against them with:
 
 - **Reconnect.** If the MCP connection drops during a tool call,
-  `CalcFastMCPConnection` reconnects once and retries the call.
+  `CalcMCPClientMgr` reconnects once and retries the call.
 - **`llm.max_concurrent_prompts`.** Prompts beyond this limit get HTTP
   503 at once instead of piling up.
 - **`llm.timeout_seconds`.** Each LLM call fails after this many seconds.

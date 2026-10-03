@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -62,8 +62,8 @@ from openai.types.responses import (
 )
 
 from math_ai_agent.config.config import get_api_key, get_config
-from math_ai_agent.llm.client import ChatCompletionClient, ResponsesClient
-from math_ai_agent.mcp.calc_connection import CalcFastMCPConnection
+from math_ai_agent.llm.client import ChatCompletionsClient, ResponsesClient
+from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
 
 logger = logging.getLogger(__name__)
 
@@ -161,15 +161,15 @@ class LLMRequestFailedError(RuntimeError):
 class Agent:
     """Runs prompts through the LLM and the calculator MCP server.
 
-    Holds one ``CalcFastMCPConnection`` and one LLM client, so they are
+    Holds one ``CalcMCPClientMgr`` and one LLM client, so they are
     reused across prompts.  The caller owns the MCP connection and
     must keep it open while the agent is in use.
     """
 
     def __init__(
         self,
-        calc: CalcFastMCPConnection,
-        llm: ChatCompletionClient | ResponsesClient,
+        calc: CalcMCPClientMgr,
+        llm: ChatCompletionsClient | ResponsesClient,
         system_instructions: str,
         max_concurrent_prompts: int,
     ) -> None:
@@ -180,7 +180,7 @@ class Agent:
         self._prompt_slots = asyncio.Semaphore(max_concurrent_prompts)
 
     @classmethod
-    async def create(cls, calc: CalcFastMCPConnection) -> "Agent":
+    async def create(cls, calc: CalcMCPClientMgr) -> "Agent":
         """Discover the MCP tools and build the configured LLM client.
 
         Args:
@@ -202,7 +202,7 @@ class Agent:
             llm_config.model,
             llm_config.temperature,
         )
-        llm: ChatCompletionClient | ResponsesClient
+        llm: ChatCompletionsClient | ResponsesClient
         if llm_config.api_style == "responses":
             llm = ResponsesClient(
                 get_api_key(),
@@ -215,7 +215,7 @@ class Agent:
                 llm_config.reasoning_summary,
             )
         else:
-            llm = ChatCompletionClient(
+            llm = ChatCompletionsClient(
                 get_api_key(),
                 llm_config.model_base_url,
                 llm_config.model,
@@ -229,6 +229,10 @@ class Agent:
             llm_config.system_instructions,
             llm_config.max_concurrent_prompts,
         )
+
+    async def close(self) -> None:
+        """Close the LLM client.  The MCP connection is the caller's."""
+        await self._llm.close()
 
     async def run(
         self, user_prompt: str, display_reasoning: bool = True
@@ -298,7 +302,7 @@ class Agent:
         return str(result.data)
 
     async def _run_chat(
-        self, llm: ChatCompletionClient, user_prompt: str
+        self, llm: ChatCompletionsClient, user_prompt: str
     ) -> str:
         """Run the agent loop against the Chat Completions API.
 
@@ -335,17 +339,7 @@ class Agent:
             response: ChatCompletion = await llm.create_response(history)
             llm_msg: ChatCompletionMessage = response.choices[0].message
             finish_reason = response.choices[0].finish_reason
-            usage = response.usage
-            if usage is not None:
-                logger.info(
-                    "Token usage in the current request:"
-                    " prompt=%d completion=%d total=%d",
-                    usage.prompt_tokens,
-                    usage.completion_tokens,
-                    usage.total_tokens,
-                )
-            else:
-                logger.warning("No token usage reported in the response.")
+            llm.report_usage(response)
 
             logger.debug("LLM finish_reason: %s", finish_reason)
             match finish_reason:
@@ -440,7 +434,7 @@ class Agent:
         logger.info("Starting AI LLM agent loop using the Responses API")
         # The system prompt is sent as the top-level `instructions`
         # parameter, so it is not part of the input items.
-        input_items: list[Any] = [{"role": "user", "content": user_prompt}]
+        history: list[Any] = [{"role": "user", "content": user_prompt}]
         previous_response_id: str | None = None
         # Reasoning collected from every turn, for the formatted answer.
         reasoning: list[str] = []
@@ -452,20 +446,10 @@ class Agent:
         logger.info("=== >>> START AGENT LOOP")
         while True:
             response: Response = await llm.create_response(
-                input_items, self._system_instructions, previous_response_id
+                history, self._system_instructions, previous_response_id
             )
             logger.debug("LLM response status: %s", response.status)
-            usage = response.usage
-            if usage is not None:
-                logger.info(
-                    "Token usage in the current request:"
-                    " input=%d output=%d total=%d",
-                    usage.input_tokens,
-                    usage.output_tokens,
-                    usage.total_tokens,
-                )
-            else:
-                logger.warning("No token usage reported in the response.")
+            llm.report_usage(response)
 
             match response.status:
                 case "completed":
@@ -491,11 +475,6 @@ class Agent:
 
                     tool_outputs: list[Any] = []
                     for tool_call in tool_calls:
-                        logger.debug(
-                            "Calling call_id: %s, tool_name: %s",
-                            tool_call.call_id,
-                            tool_call.name,
-                        )
                         result = await self._call_tool(
                             tool_call.name, tool_call.arguments
                         )
@@ -507,8 +486,8 @@ class Agent:
                                 "output": result,
                             }
                         )
-                    input_items, previous_response_id = _next_turn_input(
-                        llm.stateful, input_items, response, tool_outputs
+                    history, previous_response_id = _next_turn_input(
+                        llm.stateful, history, response, tool_outputs
                     )
                     continue
 
@@ -521,7 +500,7 @@ class Agent:
                         raise TokenLimitError(error)
                     if reason == "content_filter":
                         error = (
-                            f"Content [{input_items}] blocked for safety "
+                            f"Content [{history}] blocked for safety "
                             f"reasons."
                         )
                         logger.error(error)

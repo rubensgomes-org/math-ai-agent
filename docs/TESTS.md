@@ -97,7 +97,7 @@ and submit. `POST /prompt/` runs `Agent.run()`, which follows whichever path
 Watch for this line, emitted whenever the client is built:
 
 ```
-Initializing ChatCompletionClient with base_url=..., model=..., tool_count=N
+Initializing ChatCompletionsClient with base_url=..., model=..., tool_count=N
 ```
 
 (the class name is `ResponsesClient` when `llm.api_style` is `responses`)

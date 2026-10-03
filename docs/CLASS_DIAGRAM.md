@@ -5,8 +5,8 @@
 payload.py                       llm/agent.py
 ┌──────────────────────┐         ┌──────────────────────────────────┐
 │ Payload              │         │ Agent                            │
-│  ──▷ [BaseModel]     │         │  _calc  ◆── CalcFastMCPConnection│
-│  text                │         │  _llm   ◆── ChatCompletionClient │
+│  ──▷ [BaseModel]     │         │  _calc  ◆── CalcMCPClientMgr     │
+│  text                │         │  _llm   ◆── ChatCompletionsClient│
 │  display_reasoning   │         │             | ResponsesClient    │
 └──────────────────────┘         │  _prompt_slots ◆── [Semaphore]   │
                                  │  create() ···> AppConfig.llm     │
@@ -20,23 +20,23 @@ payload.py                       llm/agent.py
 
 llm/client.py
                   ┌──────────────────────────────┐
-                  │ _BaseLLMClient               │
+                  │ LLMClient                    │
                   │  openai_client ◆── [AsyncOpenAI]
                   │  model, tools, temperature   │
                   └──────────────▲───────────────┘
                    ┌─────────────┴──────────────┐
       ┌────────────┴────────────┐   ┌───────────┴─────────────┐
-      │ ChatCompletionClient    │   │ ResponsesClient         │
+      │ ChatCompletionsClient   │   │ ResponsesClient         │
       │  create_response()      │   │  stateful               │
       │  → /v1/chat/completions │   │  create_response()      │
       └─────────────────────────┘   │  → /v1/responses        │
   Chat Completions API: March 2023  └─────────────────────────┘
                                      Responses API: March 2025
 
-mcp/calc_connection.py                     mcp/calc_client.py
+mcp/calc_client_mgr.py                     mcp/calc_client.py
 ┌───────────────────────────────────┐      ┌───────────────────────────────────┐
-│ CalcFastMCPConnection             │      │ CalcFastMCPClient                 │
-│  _client ◆─ 0..1 CalcFastMCPClient┼────▶ │  ──▷ [fastmcp.Client]             │
+│ CalcMCPClientMgr                  │      │ CalcMCPClient                     │
+│  _client ◆─ 0..1 CalcMCPClient    ┼────▶ │  ──▷ [fastmcp.Client]             │
 │  _client_factory (builds it)      │      │  auth ◆── [OAuth] (optional)      │
 │  _reconnect_lock ◆── [Lock]       │      │  __init__ ···> AppConfig          │
 │  call_tool() (reconnect+retry)    │      │            .server.calculator_mcp │
@@ -47,16 +47,16 @@ mcp/calc_connection.py                     mcp/calc_client.py
 ## MCP Client Layers
 
 ```text
-mcp/calc_connection.py
+mcp/calc_client_mgr.py
 ┌───────────────────────────────────────────────┐
-│ CalcFastMCPConnection                         │
-│  _client ◆── 0..1 CalcFastMCPClient           │
+│ CalcMCPClientMgr                              │
+│  _client ◆── 0..1 CalcMCPClient               │
 │    (replaced by a new client on reconnect)    │
 └───────────────────────┬───────────────────────┘
                         ▼
 mcp/calc_client.py
 ┌───────────────────────────────────────────────┐
-│ CalcFastMCPClient                             │
+│ CalcMCPClient                                 │
 │  ──▷ [fastmcp.Client]                         │
 │  transport ◆── [StreamableHttpTransport]      │
 │  session   ◆── 0..1 [mcp.ClientSession]       │

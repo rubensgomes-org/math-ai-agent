@@ -12,8 +12,8 @@ directory.
 sequenceDiagram
     participant App as app.py
     participant Agent
-    participant Conn as CalcFastMCPConnection
-    participant Client as CalcFastMCPClient
+    participant Conn as CalcMCPClientMgr
+    participant Client as CalcMCPClient
     participant Transport as StreamableHttpTransport
     participant Session as mcp.ClientSession
     participant Http as httpx2.AsyncClient

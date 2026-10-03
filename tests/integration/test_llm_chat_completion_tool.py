@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -36,7 +36,7 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Integration test for LLM tool calling via the ChatCompletionClient.
+"""Integration test for LLM tool calling via the ChatCompletionsClient.
 
 Connects to the calculator MCP server, discovers tools, then runs
 an agent loop that sends a math prompt to the LLM and dispatches
@@ -54,8 +54,8 @@ from math_ai_agent.config.config import (
     get_api_key,
     get_config,
 )
-from math_ai_agent.llm.client import ChatCompletionClient
-from math_ai_agent.mcp.calc_client import CalcFastMCPClient
+from math_ai_agent.llm.client import ChatCompletionsClient
+from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ async def get_mcp_tools() -> list[dict]:
         MCP server.
     """
     logger.info("Connecting to Calculator MCP server")
-    async with CalcFastMCPClient() as calcmcp_client:
+    async with CalcMCPClient() as calcmcp_client:
         tools = await calcmcp_client.to_chat_completions_tools()
         logger.info("Discovered %d MCP tool(s)", len(tools))
         return tools
@@ -93,7 +93,7 @@ async def call_tool(tool_name: str, args: dict) -> str:
     Returns:
         The string representation of the tool result.
     """
-    async with CalcFastMCPClient() as calcmcp_client:
+    async with CalcMCPClient() as calcmcp_client:
         logger.info(
             "Calling calculator MCP tool %s with %s",
             tool_name,
@@ -119,7 +119,7 @@ async def prompt_llm() -> None:
     logger.info("Starting LLM prompt test")
     messages = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
     tools = await get_mcp_tools()
-    llm = ChatCompletionClient(
+    llm = ChatCompletionsClient(
         get_api_key(),
         get_config().llm.model_base_url,
         get_config().llm.model,
@@ -177,7 +177,7 @@ async def prompt_llm() -> None:
 
 async def main() -> None:
     """Entry point for the LLM tool-calling integration test."""
-    logger.info("Running integration test for ChatCompletionClient")
+    logger.info("Running integration test for ChatCompletionsClient")
     await prompt_llm()
     logger.info("Integration test completed")
 

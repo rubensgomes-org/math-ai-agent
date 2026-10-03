@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -38,7 +38,7 @@
 
 """Calculator MCP client.
 
-Provides the ``CalcFastMCPClient`` class which extends ``fastmcp.Client``
+Provides the ``CalcMCPClient`` class which extends ``fastmcp.Client``
 to connect to a remote calculator MCP server and convert its tools to
 the OpenAI function-calling formats.
 """
@@ -82,14 +82,14 @@ def _create_token_store(token_dir: str) -> FileTreeStore:
     )
 
 
-class CalcFastMCPClient(Client):
+class CalcMCPClient(Client):
     """Calculator FastMCP client extending ``fastmcp.Client``.
 
     Builds the correct transport and auth from ``config.yaml``.
 
     Usage::
 
-        async with CalcFastMCPClient() as calc:
+        async with CalcMCPClient() as calc:
             result = await calc.call_tool("add", {"a": 1, "b": 2})
     """
 
@@ -122,7 +122,7 @@ class CalcFastMCPClient(Client):
         else:
             super().__init__(url)
 
-    async def __aenter__(self) -> "CalcFastMCPClient":
+    async def __aenter__(self) -> "CalcMCPClient":
         """Connect to the FastMCP server."""
         logger.debug("Connecting to Calculator FastMCP server")
         await super().__aenter__()
@@ -135,7 +135,7 @@ class CalcFastMCPClient(Client):
         tb: TracebackType | None,
     ) -> None:
         """Disconnect from the MCP server."""
-        logger.debug("Closing CalcFastMCPClient")
+        logger.debug("Closing CalcMCPClient")
         await super().__aexit__(exc_type, exc, tb)
 
     async def _function_definitions(self) -> list[dict]:

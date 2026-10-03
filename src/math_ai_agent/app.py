@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -61,6 +61,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, PlainTextResponse
+from openai import APIConnectionError, APIStatusError
 
 from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm import (
@@ -70,7 +71,7 @@ from math_ai_agent.llm import (
     LLMRequestFailedError,
     TokenLimitError,
 )
-from math_ai_agent.mcp.calc_connection import CalcFastMCPConnection
+from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
 from math_ai_agent.payload import Payload
 
 configure_logging()
@@ -84,11 +85,15 @@ _DISTRIBUTION_NAME = "math-ai-agent"
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     """Connect to the MCP server and build the agent for the app's lifetime."""
     logger.info("Starting application...")
-    async with CalcFastMCPConnection() as calc:
+    async with CalcMCPClientMgr() as calc:
         logger.info("Established the Calculator MCP connection")
-        fastapi_app.state.agent = await Agent.create(calc)
-        yield
-        logger.info("Shutting down the application...")
+        agent = await Agent.create(calc)
+        fastapi_app.state.agent = agent
+        try:
+            yield
+        finally:
+            logger.warning("Shutting down the application...")
+            await agent.close()
 
 
 # -------------------------------------------------
@@ -157,6 +162,12 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="The LLM request failed. Please try again.",
         ) from error
+    except (APIStatusError, APIConnectionError) as error:
+        logger.error("LLM service error answering prompt: %s", error)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The LLM service is unavailable. Please try again.",
+        ) from error
     except Exception as error:
         logger.exception("Unexpected error answering prompt: %s", prompt_text)
         raise HTTPException(
@@ -193,3 +204,7 @@ def main(argv: list[str] | None = None) -> None:
     _parse_args(argv)
     web = get_config().web
     uvicorn.run(app, host=web.host, port=web.port, log_config=None)
+
+
+if __name__ == "__main__":
+    main()

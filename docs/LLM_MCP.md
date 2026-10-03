@@ -23,7 +23,7 @@ a tool call. In both agent loops, `tool_call.name` (Responses API) or
 tools.
 
 `Agent._call_tool()` then sends the tool name and arguments to the MCP
-server over the shared `CalcFastMCPConnection`.
+server over the shared `CalcMCPClientMgr`.
 
 ## The Calculator MCP Server
 
@@ -56,7 +56,7 @@ more providers.
 | | Chat Completions (`chat`) | Responses (`responses`) |
 |---|---|---|
 | Endpoint | `POST /v1/chat/completions` | `POST /v1/responses` |
-| Client | `ChatCompletionClient` | `ResponsesClient` |
+| Client | `ChatCompletionsClient` | `ResponsesClient` |
 | Conversation | `messages`: role/content dicts | `input`: typed items |
 | System prompt | First message, role `system` | Top-level `instructions` |
 | Tool schema | Nested under `function` | Flat: `name` at top level |
@@ -78,7 +78,7 @@ more providers.
   `llm.stateful` is `true`. By default it sends `store=False` and
   replays every output item, including the model's reasoning items, on
   each turn. NVIDIA and OpenRouter only support this stateless mode.
-- **Tool schemas.** `CalcFastMCPClient.to_chat_completions_tools()` builds
+- **Tool schemas.** `CalcMCPClient.to_chat_completions_tools()` builds
   the Chat Completions format and `to_responses_tools()` builds the
   Responses format from the same MCP tool list.
 
@@ -261,9 +261,9 @@ purely linear layers could only draw straight-line relationships.
 
 Each parameter takes part in about one multiply and one add per token, so
 generating one token costs about `2 x parameters` operations. The model in
-`config.yaml`, `nemotron-3-super-120b-a12b`, has 120 billion parameters,
-of which the name says about 12 billion are active per token. That is
-roughly 24 billion operations for every token generated. GPUs run these
+`config.yaml`, `nemotron-3-ultra-550b-a55b`, has 550 billion parameters,
+of which the name says about 55 billion are active per token. That is
+roughly 110 billion operations for every token generated. GPUs run these
 because they perform thousands of multiply-accumulates in parallel.
 
 ### Training

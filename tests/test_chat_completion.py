@@ -5,9 +5,9 @@
 # This project's source code and documentation were generated predominantly
 # by an Artificial Intelligence Large Language Model (AI LLM). The project
 # lead, [Rubens Gomes](https://rubensgomes.com), provided initial prompts,
-# reviewed, and made refinements to the generated output. While human review and
-# refinement have occurred, users should be aware that the output may contain
-# inaccuracies, errors, or security vulnerabilities
+# reviewed, and made refinements to the generated output. While human review
+# and refinement have occurred, users should be aware that the output may
+# contain inaccuracies, errors, or security vulnerabilities
 #
 # **Third-Party Content Notice**
 #
@@ -27,8 +27,8 @@
 #
 # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 # DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-# OR OTHER DEALINGS IN THE SOFTWARE.
+# OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+# USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 # **No-Warranty Disclaimer**
 #
@@ -60,7 +60,7 @@ from math_ai_agent.llm.agent import (
     TokenLimitError,
 )
 from math_ai_agent.llm.client import (
-    ChatCompletionClient,
+    ChatCompletionsClient,
     ResponsesClient,
     _to_json,
 )
@@ -146,8 +146,8 @@ def _make_chat_completion(
 
 
 def _make_client():
-    """Create an ChatCompletionClient instance with test parameters."""
-    return ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    """Create an ChatCompletionsClient instance with test parameters."""
+    return ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
 
 
 # ---------------------------------------------------------------------------
@@ -157,11 +157,11 @@ def _make_client():
 
 def test_init_sets_instance_attributes():
     """Instantiation sets instance attributes."""
-    client = ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    client = ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
     assert client.openai_client is not None
     assert client.tools is _TOOLS
     assert client.model == _MODEL
-    assert isinstance(client, ChatCompletionClient)
+    assert isinstance(client, ChatCompletionsClient)
 
 
 def test_to_json_dumps_sdk_objects_and_falls_back_to_str():
@@ -175,13 +175,23 @@ def test_to_json_dumps_sdk_objects_and_falls_back_to_str():
     ]
 
 
+@pytest.mark.asyncio
+async def test_close_closes_openai_client():
+    client = _make_client()
+    with patch.object(
+        client.openai_client, "close", new_callable=AsyncMock
+    ) as mock_close:
+        await client.close()
+    mock_close.assert_awaited_once()
+
+
 def test_init_uses_default_timeout():
-    client = ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    client = ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
     assert client.openai_client.timeout == DEFAULT_LLM_TIMEOUT_SECONDS
 
 
 def test_init_uses_given_timeout():
-    client = ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS, 30)
+    client = ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS, 30)
     assert client.openai_client.timeout == 30
 
 
@@ -189,7 +199,7 @@ def test_init_uses_given_timeout():
 @pytest.mark.parametrize("temperature", [0.0, 0.2])
 async def test_create_response_sends_temperature(temperature):
     """A set temperature is sent, including 0."""
-    client = ChatCompletionClient(
+    client = ChatCompletionsClient(
         _API_KEY, _BASE_URL, _MODEL, _TOOLS, temperature=temperature
     )
     mock_create = AsyncMock(return_value=_make_chat_completion())
@@ -205,31 +215,31 @@ async def test_create_response_sends_temperature(temperature):
 def test_init_empty_api_key_raises():
     """Empty api_key raises ValueError."""
     with pytest.raises(ValueError, match="api_key must not be empty"):
-        ChatCompletionClient("", _BASE_URL, _MODEL, _TOOLS)
+        ChatCompletionsClient("", _BASE_URL, _MODEL, _TOOLS)
 
 
 def test_init_empty_base_url_raises():
     """Empty base_url raises ValueError."""
     with pytest.raises(ValueError, match="base_url must not be empty"):
-        ChatCompletionClient(_API_KEY, "", _MODEL, _TOOLS)
+        ChatCompletionsClient(_API_KEY, "", _MODEL, _TOOLS)
 
 
 def test_init_empty_model_raises():
     """Empty model raises ValueError."""
     with pytest.raises(ValueError, match="model must not be empty"):
-        ChatCompletionClient(_API_KEY, _BASE_URL, "", _TOOLS)
+        ChatCompletionsClient(_API_KEY, _BASE_URL, "", _TOOLS)
 
 
 def test_init_empty_tools_raises():
     """Empty tools list raises ValueError."""
     with pytest.raises(ValueError, match="tools must not be empty"):
-        ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, [])
+        ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, [])
 
 
 def test_init_none_api_key_raises():
     """None api_key raises ValueError."""
     with pytest.raises(ValueError, match="api_key must not be empty"):
-        ChatCompletionClient(None, _BASE_URL, _MODEL, _TOOLS)
+        ChatCompletionsClient(None, _BASE_URL, _MODEL, _TOOLS)
 
 
 # ---------------------------------------------------------------------------
@@ -408,14 +418,23 @@ def agent_env(app_config):
 
     env.agent = Agent(
         SimpleNamespace(call_tool=env.call_tool),
-        ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
+        ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
         app_config.llm.system_instructions,
         app_config.llm.max_concurrent_prompts,
     )
     with patch.object(
-        ChatCompletionClient, "create_response", side_effect=_next_response
+        ChatCompletionsClient, "create_response", side_effect=_next_response
     ):
         yield env
+
+
+@pytest.mark.asyncio
+async def test_agent_close_closes_llm_client(agent_env):
+    with patch.object(
+        ChatCompletionsClient, "close", new_callable=AsyncMock
+    ) as mock_close:
+        await agent_env.agent.close()
+    mock_close.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +606,7 @@ def fake_calc():
 @pytest.mark.parametrize(
     ("api_style", "client_type", "tools_attr"),
     [
-        ("chat", ChatCompletionClient, "to_chat_completions_tools"),
+        ("chat", ChatCompletionsClient, "to_chat_completions_tools"),
         ("responses", ResponsesClient, "to_responses_tools"),
     ],
 )
@@ -663,12 +682,12 @@ def single_slot_agent(app_config):
 
     agent = Agent(
         SimpleNamespace(call_tool=AsyncMock()),
-        ChatCompletionClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
+        ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
         app_config.llm.system_instructions,
         1,
     )
     with patch.object(
-        ChatCompletionClient, "create_response", side_effect=_gated_response
+        ChatCompletionsClient, "create_response", side_effect=_gated_response
     ):
         yield agent, gate
 
@@ -700,7 +719,7 @@ async def test_agent_run_frees_slot_after_error(single_slot_agent):
     agent, gate = single_slot_agent
     gate.set()
     with patch.object(
-        ChatCompletionClient,
+        ChatCompletionsClient,
         "create_response",
         side_effect=RuntimeError("LLM down"),
     ):
