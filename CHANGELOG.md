@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.27] - 2026-10-04
+
+### Added
+
+### Changed
+
 - README "Open Source Project Information" links point to the GitHub
   organization and SonarQube Cloud.
 
