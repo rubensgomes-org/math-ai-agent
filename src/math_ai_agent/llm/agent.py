@@ -65,6 +65,7 @@ from openai.types.responses import (
 
 from math_ai_agent.config.config import get_api_key, get_config
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
+from math_ai_agent.llm.request_utils import to_json
 from math_ai_agent.llm.responses_client import ResponsesClient
 from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
 
@@ -301,7 +302,7 @@ class Agent:
         logger.debug(
             "Calculator MCP tool %s result:\n%s",
             tool_name,
-            json.dumps(result.structured_content, indent=2),
+            json.dumps(result.structured_content, indent=2, ensure_ascii=False),
         )
         return str(result.data)
 
@@ -435,20 +436,25 @@ class Agent:
             ValueError: If the LLM returns an unknown response status
                 or an unknown incomplete reason.
         """
-        logger.info("Starting AI LLM agent loop using the Responses API")
+        logger.debug("Starting AI LLM agent loop using the Responses API")
         # The system prompt is sent as the top-level `instructions`
         # parameter, so it is not part of the input items.
         history: list[Any] = [{"role": "user", "content": user_prompt}]
         previous_response_id: str | None = None
         # Reasoning collected from every turn, for the formatted answer.
         reasoning: list[str] = []
-        logger.debug("Sending user prompt: %s", user_prompt)
+        logger.info("User prompt: %s", user_prompt)
 
         # -------------------------
         # Agent Loop
         # -------------------------
-        logger.info("=== >>> START AGENT LOOP")
+        logger.info(
+            "\n======================================================\n"
+            "========= >>> START AGENT LOOP <<< ===================\n"
+            "======================================================="
+        )
         while True:
+            logger.info("history: %s", to_json(history))
             response: Response = await llm.create_response(
                 history, self._system_instructions, previous_response_id
             )
@@ -468,7 +474,7 @@ class Agent:
 
                     if tool_calls:
                         logger.info(
-                            "LLM is asking us to call tool(s): %s", tool_calls
+                            "LLM requested to call tool(s): %s", tool_calls
                         )
                     else:
                         logger.info(
@@ -532,7 +538,11 @@ class Agent:
                     logger.error(error)
                     raise ValueError(error)
 
-        logger.info("END AGENT LOOP <<< ===")
+        logger.info(
+            "\n======================================================\n"
+            "========= >>> END AGENT LOOP <<< =====================\n"
+            "======================================================="
+        )
         if not display_reasoning:
             return response.output_text.strip()
         return _format_answer(reasoning, response.output_text)

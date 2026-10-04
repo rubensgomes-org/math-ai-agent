@@ -98,7 +98,7 @@ class CalcMCPClient(Client):
         logger.debug("Initializing FastMCP client")
         mcp_config = get_config().server.calculator_mcp
         url = mcp_config.url
-        logger.info("Creating MCP client with MCP server URL: %s", url)
+        logger.debug("Creating MCP client with MCP server URL: %s", url)
 
         if mcp_config.is_oauth:
             logger.info("OAuth enabled, using OAuthClient")

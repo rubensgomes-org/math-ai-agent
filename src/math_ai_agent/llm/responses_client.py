@@ -153,7 +153,7 @@ class ResponsesClient(LLMClient):
         #     items are based on passing previous_response_id.
         # - tools: you should always pass when you want the LLM to consider
         #     these tools on the new request.
-        logger.info(
+        logger.debug(
             "LLM client sending request with:\n"
             "model %s\n"
             "temperature %s\n"

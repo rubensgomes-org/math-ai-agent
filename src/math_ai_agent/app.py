@@ -102,6 +102,18 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(lifespan=lifespan)
 
 
+def _llm_error_message(error: APIStatusError | APIConnectionError) -> str:
+    """Return the LLM provider's error message, or the SDK's when absent."""
+    body = getattr(error, "body", None)
+    if isinstance(body, dict):
+        details = body.get("error", body)
+        if isinstance(details, dict) and isinstance(
+            details.get("message"), str
+        ):
+            return details["message"]
+    return error.message
+
+
 # -------------------------------------------------
 # Routes
 # -------------------------------------------------
@@ -166,7 +178,7 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
         logger.error("LLM service error answering prompt: %s", error)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="The LLM service is unavailable. Please try again.",
+            detail=f"LLM service error: {_llm_error_message(error)}",
         ) from error
     except Exception as error:
         logger.exception("Unexpected error answering prompt: %s", prompt_text)
@@ -174,7 +186,9 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Please try again.",
         ) from error
-    logger.debug("Output:\n%s", json.dumps(output, indent=2))
+    logger.debug(
+        "Output:\n%s", json.dumps(output, indent=2, ensure_ascii=False)
+    )
     return {"answer": output}
 
 
