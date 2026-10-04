@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.24] - 2026-10-04
+
+### Added
+
 - README steps to stop the app when `Ctrl+C` does not work.
 - Responses API request log includes the temperature.
 
