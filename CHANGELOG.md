@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Agent loop logs the conversation history sent each turn.
+
 ### Changed
+
+- LLM service errors return the provider's error message to the browser.
+- Logged JSON shows Unicode characters instead of `\u` escapes.
+- Agent loop logs the user prompt at INFO; Responses API request details
+  moved to DEBUG.
+- `config/config_local.yaml` uses OpenAI `gpt-6-luna`.
 
 ### Fixed
 

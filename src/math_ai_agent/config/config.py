@@ -174,7 +174,7 @@ def get_api_key() -> str:
         RuntimeError: If the environment variable is not set or empty.
     """
     env_name = get_config().llm.api_key_env
-    logger.info("LLM API key environment variable: %s", env_name)
+    logger.debug("LLM API key environment variable: %s", env_name)
     api_key = os.environ.get(env_name)
     if not api_key:
         error = f"{env_name} environment variable is not set."

@@ -62,4 +62,4 @@ def to_json(value: Any) -> str:
             return item.model_dump(exclude_none=True)
         return str(item)
 
-    return json.dumps(value, indent=2, default=_encode)
+    return json.dumps(value, indent=2, ensure_ascii=False, default=_encode)

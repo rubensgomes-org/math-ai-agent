@@ -47,7 +47,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient, Request, Response
-from openai import APIConnectionError, InternalServerError
+from openai import APIConnectionError, InternalServerError, RateLimitError
 
 from math_ai_agent import app as app_module
 from math_ai_agent.app import Payload, app, lifespan, main
@@ -225,9 +225,30 @@ async def test_prompt_returns_502_when_llm_service_fails(
     ) as client:
         response = await client.post("/prompt/", json={"text": "1+1?"})
         assert response.status_code == 502
-        assert "unavailable" in response.json()["detail"]
+        assert response.json()["detail"] == (
+            f"LLM service error: {error.message}"
+        )
     assert "LLM service error" in caplog.text
     assert "Traceback" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_prompt_returns_provider_message_when_llm_rejects(mock_agent):
+    provider_message = "You have no credits remaining."
+    mock_agent.run.side_effect = RateLimitError(
+        "Error code: 429",
+        response=Response(429, request=_LLM_REQUEST),
+        body={"error": {"message": provider_message}},
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 502
+        assert response.json()["detail"] == (
+            f"LLM service error: {provider_message}"
+        )
 
 
 @pytest.mark.asyncio
