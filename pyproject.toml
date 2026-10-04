@@ -1,7 +1,11 @@
 [project]
 name = "math-ai-agent"
 keywords = ["ai", "math", "llm", "mcp", "agentic"]
+<<<<<<< HEAD
 version = "0.0.25"
+=======
+version = "0.0.24"
+>>>>>>> a311ef2 (Bump version to 0.0.24)
 description = "Math AI Agent that uses LLM + Rubens calculator-mcp."
 authors = [
     { name = "Rubens Gomes", email = "rubens.s.gomes@gmail.com" }
