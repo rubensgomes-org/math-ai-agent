@@ -32,12 +32,12 @@ sequenceDiagram
     Session->>Http: POST initialize
     Http->>Server: HTTP request
     App->>Agent: Agent.create(calc)
-    Agent->>Conn: to_chat_completions_tools() or to_responses_tools()
+    Agent->>Conn: tools_definitions()
     Conn->>Client: same method
     Client->>Session: list_tools()
     Session->>Http: POST tools/list
     Http->>Server: HTTP request (pooled connection)
-    Agent->>Agent: create the LLM client with the tools
+    Agent->>Agent: format_tools() and create the LLM client
 
     Note over App,Server: Each prompt (POST /prompt/)
     App->>Agent: run(prompt)

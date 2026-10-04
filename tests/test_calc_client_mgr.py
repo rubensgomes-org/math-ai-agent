@@ -56,8 +56,7 @@ class _FakeClient:
         self.connected = False
         self.exit_count = 0
         self.call_tool = AsyncMock(return_value=result)
-        self.to_chat_completions_tools = AsyncMock(return_value=["openai-tool"])
-        self.to_responses_tools = AsyncMock(return_value=["responses-tool"])
+        self.tools_definitions = AsyncMock(return_value=[{"name": "add"}])
 
     async def __aenter__(self):
         self.connected = True
@@ -104,24 +103,17 @@ async def test_connects_on_enter_and_disconnects_on_exit():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("method", "expected"),
-    [
-        ("to_chat_completions_tools", ["openai-tool"]),
-        ("to_responses_tools", ["responses-tool"]),
-    ],
-)
-async def test_tool_listing_delegates_to_client(method, expected):
+async def test_tools_definitions_delegates_to_client():
     conn, _ = _connection(_FakeClient())
     async with conn:
-        assert await getattr(conn, method)() == expected
+        assert await conn.tools_definitions() == [{"name": "add"}]
 
 
 @pytest.mark.asyncio
 async def test_tool_listing_before_connect_raises():
     conn, _ = _connection(_FakeClient())
     with pytest.raises(RuntimeError, match="not connected"):
-        await conn.to_chat_completions_tools()
+        await conn.tools_definitions()
 
 
 @pytest.mark.asyncio

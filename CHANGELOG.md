@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- README steps to stop the app when `Ctrl+C` does not work.
+- Responses API request log includes the temperature.
+
 ### Changed
 
 - `llm/client.py` split into `llm/llm_client.py` (`LLMClient`),
@@ -16,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `llm/request_utils.py`.
 - Request helpers `_omit_if_none` and `_to_json` made public as
   `omit_if_none` and `to_json`.
+- `to_chat_completions_tools()` and `to_responses_tools()` on
+  `CalcMCPClient` and `CalcMCPClientMgr` replaced by `tools_definitions()`;
+  `ChatCompletionsClient.format_tools()` and
+  `ResponsesClient.format_tools()` convert them to each API's schema.
+- `CalcMCPClient._function_definitions()` made public as
+  `tools_definitions()`.
 
 ### Fixed
 

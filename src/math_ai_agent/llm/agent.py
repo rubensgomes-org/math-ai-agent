@@ -59,6 +59,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.responses import (
     Response,
     ResponseFunctionToolCall,
+    ResponseOutputItem,
     ResponseReasoningItem,
 )
 
@@ -89,24 +90,24 @@ def _reasoning_texts(response: Response) -> list[str]:
 
 def _next_turn_input(
     stateful: bool,
-    input_items: list[Any],
-    response: Response,
+    history: list[Any],
+    response_outputs: list[ResponseOutputItem],
     tool_outputs: list[Any],
-) -> tuple[list[Any], str | None]:
-    """Return the input items and previous response ID for the next turn.
+) -> list[Any]:
+    """Return the input items for the next turn.
 
     Stateful turns send only the tool outputs and continue the stored
-    ``response``.  Stateless turns replay the whole conversation,
+    response.  Stateless turns replay the whole conversation,
     including reasoning items, so the model keeps its context.
     """
     if stateful:
         logger.debug("LLM model is operating in stateful mode")
-        return tool_outputs, response.id
+        return tool_outputs
     logger.debug("LLM model is operating in stateless mode.")
     output_items = [
-        item.model_dump(exclude_none=True) for item in response.output
+        item.model_dump(exclude_none=True) for item in response_outputs
     ]
-    return [*input_items, *output_items, *tool_outputs], None
+    return [*history, *output_items, *tool_outputs]
 
 
 def _format_answer(reasoning: list[str], final_response: str) -> str:
@@ -204,13 +205,14 @@ class Agent:
             llm_config.model,
             llm_config.temperature,
         )
+        tools_definitions = await calc.tools_definitions()
         llm: ChatCompletionsClient | ResponsesClient
         if llm_config.api_style == "responses":
             llm = ResponsesClient(
                 get_api_key(),
                 llm_config.model_base_url,
                 llm_config.model,
-                await calc.to_responses_tools(),
+                ResponsesClient.format_tools(tools_definitions),
                 llm_config.timeout_seconds,
                 llm_config.temperature,
                 llm_config.stateful,
@@ -221,7 +223,7 @@ class Agent:
                 get_api_key(),
                 llm_config.model_base_url,
                 llm_config.model,
-                await calc.to_chat_completions_tools(),
+                ChatCompletionsClient.format_tools(tools_definitions),
                 llm_config.timeout_seconds,
                 llm_config.temperature,
             )
@@ -488,9 +490,10 @@ class Agent:
                                 "output": result,
                             }
                         )
-                    history, previous_response_id = _next_turn_input(
-                        llm.stateful, history, response, tool_outputs
+                    history = _next_turn_input(
+                        llm.stateful, history, response.output, tool_outputs
                     )
+                    previous_response_id = response.id if llm.stateful else None
                     continue
 
                 case "incomplete":

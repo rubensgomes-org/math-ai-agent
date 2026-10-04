@@ -250,176 +250,39 @@ async def test_call_tool_with_empty_arguments():
 
 
 # ---------------------------------------------------------------------------
-# to_chat_completions_tools
+# tools_definitions
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_to_chat_completions_tools_converts_single_tool():
-    tools = [
-        mcp.types.Tool(
-            name="add",
-            description="Add two numbers",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "a": {"type": "number"},
-                    "b": {"type": "number"},
-                },
-                "required": ["a", "b"],
-            },
-        )
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.to_chat_completions_tools()
-    assert len(result) == 1
-    assert result[0]["type"] == "function"
-    func = result[0]["function"]
-    assert func["name"] == "add"
-    assert func["description"] == "Add two numbers"
-    assert func["parameters"]["type"] == "object"
-    assert "a" in func["parameters"]["properties"]
-    assert "b" in func["parameters"]["properties"]
-
-
-@pytest.mark.asyncio
-async def test_to_chat_completions_tools_multiple_tools():
-    tools = [
-        mcp.types.Tool(
-            name="add",
-            description="Add",
-            inputSchema={"type": "object", "properties": {}},
-        ),
-        mcp.types.Tool(
-            name="sqrt",
-            description="Square root",
-            inputSchema={
-                "type": "object",
-                "properties": {"a": {"type": "number"}},
-            },
-        ),
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.to_chat_completions_tools()
-    assert len(result) == 2
-    assert result[0]["function"]["name"] == "add"
-    assert result[1]["function"]["name"] == "sqrt"
-
-
-@pytest.mark.asyncio
-async def test_to_chat_completions_tools_empty_list():
-    calc = _make_calc()
-    with patch.object(
-        Client,
-        "list_tools",
-        new_callable=AsyncMock,
-        return_value=[],
-    ):
-        result = await calc.to_chat_completions_tools()
-    assert result == []
-
-
-@pytest.mark.asyncio
-async def test_to_chat_completions_tools_no_description():
-    tools = [
-        mcp.types.Tool(
-            name="noop",
-            inputSchema={"type": "object", "properties": {}},
-        )
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.to_chat_completions_tools()
-    assert "description" not in result[0]["function"]
-
-
-@pytest.mark.asyncio
-async def test_to_chat_completions_tools_preserves_input_schema():
+async def test_tools_definitions_lists_each_tool_in_order():
     schema = {
         "type": "object",
-        "properties": {
-            "a": {
-                "type": "number",
-                "description": "First operand",
-            },
-            "b": {
-                "type": "number",
-                "description": "Second operand",
-            },
-        },
+        "properties": {"a": {"type": "number"}, "b": {"type": "number"}},
         "required": ["a", "b"],
     }
     tools = [
         mcp.types.Tool(
-            name="add",
-            description="Add",
-            inputSchema=schema,
-        )
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.to_chat_completions_tools()
-    assert result[0]["function"]["parameters"] == schema
-
-
-# ---------------------------------------------------------------------------
-# to_responses_tools
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_to_responses_tools_converts_single_tool():
-    """A single MCP tool converts to the flat Responses schema."""
-    tools = [
-        mcp.types.Tool(
-            name="add",
-            description="Add two numbers",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "a": {"type": "number"},
-                    "b": {"type": "number"},
-                },
-                "required": ["a", "b"],
-            },
-        )
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.to_responses_tools()
-    assert len(result) == 1
-    assert result[0]["type"] == "function"
-    assert result[0]["name"] == "add"
-    assert result[0]["description"] == "Add two numbers"
-    assert result[0]["parameters"]["type"] == "object"
-    assert "function" not in result[0]
-
-
-@pytest.mark.asyncio
-async def test_to_responses_tools_multiple_tools():
-    """Every MCP tool is converted, in order."""
-    tools = [
-        mcp.types.Tool(
-            name="add",
-            description="Add",
-            inputSchema={"type": "object", "properties": {}},
+            name="add", description="Add two numbers", inputSchema=schema
         ),
         mcp.types.Tool(
             name="sqrt",
             description="Square root",
-            inputSchema={
-                "type": "object",
-                "properties": {"a": {"type": "number"}},
-            },
+            inputSchema={"type": "object", "properties": {}},
         ),
     ]
     calc = _make_calc(tools=tools)
-    result = await calc.to_responses_tools()
-    assert len(result) == 2
-    assert result[0]["name"] == "add"
+    result = await calc.tools_definitions()
+    assert result[0] == {
+        "name": "add",
+        "description": "Add two numbers",
+        "parameters": schema,
+    }
     assert result[1]["name"] == "sqrt"
 
 
 @pytest.mark.asyncio
-async def test_to_responses_tools_empty_list():
-    """An MCP server exposing no tools yields an empty list."""
+async def test_tools_definitions_empty_list():
     calc = _make_calc()
     with patch.object(
         Client,
@@ -427,13 +290,12 @@ async def test_to_responses_tools_empty_list():
         new_callable=AsyncMock,
         return_value=[],
     ):
-        result = await calc.to_responses_tools()
+        result = await calc.tools_definitions()
     assert result == []
 
 
 @pytest.mark.asyncio
-async def test_to_responses_tools_no_description():
-    """A tool without a description omits the description key."""
+async def test_tools_definitions_no_description():
     tools = [
         mcp.types.Tool(
             name="noop",
@@ -441,25 +303,8 @@ async def test_to_responses_tools_no_description():
         )
     ]
     calc = _make_calc(tools=tools)
-    result = await calc.to_responses_tools()
+    result = await calc.tools_definitions()
     assert "description" not in result[0]
-
-
-@pytest.mark.asyncio
-async def test_to_responses_tools_preserves_input_schema():
-    """The MCP inputSchema is passed through verbatim as parameters."""
-    schema = {
-        "type": "object",
-        "properties": {"a": {"type": "number", "description": "operand"}},
-        "required": ["a"],
-        "additionalProperties": False,
-    }
-    tools = [
-        mcp.types.Tool(name="sqrt", description="root", inputSchema=schema)
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.to_responses_tools()
-    assert result[0]["parameters"] == schema
 
 
 # ---------------------------------------------------------------------------

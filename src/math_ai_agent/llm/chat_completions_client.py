@@ -57,6 +57,34 @@ logger = logging.getLogger(__name__)
 class ChatCompletionsClient(LLMClient):
     """Async OpenAI client for the legacy Chat Completions API."""
 
+    @staticmethod
+    def format_tools(tools_definitions: list[dict]) -> list[dict]:
+        """Format MCP tools definitions for the Chat Completions API.
+
+        Args:
+            tools_definitions: Each tool's ``name``, optional
+                ``description``, and ``parameters``.
+
+        Returns:
+            A list of dicts in the Chat Completions tool format::
+
+                [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "add",
+                            "description": "Add two numbers",
+                            "parameters": { ... }
+                        }
+                    },
+                    ...
+                ]
+        """
+        return [
+            {"type": "function", "function": definition}
+            for definition in tools_definitions
+        ]
+
     async def create_response(
         self, history: list[dict[str, Any]]
     ) -> ChatCompletion:

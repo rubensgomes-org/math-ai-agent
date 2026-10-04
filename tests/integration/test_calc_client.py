@@ -79,8 +79,8 @@ async def run_client() -> None:
     calcmcp_client = CalcMCPClient()
 
     async with calcmcp_client:
-        openai_tools = await calcmcp_client.to_chat_completions_tools()
-        print(f"Tools:\n{json.dumps(openai_tools, indent=2)}")
+        tools_definitions = await calcmcp_client.tools_definitions()
+        print(f"Tools:\n{json.dumps(tools_definitions, indent=2)}")
         tools = await calcmcp_client.list_tools()
         print(f"Connected — {len(tools)} tools available:\n")
         for tool in tools:

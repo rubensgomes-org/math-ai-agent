@@ -222,6 +222,32 @@ def test_init_none_api_key_raises():
 
 
 # ---------------------------------------------------------------------------
+# format_tools
+# ---------------------------------------------------------------------------
+
+
+_TOOLS_DEFINITIONS = [
+    {
+        "name": "add",
+        "description": "Add two numbers",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {"name": "noop", "parameters": {"type": "object", "properties": {}}},
+]
+
+
+def test_format_tools_flattens_each_definition():
+    """Each definition becomes a flat Responses function tool."""
+    assert ResponsesClient.format_tools(_TOOLS_DEFINITIONS) == [
+        {"type": "function", **definition} for definition in _TOOLS_DEFINITIONS
+    ]
+
+
+def test_format_tools_empty_list():
+    assert ResponsesClient.format_tools([]) == []
+
+
+# ---------------------------------------------------------------------------
 # create_response
 # ---------------------------------------------------------------------------
 

@@ -241,6 +241,33 @@ def test_init_none_api_key_raises():
 
 
 # ---------------------------------------------------------------------------
+# format_tools
+# ---------------------------------------------------------------------------
+
+
+_TOOLS_DEFINITIONS = [
+    {
+        "name": "add",
+        "description": "Add two numbers",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {"name": "noop", "parameters": {"type": "object", "properties": {}}},
+]
+
+
+def test_format_tools_nests_each_definition_under_function():
+    """Each definition becomes a nested Chat Completions function tool."""
+    assert ChatCompletionsClient.format_tools(_TOOLS_DEFINITIONS) == [
+        {"type": "function", "function": definition}
+        for definition in _TOOLS_DEFINITIONS
+    ]
+
+
+def test_format_tools_empty_list():
+    assert ChatCompletionsClient.format_tools([]) == []
+
+
+# ---------------------------------------------------------------------------
 # create_response — text response
 # ---------------------------------------------------------------------------
 
@@ -591,28 +618,23 @@ async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
 
 @pytest.fixture()
 def fake_calc():
-    """Fake MCP client exposing tools in both OpenAI formats."""
+    """Fake MCP client exposing the MCP tools definitions."""
     return SimpleNamespace(
-        to_chat_completions_tools=AsyncMock(return_value=_TOOLS),
-        to_responses_tools=AsyncMock(
-            return_value=[{"type": "function", "name": "add"}]
-        ),
+        tools_definitions=AsyncMock(return_value=_TOOLS_DEFINITIONS)
     )
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("api_style", "client_type", "tools_attr"),
-    [
-        ("chat", ChatCompletionsClient, "to_chat_completions_tools"),
-        ("responses", ResponsesClient, "to_responses_tools"),
-    ],
+    "client_type", [ChatCompletionsClient, ResponsesClient]
 )
 async def test_agent_create_selects_client_for_api_style(
-    app_config, fake_calc, api_style, client_type, tools_attr
+    app_config, fake_calc, client_type
 ):
     """Agent.create builds the LLM client matching llm.api_style."""
-    app_config.llm.api_style = api_style
+    app_config.llm.api_style = (
+        "responses" if client_type is ResponsesClient else "chat"
+    )
     with (
         patch.object(llm_module, "get_config", return_value=app_config),
         patch.object(llm_module, "get_api_key", return_value=_API_KEY),
@@ -620,7 +642,7 @@ async def test_agent_create_selects_client_for_api_style(
         agent = await Agent.create(fake_calc)
     llm = agent._llm  # pylint: disable=protected-access
     assert isinstance(llm, client_type)
-    assert llm.tools == await getattr(fake_calc, tools_attr)()
+    assert llm.tools == client_type.format_tools(_TOOLS_DEFINITIONS)
     assert llm.openai_client.timeout == app_config.llm.timeout_seconds
     assert llm.temperature == app_config.llm.temperature
 
