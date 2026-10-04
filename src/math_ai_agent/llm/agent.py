@@ -330,8 +330,9 @@ class Agent:
             match finish_reason:
                 case "stop":
                     logger.info(
-                        f"\n========= >>> LLM TASK COMPLETED <<< ============\n"
-                        f"response: %s", llm_msg.content
+                        "\n========= >>> LLM TASK COMPLETED <<< ============\n"
+                        "response: %s",
+                        llm_msg.content,
                     )
                     break
 
@@ -458,9 +459,10 @@ class Agent:
                         )
                     else:
                         logger.info(
-                            f"\n========= >>> LLM TASK COMPLETED <<< "
-                            f"=================\n"
-                            f"response: %s", response.output_text
+                            "\n========= >>> LLM TASK COMPLETED <<< "
+                            "=================\n"
+                            "response: %s",
+                            response.output_text,
                         )
                         break
 
