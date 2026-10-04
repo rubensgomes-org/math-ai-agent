@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [0.0.22] - 2026-10-04
+
+### Added
+
+### Changed
+
+### Fixed
+
 - Responses API debug log shows the response's own `tools` instead of
   overwriting them with the client's tool list.
 - LLM response debug logs no longer fail on values JSON cannot encode.
