@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `llm/client.py` split into `llm/llm_client.py` (`LLMClient`),
+  `llm/chat_completions_client.py`, `llm/responses_client.py` and
+  `llm/request_utils.py`.
+- Request helpers `_omit_if_none` and `_to_json` made public as
+  `omit_if_none` and `to_json`.
+
 ### Fixed
 
 ## [0.0.22] - 2026-10-04

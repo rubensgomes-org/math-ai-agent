@@ -44,7 +44,8 @@ dispatches to the agent loop matching the ``llm.api_style`` setting
 in ``config.yaml``.
 
 The LLM transports themselves live in
-:mod:`math_ai_agent.llm.client`; this module owns the system
+:mod:`math_ai_agent.llm.chat_completions_client` and
+:mod:`math_ai_agent.llm.responses_client`; this module owns the system
 prompt, the control flow, and the tool dispatch.
 """
 
@@ -62,7 +63,8 @@ from openai.types.responses import (
 )
 
 from math_ai_agent.config.config import get_api_key, get_config
-from math_ai_agent.llm.client import ChatCompletionsClient, ResponsesClient
+from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
+from math_ai_agent.llm.responses_client import ResponsesClient
 from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
 
 logger = logging.getLogger(__name__)

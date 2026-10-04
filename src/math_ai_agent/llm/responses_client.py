@@ -36,198 +36,27 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""LLM client wrappers around the OpenAI SDK.
 
-Provides two thin transports over ``AsyncOpenAI``, sharing the
-``LLMClient`` base that validates parameters and builds the
-underlying client:
+"""LLM client for the OpenAI Responses API (``POST /v1/responses``).
 
-* ``ResponsesClient`` -- uses the Responses API
-  (``POST /v1/responses``), the primary OpenAI API.
-* ``ChatCompletionsClient`` -- uses the legacy Chat Completions API
-  (``POST /v1/chat/completions``).
-
-These classes know only how to talk to the inference endpoint.  The
-system prompt, the multi-turn control flow, and the calculator MCP
+The system prompt, the multi-turn control flow, and the calculator MCP
 tool dispatch all live in :mod:`math_ai_agent.llm.agent`.
 """
 
-import json
 import logging
 from typing import Any, cast
 
-from openai import AsyncOpenAI, omit
-from openai.types.chat import ChatCompletion
+from openai import omit
 from openai.types.responses import Response
 
 from math_ai_agent.config.config import (
     DEFAULT_LLM_TIMEOUT_SECONDS,
     ReasoningSummary,
 )
+from math_ai_agent.llm.llm_client import LLMClient
+from math_ai_agent.llm.request_utils import omit_if_none, to_json
 
 logger = logging.getLogger(__name__)
-
-TOOLS_REMOVED_FROM_LOGS = "!!!TOOLS TOO LONG AND REMOVED FROM LOGS!!!"
-
-
-def _omit_if_none(value: Any) -> Any:
-    """Return ``omit``, which leaves the field out of the request, for
-    ``None``; otherwise return ``value``."""
-    return omit if value is None else value
-
-
-def _to_json(value: Any) -> str:
-    """Format a request payload as indented JSON for logging.
-
-    SDK objects, such as ``ChatCompletionMessage``, are converted with
-    ``model_dump``; anything else that JSON cannot encode uses ``str``.
-    """
-
-    def _encode(item: Any) -> Any:
-        if hasattr(item, "model_dump"):
-            return item.model_dump(exclude_none=True)
-        return str(item)
-
-    return json.dumps(value, indent=2, default=_encode)
-
-
-class LLMClient:
-    """Shared validation and ``AsyncOpenAI`` construction.
-
-    Each instance holds its own ``AsyncOpenAI`` client,
-    model name, and tool definitions.
-    """
-
-    def __init__(
-        self,
-        api_key: str,
-        base_url: str,
-        model: str,
-        tools: list[dict],
-        timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS,
-        temperature: float | None = None,
-    ) -> None:
-        """Create an ``AsyncOpenAI`` client for the LLM.
-
-        ``api_key``, ``base_url``, ``model`` and ``tools`` must be
-        non-empty.
-
-        Args:
-            api_key: API key for the OpenAI-compatible service.
-            base_url: Base URL of the inference endpoint.
-            model: Model identifier to use for completions.
-            tools: Tool definitions in the format matching this client.
-            timeout_seconds: Seconds to wait for each LLM response.
-            temperature: Sampling temperature, or ``None`` to use the
-                provider default.
-
-        Raises:
-            ValueError: If a required parameter is empty or ``None``.
-        """
-        if not api_key:
-            logger.error("api_key is empty or None")
-            raise ValueError("api_key must not be empty")
-        if not base_url:
-            logger.error("base_url is empty or None")
-            raise ValueError("base_url must not be empty")
-        if not model:
-            logger.error("model is empty or None")
-            raise ValueError("model must not be empty")
-        if not tools:
-            logger.error("tools is empty or None")
-            raise ValueError("tools must not be empty")
-        logger.info(
-            "Initializing LLM %s with base_url=%s, model=%s, tool_count=%d",
-            type(self).__name__,
-            base_url,
-            model,
-            len(tools),
-        )
-        self.openai_client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            timeout=timeout_seconds,
-        )
-        self.tools = tools
-        self.model = model
-        self.temperature = temperature
-
-    async def close(self) -> None:
-        """Close the underlying ``AsyncOpenAI`` HTTP connections."""
-        logger.debug("Closing LLM %s", type(self).__name__)
-        await self.openai_client.close()
-
-
-class ChatCompletionsClient(LLMClient):
-    """Async OpenAI client for the legacy Chat Completions API."""
-
-    async def create_response(
-        self, history: list[dict[str, Any]]
-    ) -> ChatCompletion:
-        """Send the conversation history and return the response.
-
-        Args:
-            history: Conversation history as a list of
-                role/content dicts.
-
-        Returns:
-            The ``ChatCompletion`` from the configured model.
-        """
-        logger.debug(
-            "LLM client sending %d message(s) to model %s\n"
-            "Messages:\n%s\n"
-            "Tools:\n%s",
-            len(history),
-            self.model,
-            _to_json(history),
-            _to_json(self.tools),
-        )
-        # ``create()`` is overloaded on ``stream``; because the
-        # arguments below are loosely typed, some type checkers widen
-        # the result to include the streaming variant.  This call never
-        # streams, so narrow it back to ``ChatCompletion``.
-        response = cast(
-            ChatCompletion,
-            await self.openai_client.chat.completions.create(
-                model=self.model,
-                messages=history,  # type: ignore[arg-type]
-                tools=self.tools,  # type: ignore[arg-type]
-                # See the note on ``store`` in ResponsesClient.  The
-                # Chat Completions default is already ``false``, but
-                # omitting the field is not reliably the same as
-                # sending it: OpenAI accounts carry a separate
-                # data-retention setting that can enable storage when
-                # the parameter is absent.  Sending it makes the
-                # intent explicit rather than dependent on how the
-                # account happens to be configured.
-                store=False,
-                temperature=_omit_if_none(self.temperature),
-            ),
-        )
-        logger.debug(
-            "LLM response:\n%s",
-            _to_json(response),
-        )
-        return response
-
-    @staticmethod
-    def report_usage(response: ChatCompletion) -> None:
-        """Log the token usage reported in ``response``.
-
-        Args:
-            response: The ``ChatCompletion`` returned by the model.
-        """
-        usage = response.usage
-        if usage is not None:
-            logger.info(
-                "Token usage in the current request:"
-                " prompt=%d completion=%d total=%d",
-                usage.prompt_tokens,
-                usage.completion_tokens,
-                usage.total_tokens,
-            )
-        else:
-            logger.warning("No token usage reported in the response.")
 
 
 class ResponsesClient(LLMClient):
@@ -305,8 +134,8 @@ class ResponsesClient(LLMClient):
             self.model,
             previous_response_id,
             instructions,
-            _to_json(history),
-            _to_json(self.tools),
+            to_json(history),
+            to_json(self.tools),
         )
         # See the note in ChatCompletionsClient.create_response: this
         # call never streams, so narrow it back to ``Response``.
@@ -336,12 +165,12 @@ class ResponsesClient(LLMClient):
                 store=self.stateful,
                 # ``omit`` leaves the field out of the request.
                 previous_response_id=previous_response_id or omit,
-                temperature=_omit_if_none(self.temperature),
+                temperature=omit_if_none(self.temperature),
             ),
         )
         logger.debug(
             "LLM response:\n%s",
-            _to_json(response),
+            to_json(response),
         )
         return response
 

@@ -59,7 +59,7 @@ from math_ai_agent.llm.agent import (
     LLMRequestFailedError,
     TokenLimitError,
 )
-from math_ai_agent.llm.client import ResponsesClient
+from math_ai_agent.llm.responses_client import ResponsesClient
 
 # ---------------------------------------------------------------------------
 # Helpers

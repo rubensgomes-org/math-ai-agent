@@ -18,7 +18,7 @@ payload.py                       llm/agent.py
 │  ──▷ [RuntimeError]  │
 └──────────────────────┘
 
-llm/client.py
+llm/llm_client.py, llm/chat_completions_client.py, llm/responses_client.py
                   ┌──────────────────────────────┐
                   │ LLMClient                    │
                   │  openai_client ◆── [AsyncOpenAI]

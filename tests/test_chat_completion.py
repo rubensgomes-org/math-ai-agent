@@ -59,11 +59,9 @@ from math_ai_agent.llm.agent import (
     ContentFilterError,
     TokenLimitError,
 )
-from math_ai_agent.llm.client import (
-    ChatCompletionsClient,
-    ResponsesClient,
-    _to_json,
-)
+from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
+from math_ai_agent.llm.request_utils import to_json
+from math_ai_agent.llm.responses_client import ResponsesClient
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -168,7 +166,7 @@ def test_to_json_dumps_sdk_objects_and_falls_back_to_str():
     """SDK objects use model_dump; other unencodable values use str."""
     message = ChatCompletionMessage(role="assistant", content="4 + 4 = 8")
     history = [{"role": "user", "content": "4+4?"}, message, date(2026, 9, 26)]
-    assert json.loads(_to_json(history)) == [
+    assert json.loads(to_json(history)) == [
         {"role": "user", "content": "4+4?"},
         {"role": "assistant", "content": "4 + 4 = 8"},
         "2026-09-26",
