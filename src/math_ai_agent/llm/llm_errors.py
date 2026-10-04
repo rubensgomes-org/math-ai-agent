@@ -36,24 +36,30 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""llm — LLM sub-package for math_ai_agent.
+"""Exceptions raised by the LLM agent."""
 
-Re-exports ``Agent`` and its exceptions so callers can use
-``from math_ai_agent.llm import Agent``.
-"""
 
-from math_ai_agent.llm.agent import Agent
-from math_ai_agent.llm.llm_errors import (
-    AgentBusyError,
-    ContentFilterError,
-    LLMRequestFailedError,
-    TokenLimitError,
-)
+class AgentBusyError(RuntimeError):
+    """Raised when the maximum number of prompts is already running."""
 
-__all__ = [
-    "Agent",
-    "AgentBusyError",
-    "ContentFilterError",
-    "LLMRequestFailedError",
-    "TokenLimitError",
-]
+
+class TokenLimitError(RuntimeError):
+    """Raised when the LLM stops because it reached its token limit."""
+
+
+class ContentFilterError(RuntimeError):
+    """Raised when the LLM provider blocks content for safety reasons."""
+
+
+class LLMRequestFailedError(RuntimeError):
+    """Raised when the LLM provider reports the response as failed."""
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        """Create the error.
+
+        Args:
+            message: Error description.
+            code: Provider error code, such as ``server_error``.
+        """
+        super().__init__(message)
+        self.code = code

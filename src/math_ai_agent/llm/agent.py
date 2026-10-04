@@ -65,9 +65,15 @@ from openai.types.responses import (
 
 from math_ai_agent.config.config import get_api_key, get_config
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
+from math_ai_agent.llm.llm_errors import (
+    AgentBusyError,
+    ContentFilterError,
+    LLMRequestFailedError,
+    TokenLimitError,
+)
 from math_ai_agent.llm.request_utils import to_json
 from math_ai_agent.llm.responses_client import ResponsesClient
-from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
+from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -136,43 +142,17 @@ def _tool_error(tool_name: str, message: str) -> str:
     return message
 
 
-class AgentBusyError(RuntimeError):
-    """Raised when the maximum number of prompts is already running."""
-
-
-class TokenLimitError(RuntimeError):
-    """Raised when the LLM stops because it reached its token limit."""
-
-
-class ContentFilterError(RuntimeError):
-    """Raised when the LLM provider blocks content for safety reasons."""
-
-
-class LLMRequestFailedError(RuntimeError):
-    """Raised when the LLM provider reports the response as failed."""
-
-    def __init__(self, message: str, code: str | None = None) -> None:
-        """Create the error.
-
-        Args:
-            message: Error description.
-            code: Provider error code, such as ``server_error``.
-        """
-        super().__init__(message)
-        self.code = code
-
-
 class Agent:
     """Runs prompts through the LLM and the calculator MCP server.
 
-    Holds one ``CalcMCPClientMgr`` and one LLM client, so they are
+    Holds one ``CalcMCPClient`` and one LLM client, so they are
     reused across prompts.  The caller owns the MCP connection and
     must keep it open while the agent is in use.
     """
 
     def __init__(
         self,
-        calc: CalcMCPClientMgr,
+        calc: CalcMCPClient,
         llm: ChatCompletionsClient | ResponsesClient,
         system_instructions: str,
         max_concurrent_prompts: int,
@@ -184,7 +164,7 @@ class Agent:
         self._prompt_slots = asyncio.Semaphore(max_concurrent_prompts)
 
     @classmethod
-    async def create(cls, calc: CalcMCPClientMgr) -> "Agent":
+    async def create(cls, calc: CalcMCPClient) -> "Agent":
         """Discover the MCP tools and build the configured LLM client.
 
         Args:
@@ -350,7 +330,8 @@ class Agent:
             match finish_reason:
                 case "stop":
                     logger.info(
-                        "=== >>> LLM TASK COMPLETED response: %s",
+                        "\n========= >>> LLM TASK COMPLETED <<< ============\n"
+                        "response: %s",
                         llm_msg.content,
                     )
                     break
@@ -478,7 +459,9 @@ class Agent:
                         )
                     else:
                         logger.info(
-                            "=== >>> LLM TASK COMPLETED response: %s",
+                            "\n========= >>> LLM TASK COMPLETED <<< "
+                            "=================\n"
+                            "response: %s",
                             response.output_text,
                         )
                         break
@@ -541,7 +524,7 @@ class Agent:
         logger.info(
             "\n======================================================\n"
             "========= >>> END AGENT LOOP <<< =====================\n"
-            "======================================================="
+            "======================================================"
         )
         if not display_reasoning:
             return response.output_text.strip()

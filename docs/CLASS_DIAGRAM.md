@@ -5,11 +5,11 @@
 payload.py                       llm/agent.py
 ┌──────────────────────┐         ┌──────────────────────────────────┐
 │ Payload              │         │ Agent                            │
-│  ──▷ [BaseModel]     │         │  _calc  ◆── CalcMCPClientMgr     │
+│  ──▷ [BaseModel]     │         │  _calc  ◆── CalcMCPClient        │
 │  text                │         │  _llm   ◆── ChatCompletionsClient│
 │  display_reasoning   │         │             | ResponsesClient    │
 └──────────────────────┘         │  _prompt_slots ◆── [Semaphore]   │
-                                 │  create() ···> AppConfig.llm     │
+llm/llm_errors.py                │  create() ···> AppConfig.llm     │
 ┌──────────────────────┐         │  run() raises AgentBusyError     │
 │ AgentBusyError       │         │    TokenLimitError               │
 │ TokenLimitError      │         │    ContentFilterError            │
@@ -34,26 +34,19 @@ llm/llm_client.py, llm/chat_completions_client.py, llm/responses_client.py
   Chat Completions API: March 2023  └─────────────────────────┘
                                      Responses API: March 2025
 
-mcp/calc_client_mgr.py                     mcp/calc_client.py
-┌───────────────────────────────────┐      ┌───────────────────────────────────┐
-│ CalcMCPClientMgr                  │      │ CalcMCPClient                     │
-│  _client ◆─ 0..1 CalcMCPClient    ┼────▶ │  ──▷ [fastmcp.Client]             │
-│  _client_factory (builds it)      │      │  auth ◆── [OAuth] (optional)      │
-│  _reconnect_lock ◆── [Lock]       │      │  __init__ ···> AppConfig          │
-│  call_tool() (reconnect+retry)    │      │            .server.calculator_mcp │
-│  tools_definitions()              │      │  tools_definitions()              │
-└───────────────────────────────────┘      └───────────────────────────────────┘
+mcp/calc_client.py
+┌───────────────────────────────────┐
+│ CalcMCPClient                     │
+│  ──▷ [fastmcp.Client]             │
+│  auth ◆── [OAuth] (optional)      │
+│  __init__ ···> AppConfig          │
+│            .server.calculator_mcp │
+│  tools_definitions()              │
+└───────────────────────────────────┘
 ```
 ## MCP Client Layers
 
 ```text
-mcp/calc_client_mgr.py
-┌───────────────────────────────────────────────┐
-│ CalcMCPClientMgr                              │
-│  _client ◆── 0..1 CalcMCPClient               │
-│    (replaced by a new client on reconnect)    │
-└───────────────────────┬───────────────────────┘
-                        ▼
 mcp/calc_client.py
 ┌───────────────────────────────────────────────┐
 │ CalcMCPClient                                 │

@@ -39,14 +39,12 @@
 """Calculator MCP client.
 
 Provides the ``CalcMCPClient`` class which extends ``fastmcp.Client``
-to connect to a remote calculator MCP server and convert its tools to
-the OpenAI function-calling formats.
+to connect to a remote calculator MCP server.
 """
 
 import logging
 import os
 from pathlib import Path
-from types import TracebackType
 
 import mcp.types
 from cryptography.fernet import Fernet
@@ -65,11 +63,7 @@ logger = logging.getLogger(__name__)
 
 
 def _create_token_store(token_dir: str) -> FileTreeStore:
-    """Create a JSON file store for OAuth tokens under ``token_dir``.
-
-    The sanitization strategies keep OAuth keys, which contain URL
-    characters, valid as file and directory names.
-    """
+    """Create a JSON file store for OAuth tokens under ``token_dir``."""
     directory = Path(token_dir).expanduser()
     logger.debug("creating token store: %s", directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -85,8 +79,6 @@ def _create_token_store(token_dir: str) -> FileTreeStore:
 class CalcMCPClient(Client):
     """Calculator FastMCP client extending ``fastmcp.Client``.
 
-    Builds the correct transport and auth from ``config.yaml``.
-
     Usage::
 
         async with CalcMCPClient() as calc:
@@ -94,14 +86,11 @@ class CalcMCPClient(Client):
     """
 
     def __init__(self) -> None:
-        """Initialize the calculator FastMCP client."""
-        logger.debug("Initializing FastMCP client")
         mcp_config = get_config().server.calculator_mcp
         url = mcp_config.url
-        logger.debug("Creating MCP client with MCP server URL: %s", url)
+        logger.debug("MCP server URL: %s", url)
 
         if mcp_config.is_oauth:
-            logger.info("OAuth enabled, using OAuthClient")
             token_dir = mcp_config.token_dir
             logger.debug(
                 "Creating encrypted file storage for OAuth tokens: %s",
@@ -121,22 +110,6 @@ class CalcMCPClient(Client):
             super().__init__(url, auth=oauth)
         else:
             super().__init__(url)
-
-    async def __aenter__(self) -> "CalcMCPClient":
-        """Connect to the FastMCP server."""
-        logger.debug("Connecting to Calculator FastMCP server")
-        await super().__aenter__()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        """Disconnect from the MCP server."""
-        logger.debug("Closing CalcMCPClient")
-        await super().__aexit__(exc_type, exc, tb)
 
     async def tools_definitions(self) -> list[dict]:
         """Return each MCP tool's name, description, and parameters."""

@@ -1,65 +1,32 @@
-# =============================================================================
-# LLM Configuration
-# =============================================================================
 llm:
-    # OpenAI API the LLM client uses:
     #   "responses" -> POST /v1/responses         (primary OpenAI API)
     #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
-    # Both work against NVIDIA nemotron models
     api_style: "responses"
 
     # ---------- >>> NVIDIA Open LLM <<< ----------------------------
-    # Base NVIDIA LLM models URL
 #    model_base_url: "https://integrate.api.nvidia.com/v1"
-    # Nemotron frontier NVIDIA models for agentic workflows, coding and tool use
-    # see list of NVIDIA models: https://integrate.api.nvidia.com/v1/models
-    # https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard
 #    model: "nvidia/nemotron-3-ultra-550b-a55b"
-    # Name of the environment variable holding the API key.
-    # Get a key from https://build.nvidia.com (keys start with "nvapi-").
 #    api_key_env: "NVIDIA_API_KEY"
-    # Sampling temperature between 0 and 2. Higher values like 0.8 make the
-    # output more random, while lower values like 0.2 make it more focused
-    # and deterministic.
 #    temperature: 0.2
-    #temperature: 1.4
-    #temperature: 1.7
-    #temperature: 1.9
 
     # ---------- >>> OpenAI Paid LLM <<< ----------------------------
-    # Base OpenAI LLM models URL
     model_base_url: "https://api.openai.com/v1"
-    # `gpt-6-luna` is an OpenAI low cost LLM:
-    #   Input tokens:  $0.10 per 1 million input tokens
-    #   Output tokens: $0.50 per 1 million output tokens
     model: "gpt-6-luna"
-    # Name of the environment variable holding the API key.
-    # Get a key from https://platform.openai.com/api-keys
     api_key_env: "OPENAI_API_KEY"
-    # Sampling temperature between 0 and 2. Higher values like 0.8 make the
-    # output more random, while lower values like 0.2 make it more focused
-    # and deterministic.
     # temperature is an unsupported parameter for `gpt-6-luna`
     #temperature:
 
-    # System prompt sent to the **stateless** LLM on every request.
     # Seconds to wait for each LLM response before failing.
     timeout_seconds: 120
     # Concurrent prompts ≈ prompts per second × average seconds per prompt.
-    # Prompts processed at once; more get HTTP 503 until one finishes.
-    # Each prompt makes several LLM calls, so the LLM provider's rate limits
-    # and latency are the main bottleneck. Raise it if your provider's rate
-    # limits can handle more parallel work.
     max_concurrent_prompts: 10
-    # Responses API only: store responses on the server and send only new
-    # items each turn via previous_response_id. NVIDIA and OpenRouter do
-    # not support it; OpenAI does and keeps stored responses for 30 days.
+    # Responses API: store responses on the server and send only new
+    # items each turn via previous_response_id.
     stateful: false
-
-    # Responses API only: reasoning summary detail ("auto", "concise", or
-    # "detailed"). Remove it for models without reasoning, which may reject
-    # the request.
+    # Responses API: reasoning summary detail ("auto", "concise", or
+    # "detailed").
     reasoning_summary: "detailed"
+
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.
@@ -71,9 +38,6 @@ llm:
         Your answer is shown in a plain text box that cannot render
         formatting.
 
-# =============================================================================
-# Calculator MCP Server Configuration
-# =============================================================================
 server:
     calculator_mcp:
         # URL of the "local" Calculator MCP Server End-Point
@@ -84,17 +48,11 @@ server:
         # callback_port not needed when OAuth is not used.
         callback_port: 0
 
-# =============================================================================
-# Web App Configuration (used by the math-ai-agent command)
-# =============================================================================
 web:
     host: "127.0.0.1"
     # ensure below port does not conflict with locally running MCP server.
     port: 9090
 
-# =============================================================================
-# Logging Configuration
-# =============================================================================
 logging:
     version: 1
     disable_existing_loggers: false

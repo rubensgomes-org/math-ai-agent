@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `CalcMCPClientMgr` removed; `CalcMCPClient` is used directly and no
+  longer reconnects when the MCP session drops.
+- `fastmcp` dependency replaced by `fastmcp-slim[client]`.
+- LLM agent exceptions moved from `llm/agent.py` to `llm/llm_errors.py`.
+
 ### Fixed
 
 ## [0.0.27] - 2026-10-04
