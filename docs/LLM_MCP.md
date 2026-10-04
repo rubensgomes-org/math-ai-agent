@@ -23,7 +23,7 @@ a tool call. In both agent loops, `tool_call.name` (Responses API) or
 tools.
 
 `Agent._call_tool()` then sends the tool name and arguments to the MCP
-server over the shared `CalcMCPClientMgr`.
+server over the shared `CalcMCPClient`.
 
 ## The Calculator MCP Server
 

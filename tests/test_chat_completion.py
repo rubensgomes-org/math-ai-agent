@@ -53,13 +53,13 @@ from openai.types.chat import ChatCompletionMessage
 
 from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
 from math_ai_agent.llm import agent as llm_module
-from math_ai_agent.llm.agent import (
-    Agent,
+from math_ai_agent.llm.agent import Agent
+from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
+from math_ai_agent.llm.llm_errors import (
     AgentBusyError,
     ContentFilterError,
     TokenLimitError,
 )
-from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.llm.request_utils import to_json
 from math_ai_agent.llm.responses_client import ResponsesClient
 

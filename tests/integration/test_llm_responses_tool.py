@@ -58,12 +58,12 @@ import sys
 from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm.agent import Agent
 from math_ai_agent.llm.responses_client import ResponsesClient
-from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
+from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 logger = logging.getLogger(__name__)
 
 
-async def show_tools(calc: CalcMCPClientMgr) -> None:
+async def show_tools(calc: CalcMCPClient) -> None:
     """Log the Responses-format tool definitions from the MCP server."""
     tools = ResponsesClient.format_tools(await calc.tools_definitions())
     logger.info("Discovered %d MCP tool(s) in Responses format", len(tools))
@@ -75,7 +75,7 @@ async def main() -> None:
     """Entry point for the Responses API integration test."""
     logger.info("Running integration test for ResponsesClient")
     get_config().llm.api_style = "responses"
-    async with CalcMCPClientMgr() as calc:
+    async with CalcMCPClient() as calc:
         await show_tools(calc)
         agent = await Agent.create(calc)
         user_input = (

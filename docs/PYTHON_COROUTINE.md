@@ -111,7 +111,7 @@ users.
   for concurrent use, and OpenAI recommends creating one client and reusing
   it.
 - **The MCP client supports concurrent calls.** The `fastmcp` `Client`
-  (v4.0.10) documents concurrent use and guards its session state with
+  (v4.0.11) documents concurrent use and guards its session state with
   locks. Each tool call is a separate protocol request with its own ID,
   sent as its own HTTP request.
 
@@ -139,8 +139,6 @@ These limits come from outside the shared clients:
 
 The app guards against them with:
 
-- **Reconnect.** If the MCP connection drops during a tool call,
-  `CalcMCPClientMgr` reconnects once and retries the call.
 - **`llm.max_concurrent_prompts`.** Prompts beyond this limit get HTTP
   503 at once instead of piling up.
 - **`llm.timeout_seconds`.** Each LLM call fails after this many seconds.

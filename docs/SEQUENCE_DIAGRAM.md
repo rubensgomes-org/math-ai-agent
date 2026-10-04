@@ -12,7 +12,6 @@ directory.
 sequenceDiagram
     participant App as app.py
     participant Agent
-    participant Conn as CalcMCPClientMgr
     participant Client as CalcMCPClient
     participant Transport as StreamableHttpTransport
     participant Session as mcp.ClientSession
@@ -20,11 +19,9 @@ sequenceDiagram
     participant Server as Calculator MCP server
 
     Note over App,Server: Startup (FastAPI lifespan)
-    App->>Conn: create
-    App->>Conn: __aenter__()
-    Conn->>Client: create (client_factory)
+    App->>Client: create
     Client->>Transport: create (from the configured URL)
-    Conn->>Client: __aenter__()
+    App->>Client: __aenter__()
     Client->>Transport: connect_session()
     Transport->>Http: create (new connection pool)
     Transport->>Session: create
@@ -32,8 +29,7 @@ sequenceDiagram
     Session->>Http: POST initialize
     Http->>Server: HTTP request
     App->>Agent: Agent.create(calc)
-    Agent->>Conn: tools_definitions()
-    Conn->>Client: same method
+    Agent->>Client: tools_definitions()
     Client->>Session: list_tools()
     Session->>Http: POST tools/list
     Http->>Server: HTTP request (pooled connection)
@@ -42,8 +38,7 @@ sequenceDiagram
     Note over App,Server: Each prompt (POST /prompt/)
     App->>Agent: run(prompt)
     loop Each tool call the LLM requests
-        Agent->>Conn: call_tool(name, args)
-        Conn->>Client: call_tool(name, args)
+        Agent->>Client: call_tool(name, args)
         Client->>Session: call_tool(name, args)
         Session->>Http: POST tools/call
         Http->>Server: HTTP request (pooled connection)
@@ -51,13 +46,6 @@ sequenceDiagram
     end
     Agent-->>App: answer
 
-    Note over App,Server: Session lost during call_tool()
-    Conn->>Client: __aexit__() closes session and connection pool
-    Conn->>Client: create a new client and __aenter__()
-    Note right of Client: New Transport, Session, and httpx2.AsyncClient,<br/>as at startup
-    Conn->>Client: call_tool(name, args), retried once
-
     Note over App,Server: Shutdown (FastAPI lifespan)
-    App->>Conn: __aexit__()
-    Conn->>Client: __aexit__() closes session and connection pool
+    App->>Client: __aexit__() closes session and connection pool
 ```

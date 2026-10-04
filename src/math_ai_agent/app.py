@@ -42,12 +42,6 @@ Launches a FastAPI web server with the following endpoints:
     - `GET /` returns the index.html page.
     - `GET /health` returns 200 with plain text `OK`.
     - `POST /prompt/` submits user prompt and returns AI response.
-
-From the project root folder run::
-
-    poetry run math-ai-agent
-
-Pass ``--version`` to print the installed version and exit.
 """
 
 import argparse
@@ -71,7 +65,7 @@ from math_ai_agent.llm import (
     LLMRequestFailedError,
     TokenLimitError,
 )
-from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
+from math_ai_agent.mcp.calc_client import CalcMCPClient
 from math_ai_agent.payload import Payload
 
 configure_logging()
@@ -85,8 +79,8 @@ _DISTRIBUTION_NAME = "math-ai-agent"
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     """Connect to the MCP server and build the agent for the app's lifetime."""
     logger.info("Starting application...")
-    async with CalcMCPClientMgr() as calc:
-        logger.info("Established the Calculator MCP connection")
+    async with CalcMCPClient() as calc:
+        logger.info("Established Calculator MCP connection")
         agent = await Agent.create(calc)
         fastapi_app.state.agent = agent
         try:
@@ -127,6 +121,7 @@ async def root() -> FileResponse:
 @app.get("/health", response_class=PlainTextResponse)
 async def health() -> str:
     """Report that the server is up."""
+    logger.debug("health check")
     return "OK"
 
 
@@ -148,11 +143,10 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
             the LLM reaches its token limit or the request fails, or
             500 for any other error.
     """
-    logger.debug("Received prompt: %s", payload.text)
     prompt_text = payload.text.strip()
-    logger.debug("Calling LLM with user prompt: %s", prompt_text)
     agent: Agent = request.app.state.agent
     try:
+        logger.debug("Calling LLM with user prompt: %s", prompt_text)
         output = await agent.run(prompt_text, payload.display_reasoning)
     except AgentBusyError as error:
         raise HTTPException(
