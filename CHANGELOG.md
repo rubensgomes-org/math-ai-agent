@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-<<<<<<< HEAD
+### Changed
+
+### Fixed
+
+## [0.0.25] - 2026-10-04
+
+### Added
+
 - Agent loop logs the conversation history sent each turn.
 
 ### Changed
@@ -20,10 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved to DEBUG.
 - `config/config_local.yaml` uses OpenAI `gpt-6-luna`.
 
-=======
-### Changed
-
->>>>>>> 1456087 (docs: release 0.0.24 changelog section)
 ### Fixed
 
 ## [0.0.24] - 2026-10-04
