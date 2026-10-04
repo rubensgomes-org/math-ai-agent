@@ -206,7 +206,7 @@ class ChatCompletionsClient(LLMClient):
         )
         logger.debug(
             "LLM response:\n%s",
-            json.dumps(response.model_dump(), indent=2),
+            _to_json(response),
         )
         return response
 
@@ -306,8 +306,7 @@ class ResponsesClient(LLMClient):
             previous_response_id,
             instructions,
             _to_json(history),
-            TOOLS_REMOVED_FROM_LOGS,
-            # _to_json(self.tools),
+            _to_json(self.tools),
         )
         # See the note in ChatCompletionsClient.create_response: this
         # call never streams, so narrow it back to ``Response``.
@@ -342,10 +341,7 @@ class ResponsesClient(LLMClient):
         )
         logger.debug(
             "LLM response:\n%s",
-            json.dumps(
-                {**response.model_dump(), "tools": TOOLS_REMOVED_FROM_LOGS},
-                indent=2,
-            ),
+            _to_json(response),
         )
         return response
 

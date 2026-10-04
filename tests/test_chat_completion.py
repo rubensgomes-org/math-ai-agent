@@ -128,7 +128,7 @@ def _make_chat_completion(
             for tc in tc_list
         ]
 
-    response.model_dump = lambda: {
+    response.model_dump = lambda **_: {
         "choices": [
             {
                 "finish_reason": finish_reason,

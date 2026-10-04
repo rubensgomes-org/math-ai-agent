@@ -163,7 +163,7 @@ def _make_response(
         incomplete_details=incomplete_details,
         error=error,
     )
-    response.model_dump = lambda: {
+    response.model_dump = lambda **_: {
         "status": status,
         "output": [item.model_dump() for item in output],
     }
