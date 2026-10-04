@@ -52,7 +52,7 @@ from math_ai_agent.config.config import (
     get_api_key,
     get_config,
 )
-from math_ai_agent.llm.client import ChatCompletionsClient
+from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 logger = logging.getLogger(__name__)

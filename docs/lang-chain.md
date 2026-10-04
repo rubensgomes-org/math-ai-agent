@@ -12,8 +12,8 @@ how `create_agent()` would be called in this project.
 Yes, it works, and `config.yaml` needs no changes.
 
 `https://integrate.api.nvidia.com/v1` is OpenAI-compatible — which is exactly
-why `src/math_ai_agent/llm/client.py` can point `AsyncOpenAI` at it. LangChain's
-`ChatOpenAI` accepts the same `base_url` + `api_key`, so
+why `src/math_ai_agent/llm/llm_client.py` can point `AsyncOpenAI` at it.
+LangChain's `ChatOpenAI` accepts the same `base_url` + `api_key`, so
 `nvidia/nemotron-3-super-120b-a12b` is reachable as a LangChain chat model.
 
 ## Choosing the Model Class
