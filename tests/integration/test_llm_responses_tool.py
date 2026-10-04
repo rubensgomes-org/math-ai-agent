@@ -57,6 +57,7 @@ import sys
 
 from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm.agent import Agent
+from math_ai_agent.llm.responses_client import ResponsesClient
 from math_ai_agent.mcp.calc_client_mgr import CalcMCPClientMgr
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ logger = logging.getLogger(__name__)
 
 async def show_tools(calc: CalcMCPClientMgr) -> None:
     """Log the Responses-format tool definitions from the MCP server."""
-    tools = await calc.to_responses_tools()
+    tools = ResponsesClient.format_tools(await calc.tools_definitions())
     logger.info("Discovered %d MCP tool(s) in Responses format", len(tools))
     for tool in tools:
         logger.info("  - %s: %s", tool["name"], tool.get("description"))

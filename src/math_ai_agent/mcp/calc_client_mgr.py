@@ -101,15 +101,10 @@ class CalcMCPClientMgr:
         logger.debug("Disconnecting from the calculator MCP server")
         await self._close()
 
-    async def to_chat_completions_tools(self) -> list[dict]:
-        """List the calculator tools in the Chat Completions API format."""
-        logger.debug("Listing calculator tools in the Chat Completions format")
-        return await self._connected_client().to_chat_completions_tools()
-
-    async def to_responses_tools(self) -> list[dict]:
-        """List the calculator tools in the Responses API format."""
-        logger.debug("Listing calculator tools in the Responses API format")
-        return await self._connected_client().to_responses_tools()
+    async def tools_definitions(self) -> list[dict]:
+        """List the calculator tools' names, descriptions, and parameters."""
+        logger.debug("Listing calculator tools definitions")
+        return await self._connected_client().tools_definitions()
 
     async def call_tool(self, tool_name: str, args: dict) -> CallToolResult:
         """Run a calculator tool on the MCP server and return its result.

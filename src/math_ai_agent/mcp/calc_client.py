@@ -138,8 +138,9 @@ class CalcMCPClient(Client):
         logger.debug("Closing CalcMCPClient")
         await super().__aexit__(exc_type, exc, tb)
 
-    async def _function_definitions(self) -> list[dict]:
+    async def tools_definitions(self) -> list[dict]:
         """Return each MCP tool's name, description, and parameters."""
+        logger.info("Calling Calculator MCP Server to list tools")
         mcp_tools: list[mcp.types.Tool] = await self.list_tools()
         logger.debug("mcp_tools: %s", mcp_tools)
         functions: list[dict] = []
@@ -150,63 +151,3 @@ class CalcMCPClient(Client):
             function["parameters"] = tool.input_schema
             functions.append(function)
         return functions
-
-    async def to_chat_completions_tools(self) -> list[dict]:
-        """Convert MCP tools to OpenAI function-calling schema.
-
-        Calls ``list_tools()`` to retrieve the tool list and
-        converts each tool to the OpenAI function-calling format.
-
-        Returns:
-            A list of dicts in the OpenAI tool format::
-
-                [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "add",
-                            "description": "Add two numbers",
-                            "parameters": { ... }
-                        }
-                    },
-                    ...
-                ]
-        """
-        logger.info(
-            "Calling Calculator MCP Server to list tools for the Chat "
-            "Completion API."
-        )
-        return [
-            {"type": "function", "function": function}
-            for function in await self._function_definitions()
-        ]
-
-    async def to_responses_tools(self) -> list[dict]:
-        """Convert MCP tools to Responses API function schema.
-
-        Calls ``list_tools()`` to retrieve the tool list and
-        converts each tool to the Responses API function-calling
-        format.  Unlike the Chat Completions format produced by
-        ``to_chat_completions_tools()``, the Responses API uses a flat,
-        internally-tagged shape with no nested ``function`` object.
-
-        Returns:
-            A list of dicts in the Responses tool format::
-
-                [
-                    {
-                        "type": "function",
-                        "name": "add",
-                        "description": "Add two numbers",
-                        "parameters": { ... }
-                    },
-                    ...
-                ]
-        """
-        logger.info(
-            "Calling Calculator MCP Server to list tools for the Responses API"
-        )
-        return [
-            {"type": "function", **function}
-            for function in await self._function_definitions()
-        ]

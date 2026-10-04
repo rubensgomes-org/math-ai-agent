@@ -95,6 +95,35 @@ class ResponsesClient(LLMClient):
         self.stateful = stateful
         self.reasoning_summary = reasoning_summary
 
+    @staticmethod
+    def format_tools(tools_definitions: list[dict]) -> list[dict]:
+        """Format MCP tools definitions for the Responses API.
+
+        Unlike the Chat Completions format, the Responses API uses a
+        flat shape with no nested ``function`` object.
+
+        Args:
+            tools_definitions: Each tool's ``name``, optional
+                ``description``, and ``parameters``.
+
+        Returns:
+            A list of dicts in the Responses tool format::
+
+                [
+                    {
+                        "type": "function",
+                        "name": "add",
+                        "description": "Add two numbers",
+                        "parameters": { ... }
+                    },
+                    ...
+                ]
+        """
+        return [
+            {"type": "function", **definition}
+            for definition in tools_definitions
+        ]
+
     async def create_response(
         self,
         history: list[Any],
@@ -125,15 +154,17 @@ class ResponsesClient(LLMClient):
         # - tools: you should always pass when you want the LLM to consider
         #     these tools on the new request.
         logger.info(
-            "LLM client sending %d input item(s) to model %s"
-            " (previous_response_id=%s)\n"
-            "System instructions:\n%s\n"
-            "Input items:\n%s\n"
-            "Tools:\n%s",
-            len(history),
+            "LLM client sending request with:\n"
+            "model %s\n"
+            "temperature %s\n"
+            "instructions %s\n"
+            "previous_response_id %s\n"
+            "input items %s\n"
+            "tools %s",
             self.model,
-            previous_response_id,
+            self.temperature,
             instructions,
+            previous_response_id,
             to_json(history),
             to_json(self.tools),
         )

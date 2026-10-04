@@ -27,6 +27,7 @@ llm/llm_client.py, llm/chat_completions_client.py, llm/responses_client.py
                    ┌─────────────┴──────────────┐
       ┌────────────┴────────────┐   ┌───────────┴─────────────┐
       │ ChatCompletionsClient   │   │ ResponsesClient         │
+      │  format_tools()         │   │  format_tools()         │
       │  create_response()      │   │  stateful               │
       │  → /v1/chat/completions │   │  create_response()      │
       └─────────────────────────┘   │  → /v1/responses        │
@@ -40,8 +41,7 @@ mcp/calc_client_mgr.py                     mcp/calc_client.py
 │  _client_factory (builds it)      │      │  auth ◆── [OAuth] (optional)      │
 │  _reconnect_lock ◆── [Lock]       │      │  __init__ ···> AppConfig          │
 │  call_tool() (reconnect+retry)    │      │            .server.calculator_mcp │
-│  to_chat_completions_tools()      │      │  to_chat_completions_tools()      │
-│  to_responses_tools()             │      │  to_responses_tools()             │
+│  tools_definitions()              │      │  tools_definitions()              │
 └───────────────────────────────────┘      └───────────────────────────────────┘
 ```
 ## MCP Client Layers

@@ -31,9 +31,8 @@ built into the project.
 This is the real design decision.
 
 `create_agent()` expects LangChain `BaseTool` objects, not OpenAI JSON tool
-schemas. So the schemas produced by
-`CalcMCPClient.to_chat_completions_tools()` and
-`to_responses_tools()` are not directly usable.
+schemas. So the schemas produced by each LLM client's `format_tools()`
+are not directly usable.
 
 Two options:
 

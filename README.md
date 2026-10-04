@@ -132,7 +132,13 @@ curl -v http://localhost:9090/health
 # Expect: OK
 ```
 
-3. To stop, go to the running terminal and press `Ctrl+C`
+3. To stop, go to the running terminal and press `Ctrl+C`. If `Ctrl+C` does
+   not work you can try the following:
+
+```bash
+PID="$(pgrep -f math-ai-agent)"
+kill -15 "${PID}"
+```
 
 ## License
 
