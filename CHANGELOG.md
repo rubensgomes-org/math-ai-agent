@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Agent` reads `max_concurrent_prompts` from config instead of its
   constructor.
 - `ResponsesClient` parameter `timeout_seconds` renamed to `timeout`.
+- `Agent.close()` replaced by async context manager support.
 
 ### Fixed
 
@@ -40,7 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_create_token_store()` made a static method of `CalcMCPClient`.
 - `websockets` dependency added.
 - `config/config_local.yaml` uses NVIDIA `nemotron-3-ultra-550b-a55b`.
-- `Agent.close()` replaced by async context manager support.
 
 ### Fixed
 
