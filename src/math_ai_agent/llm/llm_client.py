@@ -36,16 +36,20 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Base LLM client around the OpenAI SDK.
+"""Abstract LLM client around the OpenAI SDK.
 
-``LLMClient`` validates parameters and builds the underlying
-``AsyncOpenAI`` client.  Its transports live in
+``LLMClient`` validates parameters, builds the underlying
+``AsyncOpenAI`` client, and declares the methods each API client
+implements.  Its concrete clients live in
 :mod:`math_ai_agent.llm.chat_completions_client` and
 :mod:`math_ai_agent.llm.responses_client`.
 """
 
 import logging
+from abc import ABC, abstractmethod
+from typing import Any
 
+import mcp_types
 from openai import AsyncOpenAI
 
 from math_ai_agent.config.config import (
@@ -56,12 +60,13 @@ from math_ai_agent.config.config import (
 logger = logging.getLogger(__name__)
 
 
-class LLMClient:
+class LLMClient[ResponseT](ABC):
     """Shared validation and ``AsyncOpenAI`` construction.
 
     Each instance holds its own ``AsyncOpenAI`` client, model name,
     tool definitions, and the ``llm.system_instructions`` from
-    ``config.yaml``.
+    ``config.yaml``.  ``ResponseT`` is the SDK response type returned
+    by the concrete client's API.
     """
 
     def __init__(
@@ -123,3 +128,35 @@ class LLMClient:
         """Close the underlying ``AsyncOpenAI`` HTTP connections."""
         logger.debug("Closing LLM %s", type(self).__name__)
         await self.openai_client.close()
+
+    @staticmethod
+    @abstractmethod
+    def format_tools(tools: list[mcp_types.Tool]) -> list[dict]:
+        """Format MCP tools definitions for this client's API.
+
+        Args:
+            tools: The MCP server's tools.
+
+        Returns:
+            A list of tool dicts in this client's API format.
+        """
+
+    @abstractmethod
+    async def create_response(self, history: list[Any]) -> ResponseT:
+        """Send the conversation history and return the response.
+
+        Args:
+            history: Conversation history in this client's API format.
+
+        Returns:
+            The response from the configured model.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def report_usage(response: ResponseT) -> None:
+        """Log the token usage reported in ``response``.
+
+        Args:
+            response: The response returned by the model.
+        """

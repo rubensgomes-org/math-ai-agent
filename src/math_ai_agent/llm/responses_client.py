@@ -64,7 +64,7 @@ from math_ai_agent.llm.utils import (
 logger = logging.getLogger(__name__)
 
 
-class ResponsesClient(LLMClient):
+class ResponsesClient(LLMClient[Response]):
     """Async OpenAI client for the Responses API.
 
     The system prompt is supplied by the caller and sent as the

@@ -59,7 +59,7 @@ from math_ai_agent.llm.utils import (
 logger = logging.getLogger(__name__)
 
 
-class ChatCompletionsClient(LLMClient):
+class ChatCompletionsClient(LLMClient[ChatCompletion]):
     """Async OpenAI client for the legacy Chat Completions API."""
 
     @staticmethod
@@ -89,9 +89,7 @@ class ChatCompletionsClient(LLMClient):
             for tool in tools
         ]
 
-    async def create_response(
-        self, history: list[dict[str, Any]]
-    ) -> ChatCompletion:
+    async def create_response(self, history: list[Any]) -> ChatCompletion:
         """Send the conversation history and return the response.
 
         Args:

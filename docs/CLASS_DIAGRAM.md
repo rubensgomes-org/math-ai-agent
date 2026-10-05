@@ -20,9 +20,12 @@ llm/llm_errors.py                │  create() ···> AppConfig.llm     │
 
 llm/llm_client.py, llm/chat_completions_client.py, llm/responses_client.py
                   ┌──────────────────────────────┐
-                  │ LLMClient                    │
+                  │ «abstract» LLMClient         │
                   │  openai_client ◆── [AsyncOpenAI]
                   │  model, tools, temperature   │
+                  │  format_tools()              │
+                  │  create_response()           │
+                  │  report_usage()              │
                   └──────────────▲───────────────┘
                    ┌─────────────┴──────────────┐
       ┌────────────┴────────────┐   ┌───────────┴─────────────┐
