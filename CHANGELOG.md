@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.30] - 2026-10-05
+
+### Added
+
+### Changed
+
 - `LLMClient` is now an abstract base class declaring `format_tools()`,
   `create_response()`, and `report_usage()`.
 
