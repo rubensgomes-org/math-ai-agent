@@ -466,11 +466,13 @@ def agent_env(app_config):
 
 
 @pytest.mark.asyncio
-async def test_agent_close_closes_llm_client(agent_env):
+async def test_agent_context_manager_closes_llm_client(agent_env):
     with patch.object(
         ChatCompletionsClient, "close", new_callable=AsyncMock
     ) as mock_close:
-        await agent_env.agent.close()
+        async with agent_env.agent as agent:
+            assert agent is agent_env.agent
+            mock_close.assert_not_awaited()
     mock_close.assert_awaited_once()
 
 

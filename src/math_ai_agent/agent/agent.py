@@ -52,7 +52,8 @@ prompt, the control flow, and the tool dispatch.
 import asyncio
 import json
 import logging
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 
 import mcp_types
 from fastmcp.exceptions import ToolError
@@ -164,6 +165,17 @@ class Agent:
         self._system_instructions = system_instructions
         self._prompt_slots = asyncio.Semaphore(max_concurrent_prompts)
 
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await self._llm.close()
+
     @classmethod
     async def create(cls, calc: CalcMCPClient) -> "Agent":
         """Discover the MCP tools and build the configured LLM client.
@@ -215,10 +227,6 @@ class Agent:
             llm_config.system_instructions,
             llm_config.max_concurrent_prompts,
         )
-
-    async def close(self) -> None:
-        """Close the LLM client.  The MCP connection is the caller's."""
-        await self._llm.close()
 
     async def run(
         self, user_prompt: str, display_reasoning: bool = True
@@ -433,10 +441,15 @@ class Agent:
         logger.info(
             "\n======================================================\n"
             "========= >>> START AGENT LOOP <<< ===================\n"
-            "======================================================="
+            "======================================================"
         )
+        loop_turn: int = 0
         while True:
-            logger.info("history: %s", to_json(history))
+            loop_turn += 1
+            logger.info(
+                "\n========= >>> START LOOP TURN <<< ===================\n"
+                "loop turn: %s\nhistory: %s",
+                loop_turn, to_json(history))
             response: Response = await llm.create_response(
                 history, self._system_instructions, previous_response_id
             )

@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_create_token_store()` made a static method of `CalcMCPClient`.
 - `websockets` dependency added.
 - `config/config_local.yaml` uses NVIDIA `nemotron-3-ultra-550b-a55b`.
+- `Agent.close()` replaced by async context manager support.
 
 ### Fixed
 

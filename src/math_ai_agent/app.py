@@ -81,13 +81,10 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting application...")
     async with CalcMCPClient() as calc:
         logger.info("Established Calculator MCP connection")
-        agent = await Agent.create(calc)
-        fastapi_app.state.agent = agent
-        try:
+        async with await Agent.create(calc) as agent:
+            fastapi_app.state.agent = agent
             yield
-        finally:
             logger.warning("Shutting down the application...")
-            await agent.close()
 
 
 # -------------------------------------------------

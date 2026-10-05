@@ -360,7 +360,8 @@ async def test_lifespan_builds_agent_and_closes_clients():
     calc.__aenter__ = AsyncMock(return_value=calc)
     calc.__aexit__ = AsyncMock(return_value=None)
     agent = MagicMock()
-    agent.close = AsyncMock()
+    agent.__aenter__ = AsyncMock(return_value=agent)
+    agent.__aexit__ = AsyncMock(return_value=None)
     fastapi_app = MagicMock()
     with (
         patch.object(app_module, "CalcMCPClient", return_value=calc),
@@ -371,7 +372,7 @@ async def test_lifespan_builds_agent_and_closes_clients():
         async with lifespan(fastapi_app):
             assert fastapi_app.state.agent is agent
             calc.__aexit__.assert_not_awaited()
-            agent.close.assert_not_awaited()
+            agent.__aexit__.assert_not_awaited()
     mock_create.assert_awaited_once_with(calc)
-    agent.close.assert_awaited_once()
+    agent.__aexit__.assert_awaited_once()
     calc.__aexit__.assert_awaited_once()
