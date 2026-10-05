@@ -7,7 +7,7 @@ directory.
 
 # LLM Tool Calls and the MCP Server
 
-This page explains what a tool call in `llm/agent.py` refers to, which MCP
+This page explains what a tool call in `agent/agent.py` refers to, which MCP
 server runs it, how the two LLM APIs differ, what each request contains,
 and the math inside the LLM.
 

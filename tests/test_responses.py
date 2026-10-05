@@ -42,6 +42,7 @@ import copy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import mcp_types
 import pytest
 from fastmcp.exceptions import ToolError
 from openai import omit
@@ -53,7 +54,7 @@ from openai.types.responses import (
 )
 from openai.types.responses.response_reasoning_item import Content, Summary
 
-from math_ai_agent.llm.agent import Agent
+from math_ai_agent.agent.agent import Agent
 from math_ai_agent.llm.llm_errors import (
     ContentFilterError,
     LLMRequestFailedError,
@@ -226,6 +227,17 @@ def test_init_none_api_key_raises():
 # ---------------------------------------------------------------------------
 
 
+_MCP_TOOLS = [
+    mcp_types.Tool(
+        name="add",
+        description="Add two numbers",
+        input_schema={"type": "object", "properties": {}},
+    ),
+    mcp_types.Tool(
+        name="noop", input_schema={"type": "object", "properties": {}}
+    ),
+]
+
 _TOOLS_DEFINITIONS = [
     {
         "name": "add",
@@ -238,7 +250,7 @@ _TOOLS_DEFINITIONS = [
 
 def test_format_tools_flattens_each_definition():
     """Each definition becomes a flat Responses function tool."""
-    assert ResponsesClient.format_tools(_TOOLS_DEFINITIONS) == [
+    assert ResponsesClient.format_tools(_MCP_TOOLS) == [
         {"type": "function", **definition} for definition in _TOOLS_DEFINITIONS
     ]
 

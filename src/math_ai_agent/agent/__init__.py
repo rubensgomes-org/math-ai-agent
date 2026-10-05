@@ -36,30 +36,8 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Helpers for building and logging LLM requests."""
+"""agent — LLM agent sub-package for math_ai_agent."""
 
-import json
-from typing import Any
+from math_ai_agent.agent.agent import Agent
 
-from openai import omit
-
-
-def omit_if_none(value: Any) -> Any:
-    """Return ``omit``, which leaves the field out of the request, for
-    ``None``; otherwise return ``value``."""
-    return omit if value is None else value
-
-
-def to_json(value: Any) -> str:
-    """Format a request payload as indented JSON for logging.
-
-    SDK objects, such as ``ChatCompletionMessage``, are converted with
-    ``model_dump``; anything else that JSON cannot encode uses ``str``.
-    """
-
-    def _encode(item: Any) -> Any:
-        if hasattr(item, "model_dump"):
-            return item.model_dump(exclude_none=True)
-        return str(item)
-
-    return json.dumps(value, indent=2, ensure_ascii=False, default=_encode)
+__all__ = ["Agent"]

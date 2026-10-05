@@ -129,7 +129,7 @@ poetry add "langchain@^1.4.0" "langchain-openai@^1.6.0"
 ## Things to Watch
 
 1. **The existing error handling disappears.** The `match finish_reason` and
-   `match response.status` blocks in `llm/agent.py` — token limit,
+   `match response.status` blocks in `agent/agent.py` — token limit,
    `content_filter`, unknown status — are hand-written. `create_agent()` just
    returns messages. To keep those `RuntimeError`s, inspect
    `response_metadata["finish_reason"]` on the final `AIMessage`, or write
@@ -144,5 +144,5 @@ poetry add "langchain@^1.4.0" "langchain-openai@^1.6.0"
 ## Possible Next Step
 
 Implement this as a third `llm.api_style` value (e.g. `langchain`) dispatched
-from `Agent.create()` in `llm/agent.py`, so all three paths stay switchable from
+from `Agent.create()` in `agent/agent.py`, so all three paths stay switchable from
 `config.yaml`.

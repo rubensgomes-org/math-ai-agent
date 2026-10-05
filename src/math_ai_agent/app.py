@@ -57,9 +57,9 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, PlainTextResponse
 from openai import APIConnectionError, APIStatusError
 
+from math_ai_agent.agent import Agent
 from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm import (
-    Agent,
     AgentBusyError,
     ContentFilterError,
     LLMRequestFailedError,

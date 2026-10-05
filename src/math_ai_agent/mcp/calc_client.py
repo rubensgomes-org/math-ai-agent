@@ -46,7 +46,6 @@ import logging
 import os
 from pathlib import Path
 
-import mcp.types
 from cryptography.fernet import Fernet
 from fastmcp import Client
 from fastmcp.client.auth import OAuth
@@ -62,20 +61,6 @@ from math_ai_agent.config.config import get_config
 logger = logging.getLogger(__name__)
 
 
-def _create_token_store(token_dir: str) -> FileTreeStore:
-    """Create a JSON file store for OAuth tokens under ``token_dir``."""
-    directory = Path(token_dir).expanduser()
-    logger.debug("creating token store: %s", directory)
-    directory.mkdir(parents=True, exist_ok=True)
-    return FileTreeStore(
-        data_directory=directory,
-        key_sanitization_strategy=FileTreeV1KeySanitizationStrategy(directory),
-        collection_sanitization_strategy=(
-            FileTreeV1CollectionSanitizationStrategy(directory)
-        ),
-    )
-
-
 class CalcMCPClient(Client):
     """Calculator FastMCP client extending ``fastmcp.Client``.
 
@@ -84,6 +69,22 @@ class CalcMCPClient(Client):
         async with CalcMCPClient() as calc:
             result = await calc.call_tool("add", {"a": 1, "b": 2})
     """
+
+    @staticmethod
+    def _create_token_store(token_dir: str) -> FileTreeStore:
+        """Create a JSON file store for OAuth tokens under ``token_dir``."""
+        directory = Path(token_dir).expanduser()
+        logger.debug("creating token store: %s", directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        return FileTreeStore(
+            data_directory=directory,
+            key_sanitization_strategy=FileTreeV1KeySanitizationStrategy(
+                directory
+            ),
+            collection_sanitization_strategy=(
+                FileTreeV1CollectionSanitizationStrategy(directory)
+            ),
+        )
 
     def __init__(self) -> None:
         mcp_config = get_config().server.calculator_mcp
@@ -97,7 +98,7 @@ class CalcMCPClient(Client):
                 token_dir,
             )
             encrypted_storage = FernetEncryptionWrapper(
-                key_value=_create_token_store(token_dir),
+                key_value=self._create_token_store(token_dir),
                 fernet=Fernet(os.environ["OAUTH_STORAGE_ENCRYPTION_KEY"]),
             )
             oauth = OAuth(
@@ -110,17 +111,3 @@ class CalcMCPClient(Client):
             super().__init__(url, auth=oauth)
         else:
             super().__init__(url)
-
-    async def tools_definitions(self) -> list[dict]:
-        """Return each MCP tool's name, description, and parameters."""
-        logger.info("Calling Calculator MCP Server to list tools")
-        mcp_tools: list[mcp.types.Tool] = await self.list_tools()
-        logger.debug("mcp_tools: %s", mcp_tools)
-        functions: list[dict] = []
-        for tool in mcp_tools:
-            function: dict = {"name": tool.name}
-            if tool.description:
-                function["description"] = tool.description
-            function["parameters"] = tool.input_schema
-            functions.append(function)
-        return functions

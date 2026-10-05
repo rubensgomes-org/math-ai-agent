@@ -44,7 +44,6 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-import mcp.types
 import pytest
 from cryptography.fernet import Fernet
 from fastmcp import Client
@@ -136,7 +135,8 @@ def test_init_oauth_missing_env_raises(monkeypatch, app_config, tmp_path):
 
 def test_create_token_store_expands_home_and_creates_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
-    calc_client._create_token_store("~/tokens")
+    # pylint: disable-next=protected-access
+    CalcMCPClient._create_token_store("~/tokens")
     assert (tmp_path / "tokens").is_dir()
 
 
@@ -161,64 +161,6 @@ async def test_call_tool_with_empty_arguments():
 
     assert result == "ok"
     calc.call_tool.assert_awaited_once_with("noop", {})
-
-
-# ---------------------------------------------------------------------------
-# tools_definitions
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_tools_definitions_lists_each_tool_in_order():
-    schema = {
-        "type": "object",
-        "properties": {"a": {"type": "number"}, "b": {"type": "number"}},
-        "required": ["a", "b"],
-    }
-    tools = [
-        mcp.types.Tool(
-            name="add", description="Add two numbers", inputSchema=schema
-        ),
-        mcp.types.Tool(
-            name="sqrt",
-            description="Square root",
-            inputSchema={"type": "object", "properties": {}},
-        ),
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.tools_definitions()
-    assert result[0] == {
-        "name": "add",
-        "description": "Add two numbers",
-        "parameters": schema,
-    }
-    assert result[1]["name"] == "sqrt"
-
-
-@pytest.mark.asyncio
-async def test_tools_definitions_empty_list():
-    calc = _make_calc()
-    with patch.object(
-        Client,
-        "list_tools",
-        new_callable=AsyncMock,
-        return_value=[],
-    ):
-        result = await calc.tools_definitions()
-    assert result == []
-
-
-@pytest.mark.asyncio
-async def test_tools_definitions_no_description():
-    tools = [
-        mcp.types.Tool(
-            name="noop",
-            inputSchema={"type": "object", "properties": {}},
-        )
-    ]
-    calc = _make_calc(tools=tools)
-    result = await calc.tools_definitions()
-    assert "description" not in result[0]
 
 
 # ---------------------------------------------------------------------------

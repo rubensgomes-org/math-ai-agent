@@ -2,7 +2,7 @@
 
 ```text
 
-payload.py                       llm/agent.py
+payload.py                       agent/agent.py
 ┌──────────────────────┐         ┌──────────────────────────────────┐
 │ Payload              │         │ Agent                            │
 │  ──▷ [BaseModel]     │         │  _calc  ◆── CalcMCPClient        │

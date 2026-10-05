@@ -46,7 +46,6 @@ connectivity.  Run standalone with::
 """
 
 import asyncio
-import json
 import logging
 
 from math_ai_agent.mcp.calc_client import CalcMCPClient
@@ -79,8 +78,6 @@ async def run_client() -> None:
     calcmcp_client = CalcMCPClient()
 
     async with calcmcp_client:
-        tools_definitions = await calcmcp_client.tools_definitions()
-        print(f"Tools:\n{json.dumps(tools_definitions, indent=2)}")
         tools = await calcmcp_client.list_tools()
         print(f"Connected — {len(tools)} tools available:\n")
         for tool in tools:

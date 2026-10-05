@@ -40,16 +40,21 @@
 (``POST /v1/chat/completions``).
 
 The system prompt, the multi-turn control flow, and the calculator MCP
-tool dispatch all live in :mod:`math_ai_agent.llm.agent`.
+tool dispatch all live in :mod:`math_ai_agent.agent.agent`.
 """
 
 import logging
 from typing import Any, cast
 
+import mcp_types
 from openai.types.chat import ChatCompletion
 
 from math_ai_agent.llm.llm_client import LLMClient
-from math_ai_agent.llm.request_utils import omit_if_none, to_json
+from math_ai_agent.llm.utils import (
+    function_definition,
+    omit_if_none,
+    to_json,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,12 +63,11 @@ class ChatCompletionsClient(LLMClient):
     """Async OpenAI client for the legacy Chat Completions API."""
 
     @staticmethod
-    def format_tools(tools_definitions: list[dict]) -> list[dict]:
+    def format_tools(tools: list[mcp_types.Tool]) -> list[dict]:
         """Format MCP tools definitions for the Chat Completions API.
 
         Args:
-            tools_definitions: Each tool's ``name``, optional
-                ``description``, and ``parameters``.
+            tools: The MCP server's tools.
 
         Returns:
             A list of dicts in the Chat Completions tool format::
@@ -81,8 +85,8 @@ class ChatCompletionsClient(LLMClient):
                 ]
         """
         return [
-            {"type": "function", "function": definition}
-            for definition in tools_definitions
+            {"type": "function", "function": function_definition(tool)}
+            for tool in tools
         ]
 
     async def create_response(

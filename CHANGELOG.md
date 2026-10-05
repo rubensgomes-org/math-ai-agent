@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer reconnects when the MCP session drops.
 - `fastmcp` dependency replaced by `fastmcp-slim[client]`.
 - LLM agent exceptions moved from `llm/agent.py` to `llm/llm_errors.py`.
+- `Agent` moved from `llm/agent.py` to `agent/agent.py`; no longer
+  exported by `math_ai_agent.llm`.
+- `llm/request_utils.py` renamed to `llm/utils.py`.
+- `format_tools()` on both LLM clients takes `mcp_types.Tool` objects;
+  `CalcMCPClient.tools_definitions()` removed.
+- `_create_token_store()` made a static method of `CalcMCPClient`.
+- `websockets` dependency added.
+- `config/config_local.yaml` uses NVIDIA `nemotron-3-ultra-550b-a55b`.
 
 ### Fixed
 

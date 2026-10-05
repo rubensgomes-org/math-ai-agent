@@ -4,15 +4,15 @@ llm:
     api_style: "responses"
 
     # ---------- >>> NVIDIA Open LLM <<< ----------------------------
-#    model_base_url: "https://integrate.api.nvidia.com/v1"
-#    model: "nvidia/nemotron-3-ultra-550b-a55b"
-#    api_key_env: "NVIDIA_API_KEY"
-#    temperature: 0.2
+    model_base_url: "https://integrate.api.nvidia.com/v1"
+    model: "nvidia/nemotron-3-ultra-550b-a55b"
+    api_key_env: "NVIDIA_API_KEY"
+    temperature: 0.2
 
     # ---------- >>> OpenAI Paid LLM <<< ----------------------------
-    model_base_url: "https://api.openai.com/v1"
-    model: "gpt-6-luna"
-    api_key_env: "OPENAI_API_KEY"
+#    model_base_url: "https://api.openai.com/v1"
+#    model: "gpt-6-luna"
+#    api_key_env: "OPENAI_API_KEY"
     # temperature is an unsupported parameter for `gpt-6-luna`
     #temperature:
 

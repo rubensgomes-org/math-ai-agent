@@ -46,22 +46,23 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import mcp_types
 import pytest
 from fastmcp.exceptions import ToolError
 from openai import omit
 from openai.types.chat import ChatCompletionMessage
 
+from math_ai_agent.agent import agent as llm_module
+from math_ai_agent.agent.agent import Agent
 from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
-from math_ai_agent.llm import agent as llm_module
-from math_ai_agent.llm.agent import Agent
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.llm.llm_errors import (
     AgentBusyError,
     ContentFilterError,
     TokenLimitError,
 )
-from math_ai_agent.llm.request_utils import to_json
 from math_ai_agent.llm.responses_client import ResponsesClient
+from math_ai_agent.llm.utils import to_json
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -245,6 +246,17 @@ def test_init_none_api_key_raises():
 # ---------------------------------------------------------------------------
 
 
+_MCP_TOOLS = [
+    mcp_types.Tool(
+        name="add",
+        description="Add two numbers",
+        input_schema={"type": "object", "properties": {}},
+    ),
+    mcp_types.Tool(
+        name="noop", input_schema={"type": "object", "properties": {}}
+    ),
+]
+
 _TOOLS_DEFINITIONS = [
     {
         "name": "add",
@@ -257,7 +269,7 @@ _TOOLS_DEFINITIONS = [
 
 def test_format_tools_nests_each_definition_under_function():
     """Each definition becomes a nested Chat Completions function tool."""
-    assert ChatCompletionsClient.format_tools(_TOOLS_DEFINITIONS) == [
+    assert ChatCompletionsClient.format_tools(_MCP_TOOLS) == [
         {"type": "function", "function": definition}
         for definition in _TOOLS_DEFINITIONS
     ]
@@ -619,9 +631,7 @@ async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
 @pytest.fixture()
 def fake_calc():
     """Fake MCP client exposing the MCP tools definitions."""
-    return SimpleNamespace(
-        tools_definitions=AsyncMock(return_value=_TOOLS_DEFINITIONS)
-    )
+    return SimpleNamespace(list_tools=AsyncMock(return_value=_MCP_TOOLS))
 
 
 @pytest.mark.asyncio
@@ -642,7 +652,7 @@ async def test_agent_create_selects_client_for_api_style(
         agent = await Agent.create(fake_calc)
     llm = agent._llm  # pylint: disable=protected-access
     assert isinstance(llm, client_type)
-    assert llm.tools == client_type.format_tools(_TOOLS_DEFINITIONS)
+    assert llm.tools == client_type.format_tools(_MCP_TOOLS)
     assert llm.openai_client.timeout == app_config.llm.timeout_seconds
     assert llm.temperature == app_config.llm.temperature
 

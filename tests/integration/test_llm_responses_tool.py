@@ -38,7 +38,7 @@
 
 """Integration test for LLM tool calling via the Responses API.
 
-Drives the real ``Agent`` from ``math_ai_agent.llm.agent`` against
+Drives the real ``Agent`` from ``math_ai_agent.agent.agent`` against
 the configured LLM endpoint and the calculator MCP server, so the loop
 under test is the same code the FastAPI app runs.  Reads the math
 prompt from the command line, or interactively when no argument is
@@ -55,8 +55,8 @@ import asyncio
 import logging
 import sys
 
+from math_ai_agent.agent.agent import Agent
 from math_ai_agent.config.config import configure_logging, get_config
-from math_ai_agent.llm.agent import Agent
 from math_ai_agent.llm.responses_client import ResponsesClient
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 
@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 
 async def show_tools(calc: CalcMCPClient) -> None:
     """Log the Responses-format tool definitions from the MCP server."""
-    tools = ResponsesClient.format_tools(await calc.tools_definitions())
+    tools = ResponsesClient.format_tools(await calc.list_tools())
     logger.info("Discovered %d MCP tool(s) in Responses format", len(tools))
     for tool in tools:
         logger.info("  - %s: %s", tool["name"], tool.get("description"))

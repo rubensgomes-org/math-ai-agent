@@ -54,6 +54,7 @@ import json
 import logging
 from typing import Any
 
+import mcp_types
 from fastmcp.exceptions import ToolError
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.responses import (
@@ -71,8 +72,8 @@ from math_ai_agent.llm.llm_errors import (
     LLMRequestFailedError,
     TokenLimitError,
 )
-from math_ai_agent.llm.request_utils import to_json
 from math_ai_agent.llm.responses_client import ResponsesClient
+from math_ai_agent.llm.utils import to_json
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 logger = logging.getLogger(__name__)
@@ -186,14 +187,14 @@ class Agent:
             llm_config.model,
             llm_config.temperature,
         )
-        tools_definitions = await calc.tools_definitions()
+        tools: list[mcp_types.Tool] = await calc.list_tools()
         llm: ChatCompletionsClient | ResponsesClient
         if llm_config.api_style == "responses":
             llm = ResponsesClient(
                 get_api_key(),
                 llm_config.model_base_url,
                 llm_config.model,
-                ResponsesClient.format_tools(tools_definitions),
+                ResponsesClient.format_tools(tools),
                 llm_config.timeout_seconds,
                 llm_config.temperature,
                 llm_config.stateful,
@@ -204,7 +205,7 @@ class Agent:
                 get_api_key(),
                 llm_config.model_base_url,
                 llm_config.model,
-                ChatCompletionsClient.format_tools(tools_definitions),
+                ChatCompletionsClient.format_tools(tools),
                 llm_config.timeout_seconds,
                 llm_config.temperature,
             )
