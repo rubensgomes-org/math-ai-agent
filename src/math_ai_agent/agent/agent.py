@@ -58,13 +58,14 @@ from typing import Any, Self
 import mcp_types
 from fastmcp.exceptions import ToolError
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
-from openai.types.responses import (
-    Response,
-    ResponseFunctionToolCall,
-    ResponseOutputItem,
-    ResponseReasoningItem,
-)
+from openai.types.responses import Response, ResponseFunctionToolCall
 
+from math_ai_agent.agent.utils import (
+    format_answer,
+    next_turn_input,
+    reasoning_texts,
+    tool_error,
+)
 from math_ai_agent.config.config import get_api_key, get_config
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.llm.llm_errors import (
@@ -79,70 +80,6 @@ from math_ai_agent.mcp.calc_client import CalcMCPClient
 
 logger = logging.getLogger(__name__)
 
-_EMPTY_SECTION = "(none)"
-
-
-def _reasoning_texts(response: Response) -> list[str]:
-    """Return the reasoning text in a response's reasoning items.
-
-    An item's ``summary`` is used only when it has no ``content``: some
-    providers repeat the content in the summary, and others, such as
-    OpenAI, return only the summary.
-    """
-    return [
-        part.text
-        for item in response.output
-        if isinstance(item, ResponseReasoningItem)
-        for part in item.content or item.summary
-    ]
-
-
-def _next_turn_input(
-    stateful: bool,
-    history: list[Any],
-    response_outputs: list[ResponseOutputItem],
-    tool_outputs: list[Any],
-) -> list[Any]:
-    """Return the input items for the next turn.
-
-    Stateful turns send only the tool outputs and continue the stored
-    response.  Stateless turns replay the whole conversation,
-    including reasoning items, so the model keeps its context.
-    """
-    if stateful:
-        logger.debug("LLM model is operating in stateful mode")
-        return tool_outputs
-    logger.debug("LLM model is operating in stateless mode.")
-    output_items = [
-        item.model_dump(exclude_none=True) for item in response_outputs
-    ]
-    return [*history, *output_items, *tool_outputs]
-
-
-def _format_answer(reasoning: list[str], final_response: str) -> str:
-    """Format the answer as reasoning and final response sections.
-
-    Surrounding whitespace is stripped from each text, so sections are
-    separated by exactly one blank line and turns by a line break.  Each
-    section shows ``(none)`` when the LLM returned no text for it.
-    """
-    sections = {
-        "reasoning": "\n".join(
-            text.strip() for text in reasoning if text.strip()
-        ),
-        "final response": final_response.strip(),
-    }
-    return "\n\n".join(
-        f"{heading}:\n{text or _EMPTY_SECTION}"
-        for heading, text in sections.items()
-    )
-
-
-def _tool_error(tool_name: str, message: str) -> str:
-    """Log a failed tool call and return the error text for the LLM."""
-    logger.warning("Calculator MCP tool %s failed: %s", tool_name, message)
-    return message
-
 
 class Agent:
     """Runs prompts through the LLM and the calculator MCP server.
@@ -156,14 +93,17 @@ class Agent:
         self,
         calc: CalcMCPClient,
         llm: ChatCompletionsClient | ResponsesClient,
-        system_instructions: str,
-        max_concurrent_prompts: int,
     ) -> None:
-        """Create an agent from an open MCP connection and an LLM client."""
+        """Create an agent from an open MCP connection and an LLM client.
+
+        Allows ``llm.max_concurrent_prompts`` from ``config.yaml``
+        prompts to run at once.
+        """
         self._calc = calc
         self._llm = llm
-        self._system_instructions = system_instructions
-        self._prompt_slots = asyncio.Semaphore(max_concurrent_prompts)
+        self._prompt_slots = asyncio.Semaphore(
+            get_config().llm.max_concurrent_prompts
+        )
 
     async def __aenter__(self) -> Self:
         return self
@@ -221,12 +161,7 @@ class Agent:
                 llm_config.timeout_seconds,
                 llm_config.temperature,
             )
-        return cls(
-            calc,
-            llm,
-            llm_config.system_instructions,
-            llm_config.max_concurrent_prompts,
-        )
+        return cls(calc, llm)
 
     async def run(
         self, user_prompt: str, display_reasoning: bool = True
@@ -272,13 +207,13 @@ class Agent:
         try:
             args = json.loads(arguments)
         except json.JSONDecodeError as error:
-            return _tool_error(
+            return tool_error(
                 tool_name,
                 f"Error calling tool '{tool_name}': invalid JSON arguments:"
                 f" {error}",
             )
         if not isinstance(args, dict):
-            return _tool_error(
+            return tool_error(
                 tool_name,
                 f"Error calling tool '{tool_name}': arguments must be a JSON"
                 " object",
@@ -287,7 +222,7 @@ class Agent:
         try:
             result = await self._calc.call_tool(tool_name, args)
         except ToolError as error:
-            return _tool_error(tool_name, str(error))
+            return tool_error(tool_name, str(error))
         logger.debug(
             "Calculator MCP tool %s result:\n%s",
             tool_name,
@@ -320,7 +255,7 @@ class Agent:
         """
         logger.debug("Starting AI LLM agent loop (chat completions)")
         history: list[Any] = [
-            {"role": "system", "content": self._system_instructions}
+            {"role": "system", "content": llm.system_instructions}
         ]
         history.append({"role": "user", "content": user_prompt})
         logger.debug("Sending user prompt: %s", user_prompt)
@@ -449,16 +384,18 @@ class Agent:
             logger.info(
                 "\n========= >>> START LOOP TURN <<< ===================\n"
                 "loop turn: %s\nhistory: %s",
-                loop_turn, to_json(history))
+                loop_turn,
+                to_json(history),
+            )
             response: Response = await llm.create_response(
-                history, self._system_instructions, previous_response_id
+                history, previous_response_id
             )
             logger.debug("LLM response status: %s", response.status)
             llm.report_usage(response)
 
             match response.status:
                 case "completed":
-                    reasoning.extend(_reasoning_texts(response))
+                    reasoning.extend(reasoning_texts(response))
 
                     # check if the LLM is asking us to run any tool
                     tool_calls = [
@@ -493,7 +430,7 @@ class Agent:
                                 "output": result,
                             }
                         )
-                    history = _next_turn_input(
+                    history = next_turn_input(
                         llm.stateful, history, response.output, tool_outputs
                     )
                     previous_response_id = response.id if llm.stateful else None
@@ -542,4 +479,4 @@ class Agent:
         )
         if not display_reasoning:
             return response.output_text.strip()
-        return _format_answer(reasoning, response.output_text)
+        return format_answer(reasoning, response.output_text)

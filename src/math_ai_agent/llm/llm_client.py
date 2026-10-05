@@ -48,7 +48,10 @@ import logging
 
 from openai import AsyncOpenAI
 
-from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
+from math_ai_agent.config.config import (
+    DEFAULT_LLM_TIMEOUT_SECONDS,
+    get_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +59,9 @@ logger = logging.getLogger(__name__)
 class LLMClient:
     """Shared validation and ``AsyncOpenAI`` construction.
 
-    Each instance holds its own ``AsyncOpenAI`` client,
-    model name, and tool definitions.
+    Each instance holds its own ``AsyncOpenAI`` client, model name,
+    tool definitions, and the ``llm.system_instructions`` from
+    ``config.yaml``.
     """
 
     def __init__(
@@ -113,6 +117,7 @@ class LLMClient:
         self.tools = tools
         self.model = model
         self.temperature = temperature
+        self.system_instructions = get_config().llm.system_instructions
 
     async def close(self) -> None:
         """Close the underlying ``AsyncOpenAI`` HTTP connections."""

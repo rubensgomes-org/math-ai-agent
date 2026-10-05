@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `agent/utils.py` with the agent loop helpers from `agent/agent.py`.
+
 ### Changed
+
+- `system_instructions` moved from `Agent` to `LLMClient`, read from
+  config; `ResponsesClient.create_response()` no longer takes
+  `instructions`.
+- `Agent` reads `max_concurrent_prompts` from config instead of its
+  constructor.
+- `ResponsesClient` parameter `timeout_seconds` renamed to `timeout`.
 
 ### Fixed
 

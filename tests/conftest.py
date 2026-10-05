@@ -38,9 +38,13 @@
 
 """Shared pytest fixtures."""
 
+from unittest.mock import patch
+
 import pytest
 
+from math_ai_agent.agent import agent
 from math_ai_agent.config.config import AppConfig
+from math_ai_agent.llm import llm_client
 
 
 @pytest.fixture()
@@ -70,3 +74,13 @@ def app_config() -> AppConfig:
             },
         }
     )
+
+
+@pytest.fixture(autouse=True)
+def _patch_config(app_config):
+    """Serve the shared test ``AppConfig`` to the agent and LLM clients."""
+    with (
+        patch.object(agent, "get_config", return_value=app_config),
+        patch.object(llm_client, "get_config", return_value=app_config),
+    ):
+        yield

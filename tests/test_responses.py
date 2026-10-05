@@ -274,7 +274,7 @@ async def test_create_response_returns_response():
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
     history = [{"role": "user", "content": "4+4?"}]
-    result = await client.create_response(history, _INSTRUCTIONS)
+    result = await client.create_response(history)
 
     assert result is fake_response
     assert result.output_text == "The answer is 8"
@@ -290,7 +290,7 @@ async def test_create_response_sends_expected_arguments():
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
     history = [{"role": "user", "content": "4+4?"}]
-    await client.create_response(history, _INSTRUCTIONS)
+    await client.create_response(history)
 
     mock_create.assert_awaited_once_with(
         model=_MODEL,
@@ -317,7 +317,7 @@ async def test_create_response_stateful_sends_previous_response_id():
         "call_id": "c",
         "output": "8",
     }
-    await client.create_response([tool_output], _INSTRUCTIONS, "resp-1")
+    await client.create_response([tool_output], "resp-1")
 
     mock_create.assert_awaited_once_with(
         model=_MODEL,
@@ -340,9 +340,7 @@ async def test_create_response_sends_reasoning_summary():
     mock_create = AsyncMock(return_value=_make_response())
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
-    await client.create_response(
-        [{"role": "user", "content": "4+4?"}], _INSTRUCTIONS
-    )
+    await client.create_response([{"role": "user", "content": "4+4?"}])
 
     assert mock_create.await_args.kwargs["reasoning"] == {"summary": "detailed"}
 
@@ -357,9 +355,7 @@ async def test_create_response_sends_temperature(temperature):
     mock_create = AsyncMock(return_value=_make_response())
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
-    await client.create_response(
-        [{"role": "user", "content": "4+4?"}], _INSTRUCTIONS
-    )
+    await client.create_response([{"role": "user", "content": "4+4?"}])
 
     assert mock_create.await_args.kwargs["temperature"] == temperature
 
@@ -373,9 +369,7 @@ async def test_create_response_with_function_call():
     mock_create = AsyncMock(return_value=fake_response)
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
-    result = await client.create_response(
-        [{"role": "user", "content": "4+4?"}], _INSTRUCTIONS
-    )
+    result = await client.create_response([{"role": "user", "content": "4+4?"}])
 
     assert result.output_text == ""
     assert result.output[0].name == "add"
@@ -393,7 +387,6 @@ def agent_env(app_config, request):
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
     one entry per ``create_response`` call, whose ``histories`` list
     records a snapshot of the input items sent on each call, whose
-    ``instructions`` list records the system prompt sent on each call,
     whose ``previous_response_ids`` list records the response ID
     continued on each call, and whose ``call_tool`` mock records every
     dispatched calculator tool call.  The fixture param sets whether
@@ -403,22 +396,18 @@ def agent_env(app_config, request):
     env = SimpleNamespace(
         responses=[],
         histories=[],
-        instructions=[],
         previous_response_ids=[],
         call_tool=AsyncMock(return_value=_TOOL_RESULT),
     )
 
-    async def _next_response(input_items, instructions, previous_id):
+    async def _next_response(input_items, previous_id):
         env.histories.append(copy.deepcopy(input_items))
-        env.instructions.append(instructions)
         env.previous_response_ids.append(previous_id)
         return env.responses.pop(0)
 
     env.agent = Agent(
         SimpleNamespace(call_tool=env.call_tool),
         _make_client(stateful=request.param),
-        app_config.llm.system_instructions,
-        app_config.llm.max_concurrent_prompts,
     )
     with patch.object(
         ResponsesClient, "create_response", side_effect=_next_response
@@ -454,20 +443,6 @@ async def test_agent_run_handles_missing_usage(agent_env):
         _make_response(output=[_make_message("8")], usage=None)
     ]
     assert await agent_env.agent.run("4+4?") == _answer("8")
-
-
-@pytest.mark.asyncio
-async def test_agent_run_passes_system_instructions(agent_env):
-    """The loop supplies the system prompt to the client each turn."""
-    agent_env.responses = [
-        _make_response(output=[_make_function_call()]),
-        _make_response(output=[_make_message("done")]),
-    ]
-    await agent_env.agent.run("4+4?")
-    assert agent_env.instructions == [
-        _INSTRUCTIONS,
-        _INSTRUCTIONS,
-    ]
 
 
 @pytest.mark.asyncio

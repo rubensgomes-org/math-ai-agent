@@ -435,7 +435,7 @@ def _make_tool_call(call_id="call-1", name="add", arguments='{"a": 4, "b": 4}'):
 
 
 @pytest.fixture()
-def agent_env(app_config):
+def agent_env():
     """Build an ``Agent`` with a fake MCP client and a patched LLM.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
@@ -456,8 +456,6 @@ def agent_env(app_config):
     env.agent = Agent(
         SimpleNamespace(call_tool=env.call_tool),
         ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
-        app_config.llm.system_instructions,
-        app_config.llm.max_concurrent_prompts,
     )
     with patch.object(
         ChatCompletionsClient, "create_response", side_effect=_next_response
@@ -561,6 +559,19 @@ async def test_agent_run_dispatches_tool_call(agent_env):
     ]
     assert await agent_env.agent.run("4+4?") == "4 + 4 = 8"
     agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
+
+
+@pytest.mark.asyncio
+async def test_agent_run_sends_configured_system_instructions(
+    agent_env, app_config
+):
+    """The first message is the system prompt from config.yaml."""
+    agent_env.responses = [_make_chat_completion(content="8")]
+    await agent_env.agent.run("4+4?")
+    assert agent_env.histories[0][0] == {
+        "role": "system",
+        "content": app_config.llm.system_instructions,
+    }
 
 
 @pytest.mark.asyncio
@@ -706,6 +717,7 @@ def _stop_response(content="done"):
 @pytest.fixture()
 def single_slot_agent(app_config):
     """An agent allowing one prompt at a time, with a gated LLM."""
+    app_config.llm.max_concurrent_prompts = 1
     gate = asyncio.Event()
 
     async def _gated_response(history):  # pylint: disable=unused-argument
@@ -715,8 +727,6 @@ def single_slot_agent(app_config):
     agent = Agent(
         SimpleNamespace(call_tool=AsyncMock()),
         ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
-        app_config.llm.system_instructions,
-        1,
     )
     with patch.object(
         ChatCompletionsClient, "create_response", side_effect=_gated_response

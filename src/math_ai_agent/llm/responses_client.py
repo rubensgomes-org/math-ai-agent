@@ -81,7 +81,7 @@ class ResponsesClient(LLMClient):
         base_url: str,
         model: str,
         tools: list[dict],
-        timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS,
+        timeout: float = DEFAULT_LLM_TIMEOUT_SECONDS,
         temperature: float | None = None,
         stateful: bool = False,
         reasoning_summary: ReasoningSummary | None = None,
@@ -94,9 +94,7 @@ class ResponsesClient(LLMClient):
             reasoning_summary: Reasoning summary detail to request, or
                 ``None`` to not request one.
         """
-        super().__init__(
-            api_key, base_url, model, tools, timeout_seconds, temperature
-        )
+        super().__init__(api_key, base_url, model, tools, timeout, temperature)
         self.stateful = stateful
         self.reasoning_summary = reasoning_summary
 
@@ -130,7 +128,6 @@ class ResponsesClient(LLMClient):
     async def create_response(
         self,
         history: list[Any],
-        instructions: str,
         previous_response_id: str | None = None,
     ) -> Response:
         """Send input items and return the response.
@@ -139,9 +136,6 @@ class ResponsesClient(LLMClient):
             history: Responses API input Items: the whole
                 conversation when stateless, or only the new items when
                 continuing ``previous_response_id``.
-            instructions: System prompt sent as the top-level
-                ``instructions`` parameter.  The API does not carry it
-                over from a previous response.
             previous_response_id: ID of the stored response to
                 continue, or ``None`` to start a new conversation.
 
@@ -166,7 +160,7 @@ class ResponsesClient(LLMClient):
             "tools %s",
             self.model,
             self.temperature,
-            instructions,
+            self.system_instructions,
             previous_response_id,
             to_json(history),
             to_json(self.tools),
@@ -185,7 +179,7 @@ class ResponsesClient(LLMClient):
                     else omit
                 ),
                 tools=self.tools,  # type: ignore[arg-type]
-                instructions=instructions,
+                instructions=self.system_instructions,
                 # ``store`` controls server-side retention of the
                 # request and response.  Unlike Chat Completions, the
                 # Responses API is stateful by default (depending on

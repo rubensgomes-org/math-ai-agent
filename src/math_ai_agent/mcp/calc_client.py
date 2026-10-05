@@ -88,8 +88,8 @@ class CalcMCPClient(Client):
 
     def __init__(self) -> None:
         mcp_config = get_config().server.calculator_mcp
-        url = mcp_config.url
-        logger.debug("MCP server URL: %s", url)
+        server_url: str = mcp_config.url
+        logger.debug("MCP server URL: %s", server_url)
 
         if mcp_config.is_oauth:
             token_dir = mcp_config.token_dir
@@ -108,6 +108,6 @@ class CalcMCPClient(Client):
                     "token_endpoint_auth_method": ("client_secret_post"),
                 },
             )
-            super().__init__(url, auth=oauth)
+            super().__init__(server_url, auth=oauth)
         else:
-            super().__init__(url)
+            super().__init__(server_url)
