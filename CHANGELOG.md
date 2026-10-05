@@ -20,7 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `LLMClient` is now an abstract base class declaring `format_tools()`,
-  `create_response()`, and `report_usage()`.
+  `create_response()`, and `report_usage()`, generic over the SDK
+  response type.
+- `ChatCompletionsClient.create_response()` takes `history: list[Any]`.
 
 ### Fixed
 
