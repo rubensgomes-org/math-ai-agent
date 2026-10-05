@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `LLMClient` is now an abstract base class declaring `format_tools()`,
+  `create_response()`, and `report_usage()`.
+
 ### Fixed
 
 ## [0.0.29] - 2026-10-05
@@ -28,8 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constructor.
 - `ResponsesClient` parameter `timeout_seconds` renamed to `timeout`.
 - `Agent.close()` replaced by async context manager support.
-- `LLMClient` is now an abstract base class declaring `format_tools()`,
-  `create_response()`, and `report_usage()`.
 
 ### Fixed
 
