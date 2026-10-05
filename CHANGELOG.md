@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.31] - 2026-10-05
+
+### Added
+
+### Changed
+
 - Bumped dev dependency `filelock` to 4.0.11.
 
 ### Fixed
