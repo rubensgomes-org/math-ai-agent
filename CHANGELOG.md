@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.28] - 2026-10-05
+
+### Added
+
+### Changed
+
 - `CalcMCPClientMgr` removed; `CalcMCPClient` is used directly and no
   longer reconnects when the MCP session drops.
 - `fastmcp` dependency replaced by `fastmcp-slim[client]`.
