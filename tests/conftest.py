@@ -44,7 +44,15 @@ import pytest
 
 from math_ai_agent.agent import agent
 from math_ai_agent.config.config import AppConfig
-from math_ai_agent.llm import llm_client
+
+TEST_LLM_KEY_ENV = "TEST_LLM_KEY"
+TEST_LLM_KEY = "test-llm-key"
+
+
+@pytest.fixture(autouse=True)
+def _llm_key_env(monkeypatch):
+    """Set the API key variable named by the test ``api_key_env``."""
+    monkeypatch.setenv(TEST_LLM_KEY_ENV, TEST_LLM_KEY)
 
 
 @pytest.fixture()
@@ -56,7 +64,7 @@ def app_config() -> AppConfig:
                 "api_style": "chat",
                 "model_base_url": "http://localhost:11434/v1",
                 "model": "test-model",
-                "api_key_env": "TEST_LLM_KEY",
+                "api_key_env": TEST_LLM_KEY_ENV,
                 "system_instructions": "Test instructions.",
             },
             "server": {
@@ -78,9 +86,6 @@ def app_config() -> AppConfig:
 
 @pytest.fixture(autouse=True)
 def _patch_config(app_config):
-    """Serve the shared test ``AppConfig`` to the agent and LLM clients."""
-    with (
-        patch.object(agent, "get_config", return_value=app_config),
-        patch.object(llm_client, "get_config", return_value=app_config),
-    ):
+    """Serve the shared test ``AppConfig`` to the agent."""
+    with patch.object(agent, "get_config", return_value=app_config):
         yield

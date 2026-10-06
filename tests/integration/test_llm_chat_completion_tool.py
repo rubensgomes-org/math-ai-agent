@@ -51,7 +51,6 @@ import logging
 
 from math_ai_agent.config.config import (
     configure_logging,
-    get_api_key,
     get_config,
 )
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
@@ -121,60 +120,54 @@ async def prompt_llm() -> None:
     logger.info("Starting LLM prompt test")
     messages = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
     tools = await get_mcp_tools()
-    llm = ChatCompletionsClient(
-        get_api_key(),
-        get_config().llm.model_base_url,
-        get_config().llm.model,
-        tools,
-    )
-
     user_input = input("User: ")
     messages.append({"role": "user", "content": user_input})
     logger.debug("Sending user prompt: %s", user_input)
 
-    # -------------------------
-    # Agent Loop
-    # -------------------------
-    while True:
-        response = await llm.create_response(messages)
-        message = response.choices[0].message
-        finish_reason = response.choices[0].finish_reason
+    async with ChatCompletionsClient(get_config().llm, tools) as llm:
+        # -------------------------
+        # Agent Loop
+        # -------------------------
+        while True:
+            response = await llm.prompt(messages)
+            message = response.choices[0].message
+            finish_reason = response.choices[0].finish_reason
 
-        match finish_reason:
-            case "stop":
-                logger.info("Assistant: %s", message.content)
-                break
+            match finish_reason:
+                case "stop":
+                    logger.info("Assistant: %s", message.content)
+                    break
 
-            case "length":
-                logger.error("Token limit reached.")
-                break
+                case "length":
+                    logger.error("Token limit reached.")
+                    break
 
-            case "tool_calls":
-                messages.append(message)
-                for tool_call in message.tool_calls:
-                    tool_name = tool_call.function.name
-                    tool_call_id = tool_call.id
-                    args = json.loads(tool_call.function.arguments)
-                    result = await call_tool(tool_name, args)
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call_id,
-                            "content": result,
-                        }
-                    )
-                continue
+                case "tool_calls":
+                    messages.append(message)
+                    for tool_call in message.tool_calls:
+                        tool_name = tool_call.function.name
+                        tool_call_id = tool_call.id
+                        args = json.loads(tool_call.function.arguments)
+                        result = await call_tool(tool_name, args)
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": result,
+                            }
+                        )
+                    continue
 
-            case "content_filter":
-                logger.error("Blocked by safety reasons.")
-                break
+                case "content_filter":
+                    logger.error("Blocked by safety reasons.")
+                    break
 
-            case None:
-                # Happens during streaming before final chunk
-                pass
+                case None:
+                    # Happens during streaming before final chunk
+                    pass
 
-            case _:
-                raise ValueError(f"Unknown finish_reason: {finish_reason}")
+                case _:
+                    raise ValueError(f"Unknown finish_reason: {finish_reason}")
 
 
 async def main() -> None:

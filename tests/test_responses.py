@@ -55,6 +55,7 @@ from openai.types.responses import (
 from openai.types.responses.response_reasoning_item import Content, Summary
 
 from math_ai_agent.agent.agent import Agent
+from math_ai_agent.config.config import LLMConfig
 from math_ai_agent.llm.llm_errors import (
     ContentFilterError,
     LLMRequestFailedError,
@@ -66,7 +67,7 @@ from math_ai_agent.llm.responses_client import ResponsesClient
 # Helpers
 # ---------------------------------------------------------------------------
 
-_API_KEY = "test-api-key"
+_API_KEY_ENV = "TEST_LLM_KEY"
 _BASE_URL = "http://localhost:11434/v1"
 _MODEL = "test-model"
 _INSTRUCTIONS = "Test instructions."
@@ -76,6 +77,19 @@ _USAGE = SimpleNamespace(
     total_tokens=15,
 )
 _TOOL_RESULT = SimpleNamespace(data=8, structured_content={"result": 8})
+_ADD_TOOL = mcp_types.Tool(
+    name="add",
+    description="Add two numbers",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "a": {"type": "number"},
+            "b": {"type": "number"},
+        },
+        "required": ["a", "b"],
+    },
+)
+# The Responses tool definitions the client sends for _ADD_TOOL.
 _TOOLS = [
     {
         "type": "function",
@@ -171,11 +185,20 @@ def _make_response(
     return response
 
 
-def _make_client(stateful=False):
-    """Create a ResponsesClient instance with test parameters."""
-    return ResponsesClient(
-        _API_KEY, _BASE_URL, _MODEL, _TOOLS, stateful=stateful
+def _llm_config(**updates) -> LLMConfig:
+    """Build an ``LLMConfig`` with test values and ``updates`` applied."""
+    return LLMConfig(
+        model_base_url=_BASE_URL,
+        model=_MODEL,
+        api_key_env=_API_KEY_ENV,
+        system_instructions=_INSTRUCTIONS,
+        **updates,
     )
+
+
+def _make_client(is_stateful=False):
+    """Create a ResponsesClient instance with test parameters."""
+    return ResponsesClient(_llm_config(is_stateful=is_stateful), [_ADD_TOOL])
 
 
 # ---------------------------------------------------------------------------
@@ -185,45 +208,21 @@ def _make_client(stateful=False):
 
 def test_init_sets_instance_attributes():
     """Instantiation sets instance attributes."""
-    client = ResponsesClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    client = ResponsesClient(_llm_config(), [_ADD_TOOL])
     assert client.openai_client is not None
-    assert client.tools is _TOOLS
+    assert client.tools == _TOOLS
     assert client.model == _MODEL
     assert isinstance(client, ResponsesClient)
-
-
-def test_init_empty_api_key_raises():
-    """Empty api_key raises ValueError."""
-    with pytest.raises(ValueError, match="api_key must not be empty"):
-        ResponsesClient("", _BASE_URL, _MODEL, _TOOLS)
-
-
-def test_init_empty_base_url_raises():
-    """Empty base_url raises ValueError."""
-    with pytest.raises(ValueError, match="base_url must not be empty"):
-        ResponsesClient(_API_KEY, "", _MODEL, _TOOLS)
-
-
-def test_init_empty_model_raises():
-    """Empty model raises ValueError."""
-    with pytest.raises(ValueError, match="model must not be empty"):
-        ResponsesClient(_API_KEY, _BASE_URL, "", _TOOLS)
 
 
 def test_init_empty_tools_raises():
     """Empty tools list raises ValueError."""
     with pytest.raises(ValueError, match="tools must not be empty"):
-        ResponsesClient(_API_KEY, _BASE_URL, _MODEL, [])
-
-
-def test_init_none_api_key_raises():
-    """None api_key raises ValueError."""
-    with pytest.raises(ValueError, match="api_key must not be empty"):
-        ResponsesClient(None, _BASE_URL, _MODEL, _TOOLS)
+        ResponsesClient(_llm_config(), [])
 
 
 # ---------------------------------------------------------------------------
-# format_tools
+# _format_tools
 # ---------------------------------------------------------------------------
 
 
@@ -250,23 +249,25 @@ _TOOLS_DEFINITIONS = [
 
 def test_format_tools_flattens_each_definition():
     """Each definition becomes a flat Responses function tool."""
-    assert ResponsesClient.format_tools(_MCP_TOOLS) == [
+    # pylint: disable-next=protected-access
+    assert ResponsesClient._format_tools(_MCP_TOOLS) == [
         {"type": "function", **definition} for definition in _TOOLS_DEFINITIONS
     ]
 
 
 def test_format_tools_empty_list():
-    assert ResponsesClient.format_tools([]) == []
+    # pylint: disable-next=protected-access
+    assert ResponsesClient._format_tools([]) == []
 
 
 # ---------------------------------------------------------------------------
-# create_response
+# prompt
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_create_response_returns_response():
-    """create_response returns the Response from the API."""
+async def test_prompt_returns_response():
+    """prompt returns the Response from the API."""
     fake_response = _make_response(output=[_make_message("The answer is 8")])
     client = _make_client()
 
@@ -274,15 +275,15 @@ async def test_create_response_returns_response():
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
     history = [{"role": "user", "content": "4+4?"}]
-    result = await client.create_response(history)
+    result = await client.prompt(history)
 
     assert result is fake_response
     assert result.output_text == "The answer is 8"
 
 
 @pytest.mark.asyncio
-async def test_create_response_sends_expected_arguments():
-    """create_response sends input, tools, instructions and store=False."""
+async def test_prompt_sends_expected_arguments():
+    """prompt sends input, tools, instructions and store=False."""
     fake_response = _make_response()
     client = _make_client()
 
@@ -290,7 +291,7 @@ async def test_create_response_sends_expected_arguments():
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
     history = [{"role": "user", "content": "4+4?"}]
-    await client.create_response(history)
+    await client.prompt(history)
 
     mock_create.assert_awaited_once_with(
         model=_MODEL,
@@ -300,14 +301,13 @@ async def test_create_response_sends_expected_arguments():
         store=False,
         previous_response_id=omit,
         temperature=omit,
-        reasoning=omit,
     )
 
 
 @pytest.mark.asyncio
-async def test_create_response_stateful_sends_previous_response_id():
+async def test_prompt_stateful_sends_previous_response_id():
     """A stateful client stores and continues the previous response."""
-    client = _make_client(stateful=True)
+    client = _make_client(is_stateful=True)
 
     mock_create = AsyncMock(return_value=_make_response())
     client.openai_client.responses = SimpleNamespace(create=mock_create)
@@ -317,7 +317,7 @@ async def test_create_response_stateful_sends_previous_response_id():
         "call_id": "c",
         "output": "8",
     }
-    await client.create_response([tool_output], "resp-1")
+    await client.prompt([tool_output], "resp-1")
 
     mock_create.assert_awaited_once_with(
         model=_MODEL,
@@ -327,49 +327,32 @@ async def test_create_response_stateful_sends_previous_response_id():
         store=True,
         previous_response_id="resp-1",
         temperature=omit,
-        reasoning=omit,
     )
-
-
-@pytest.mark.asyncio
-async def test_create_response_sends_reasoning_summary():
-    """A set reasoning summary is sent as the reasoning parameter."""
-    client = ResponsesClient(
-        _API_KEY, _BASE_URL, _MODEL, _TOOLS, reasoning_summary="detailed"
-    )
-    mock_create = AsyncMock(return_value=_make_response())
-    client.openai_client.responses = SimpleNamespace(create=mock_create)
-
-    await client.create_response([{"role": "user", "content": "4+4?"}])
-
-    assert mock_create.await_args.kwargs["reasoning"] == {"summary": "detailed"}
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("temperature", [0.0, 0.2])
-async def test_create_response_sends_temperature(temperature):
+async def test_prompt_sends_temperature(temperature):
     """A set temperature is sent, including 0."""
-    client = ResponsesClient(
-        _API_KEY, _BASE_URL, _MODEL, _TOOLS, temperature=temperature
-    )
+    client = ResponsesClient(_llm_config(temperature=temperature), [_ADD_TOOL])
     mock_create = AsyncMock(return_value=_make_response())
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
-    await client.create_response([{"role": "user", "content": "4+4?"}])
+    await client.prompt([{"role": "user", "content": "4+4?"}])
 
     assert mock_create.await_args.kwargs["temperature"] == temperature
 
 
 @pytest.mark.asyncio
-async def test_create_response_with_function_call():
-    """create_response handles a response with a function_call item."""
+async def test_prompt_with_function_call():
+    """prompt handles a response with a function_call item."""
     fake_response = _make_response(output=[_make_function_call()])
     client = _make_client()
 
     mock_create = AsyncMock(return_value=fake_response)
     client.openai_client.responses = SimpleNamespace(create=mock_create)
 
-    result = await client.create_response([{"role": "user", "content": "4+4?"}])
+    result = await client.prompt([{"role": "user", "content": "4+4?"}])
 
     assert result.output_text == ""
     assert result.output[0].name == "add"
@@ -385,7 +368,7 @@ def agent_env(app_config, request):
     """Build an ``Agent`` with a fake MCP client and a patched LLM.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
-    one entry per ``create_response`` call, whose ``histories`` list
+    one entry per ``prompt`` call, whose ``histories`` list
     records a snapshot of the input items sent on each call, whose
     whose ``previous_response_ids`` list records the response ID
     continued on each call, and whose ``call_tool`` mock records every
@@ -407,11 +390,9 @@ def agent_env(app_config, request):
 
     env.agent = Agent(
         SimpleNamespace(call_tool=env.call_tool),
-        _make_client(stateful=request.param),
+        _make_client(is_stateful=request.param),
     )
-    with patch.object(
-        ResponsesClient, "create_response", side_effect=_next_response
-    ):
+    with patch.object(ResponsesClient, "prompt", side_effect=_next_response):
         yield env
 
 

@@ -172,16 +172,23 @@ def test_load_config_unknown_api_style_raises(tmp_path, cfg):
         config.load_config(_write(tmp_path, cfg))
 
 
+@pytest.mark.parametrize("key", ["model_base_url", "model"])
+def test_load_config_empty_llm_value_raises(tmp_path, cfg, key):
+    cfg["llm"][key] = ""
+    with pytest.raises(ValidationError, match=key):
+        config.load_config(_write(tmp_path, cfg))
+
+
 def test_load_config_load_limits_default(tmp_path, cfg):
     result = config.load_config(_write(tmp_path, cfg))
     assert result.llm.timeout_seconds == config.DEFAULT_LLM_TIMEOUT_SECONDS
     assert result.llm.max_concurrent_prompts == 10
 
 
-def test_load_config_stateful(tmp_path, cfg):
-    assert config.load_config(_write(tmp_path, cfg)).llm.stateful is False
-    cfg["llm"]["stateful"] = True
-    assert config.load_config(_write(tmp_path, cfg)).llm.stateful is True
+def test_load_config_is_stateful(tmp_path, cfg):
+    assert config.load_config(_write(tmp_path, cfg)).llm.is_stateful is False
+    cfg["llm"]["is_stateful"] = True
+    assert config.load_config(_write(tmp_path, cfg)).llm.is_stateful is True
 
 
 def test_load_config_temperature_defaults_to_none(tmp_path, cfg):
@@ -198,20 +205,6 @@ def test_load_config_temperature_in_range(tmp_path, cfg, value):
 def test_load_config_temperature_out_of_range_raises(tmp_path, cfg, value):
     cfg["llm"]["temperature"] = value
     with pytest.raises(ValidationError, match="temperature"):
-        config.load_config(_write(tmp_path, cfg))
-
-
-def test_load_config_reasoning_summary(tmp_path, cfg):
-    llm = config.load_config(_write(tmp_path, cfg)).llm
-    assert llm.reasoning_summary is None
-    cfg["llm"]["reasoning_summary"] = "detailed"
-    llm = config.load_config(_write(tmp_path, cfg)).llm
-    assert llm.reasoning_summary == "detailed"
-
-
-def test_load_config_invalid_reasoning_summary_raises(tmp_path, cfg):
-    cfg["llm"]["reasoning_summary"] = "verbose"
-    with pytest.raises(ValidationError, match="reasoning_summary"):
         config.load_config(_write(tmp_path, cfg))
 
 
@@ -297,25 +290,33 @@ def test_configure_logging_applies_config():
 
 
 # ---------------------------------------------------------------------------
-# get_api_key
+# LLMConfig.api_key
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.usefixtures("env_config")
-def test_get_api_key(monkeypatch):
+def test_api_key_read_from_env(monkeypatch):
     monkeypatch.setenv("TEST_LLM_KEY", "secret-key")
-    assert config.get_api_key() == "secret-key"
+    assert config.get_config().llm.api_key == "secret-key"
 
 
 @pytest.mark.usefixtures("env_config")
-def test_get_api_key_missing_raises(monkeypatch):
+def test_api_key_missing_raises(monkeypatch):
     monkeypatch.delenv("TEST_LLM_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="TEST_LLM_KEY"):
-        config.get_api_key()
+    with pytest.raises(ValidationError, match="TEST_LLM_KEY"):
+        config.get_config()
 
 
 @pytest.mark.usefixtures("env_config")
-def test_get_api_key_empty_raises(monkeypatch):
+def test_api_key_empty_raises(monkeypatch):
     monkeypatch.setenv("TEST_LLM_KEY", "")
-    with pytest.raises(RuntimeError, match="TEST_LLM_KEY"):
-        config.get_api_key()
+    with pytest.raises(ValidationError, match="TEST_LLM_KEY"):
+        config.get_config()
+
+
+@pytest.mark.usefixtures("env_config")
+def test_api_key_not_exposed(monkeypatch):
+    monkeypatch.setenv("TEST_LLM_KEY", "secret-key")
+    llm = config.get_config().llm
+    assert "secret-key" not in repr(llm)
+    assert "api_key" not in llm.model_dump()

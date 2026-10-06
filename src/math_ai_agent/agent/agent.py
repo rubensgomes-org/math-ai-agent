@@ -36,22 +36,12 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Agent orchestrating the LLM and the calculator MCP server.
-
-Provides the ``Agent`` class, which holds one calculator MCP
-connection and one LLM client for reuse across prompts.  ``Agent.run``
-dispatches to the agent loop matching the ``llm.api_style`` setting
-in ``config.yaml``.
-
-The LLM transports themselves live in
-:mod:`math_ai_agent.llm.chat_completions_client` and
-:mod:`math_ai_agent.llm.responses_client`; this module owns the system
-prompt, the control flow, and the tool dispatch.
-"""
+"""Agent orchestrating the LLM and the calculator MCP server."""
 
 import asyncio
 import json
 import logging
+from contextlib import AsyncExitStack
 from types import TracebackType
 from typing import Any, Self
 
@@ -66,7 +56,7 @@ from math_ai_agent.agent.utils import (
     reasoning_texts,
     tool_error,
 )
-from math_ai_agent.config.config import get_api_key, get_config
+from math_ai_agent.config.config import get_config
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.llm.llm_errors import (
     AgentBusyError,
@@ -82,30 +72,25 @@ logger = logging.getLogger(__name__)
 
 
 class Agent:
-    """Runs prompts through the LLM and the calculator MCP server.
-
-    Holds one ``CalcMCPClient`` and one LLM client, so they are
-    reused across prompts.  The caller owns the MCP connection and
-    must keep it open while the agent is in use.
-    """
+    """Runs prompts through the LLM and the calculator MCP server."""
 
     def __init__(
         self,
         calc: CalcMCPClient,
         llm: ChatCompletionsClient | ResponsesClient,
     ) -> None:
-        """Create an agent from an open MCP connection and an LLM client.
-
-        Allows ``llm.max_concurrent_prompts`` from ``config.yaml``
-        prompts to run at once.
-        """
+        """Create an agent from an open MCP connection and an LLM client."""
         self._calc = calc
         self._llm = llm
+        # Allows llm.max_concurrent_prompts from config.yaml prompts to run
+        # at once.
+        self._exit_stack = AsyncExitStack()
         self._prompt_slots = asyncio.Semaphore(
             get_config().llm.max_concurrent_prompts
         )
 
     async def __aenter__(self) -> Self:
+        await self._exit_stack.enter_async_context(self._llm)
         return self
 
     async def __aexit__(
@@ -114,96 +99,49 @@ class Agent:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        await self._llm.close()
+        await self._exit_stack.__aexit__(exc_type, exc_value, traceback)
 
     @classmethod
     async def create(cls, calc: CalcMCPClient) -> "Agent":
-        """Discover the MCP tools and build the configured LLM client.
-
-        Args:
-            calc: An open calculator MCP connection.
-
-        Returns:
-            An agent using the ``llm.api_style`` set in ``config.yaml``.
-
-        Raises:
-            RuntimeError: If the configured API key environment
-                variable is not set.
-        """
+        """Discover the MCP tools and build the configured LLM client."""
         llm_config = get_config().llm
         logger.info(
-            "Creating AI agent using LLM api_style=%s, "
-            "model_base_url=%s, model=%s, temperature=%s",
+            "Creating AI agent using LLM api_style=%s",
             llm_config.api_style,
-            llm_config.model_base_url,
-            llm_config.model,
-            llm_config.temperature,
         )
         tools: list[mcp_types.Tool] = await calc.list_tools()
         llm: ChatCompletionsClient | ResponsesClient
         if llm_config.api_style == "responses":
-            llm = ResponsesClient(
-                get_api_key(),
-                llm_config.model_base_url,
-                llm_config.model,
-                ResponsesClient.format_tools(tools),
-                llm_config.timeout_seconds,
-                llm_config.temperature,
-                llm_config.stateful,
-                llm_config.reasoning_summary,
-            )
+            llm = ResponsesClient(llm_config, tools)
         else:
-            llm = ChatCompletionsClient(
-                get_api_key(),
-                llm_config.model_base_url,
-                llm_config.model,
-                ChatCompletionsClient.format_tools(tools),
-                llm_config.timeout_seconds,
-                llm_config.temperature,
-            )
-        return cls(calc, llm)
+            llm = ChatCompletionsClient(llm_config, tools)
+        async with AsyncExitStack() as stack:
+            stack.push_async_exit(llm)
+            agent = cls(calc, llm)
+            stack.pop_all()
+        return agent
 
     async def run(
         self, user_prompt: str, display_reasoning: bool = True
     ) -> str:
         """Run the agent loop for the configured OpenAI API style.
-
-        Args:
-            user_prompt: The math question from the user.
-            display_reasoning: Include the reasoning section in the
-                Responses API answer.  Chat Completions answers have
-                no reasoning, so it is ignored there.
-
         Returns:
             The LLM's answer.  The Responses API answer also includes
             a reasoning section when ``display_reasoning`` is ``True``.
-
-        Raises:
-            AgentBusyError: If ``max_concurrent_prompts`` prompts are
-                already running.
         """
         if self._prompt_slots.locked():
             logger.warning("Rejecting prompt: all prompt slots are in use")
             raise AgentBusyError("Too many prompts are running")
         async with self._prompt_slots:
             if isinstance(self._llm, ResponsesClient):
-                logger.debug("Using Responses API to send LLM request")
+                logger.debug("Using Responses API to prompt LLM")
                 return await self._run_responses(
                     self._llm, user_prompt, display_reasoning
                 )
-            logger.debug("Using Chat Completions API to send LLM request")
+            logger.debug("Using Chat Completions API to prompt LLM")
             return await self._run_chat(self._llm, user_prompt)
 
-    async def _call_tool(self, tool_name: str, arguments: str) -> str:
-        """Call a calculator MCP tool and return its result as text.
-
-        Invalid JSON arguments and tool errors, such as division by
-        zero, are returned as error text so the LLM can recover.
-
-        Args:
-            tool_name: The name of the MCP tool to invoke.
-            arguments: The tool arguments as a JSON object string.
-        """
+    async def _call_calc_tool(self, tool_name: str, arguments: str) -> str:
         try:
             args = json.loads(arguments)
         except json.JSONDecodeError as error:
@@ -233,142 +171,13 @@ class Agent:
     async def _run_chat(
         self, llm: ChatCompletionsClient, user_prompt: str
     ) -> str:
-        """Run the agent loop against the Chat Completions API.
-
-        Sends the user prompt to the LLM and dispatches any tool
-        calls to the calculator MCP server until the LLM produces
-        a final text response.
-
-        Args:
-            llm: The Chat Completions client.
-            user_prompt: The math question from the user.
-
-        Returns:
-            The final text response from the LLM.
-
-        Raises:
-            TokenLimitError: If the token limit is reached.
-            ContentFilterError: If the content is blocked by a safety
-                filter.
-            ValueError: If the LLM returns an unknown finish
-                reason.
-        """
-        logger.debug("Starting AI LLM agent loop (chat completions)")
+        """Run the agent loop against the Chat Completions API."""
+        logger.debug("Starting agent loop for the ChatCompletions API")
         history: list[Any] = [
-            {"role": "system", "content": llm.system_instructions}
+            {"role": "system", "content": llm.system_instructions},
+            {"role": "user", "content": user_prompt},
         ]
-        history.append({"role": "user", "content": user_prompt})
-        logger.debug("Sending user prompt: %s", user_prompt)
-
-        # -------------------------
-        # Agent Loop
-        # -------------------------
-        logger.debug("=== >>> START AGENT LOOP")
-        while True:
-            response: ChatCompletion = await llm.create_response(history)
-            llm_msg: ChatCompletionMessage = response.choices[0].message
-            finish_reason = response.choices[0].finish_reason
-            llm.report_usage(response)
-
-            logger.debug("LLM finish_reason: %s", finish_reason)
-            match finish_reason:
-                case "stop":
-                    logger.info(
-                        "\n========= >>> LLM TASK COMPLETED <<< ============\n"
-                        "response: %s",
-                        llm_msg.content,
-                    )
-                    break
-
-                case "length":
-                    error = "Token limit reached."
-                    logger.error(error)
-                    raise TokenLimitError(error)
-
-                case "tool_calls":
-                    history.append(llm_msg)
-                    assert llm_msg.tool_calls is not None
-                    logger.info(
-                        "LLM is asking us to call tool(s): %s",
-                        llm_msg.tool_calls,
-                    )
-                    for tool_call in llm_msg.tool_calls:
-                        fn = tool_call.function  # type: ignore[union-attr]
-                        tool_name = fn.name
-                        tool_call_id = tool_call.id
-                        logger.debug(
-                            "Calling tool_call_id: %s, tool_name: %s",
-                            tool_call_id,
-                            tool_name,
-                        )
-                        result = await self._call_tool(tool_name, fn.arguments)
-                        history.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": tool_call_id,
-                                "content": result,
-                            }
-                        )
-                    continue
-
-                case "content_filter":
-                    error = f"Content [{history}] blocked for safety reasons."
-                    logger.error(error)
-                    raise ContentFilterError(error)
-
-                case _:
-                    error = f"Non-supported finish_reason: {finish_reason}"
-                    logger.error(error)
-                    raise ValueError(error)
-
-        logger.info("END AGENT LOOP <<< ===")
-        return llm_msg.content or ""
-
-    async def _run_responses(
-        self,
-        llm: ResponsesClient,
-        user_prompt: str,
-        display_reasoning: bool = True,
-    ) -> str:
-        """Run the agent loop against the Responses API.
-
-        Sends the user prompt to the LLM and dispatches any
-        ``function_call`` items to the calculator MCP server until the
-        LLM produces a final text response.
-
-        When the API server does not store responses (``stateful`` is
-        ``False``), every output Item is echoed back as input on the
-        next turn.  When it does, the next turn sends only the tool
-        outputs and continues the stored response with
-        ``previous_response_id``.
-
-        Args:
-            llm: The Responses API client.
-            user_prompt: The math question from the user.
-            display_reasoning: Include the reasoning section.
-
-        Returns:
-            The reasoning text from every turn and the final response,
-            as labeled sections, or only the final response text when
-            ``display_reasoning`` is ``False``.
-
-        Raises:
-            TokenLimitError: If the token limit is reached.
-            ContentFilterError: If the content is blocked by a safety
-                filter.
-            LLMRequestFailedError: If the LLM reports the response as
-                failed.
-            ValueError: If the LLM returns an unknown response status
-                or an unknown incomplete reason.
-        """
-        logger.debug("Starting AI LLM agent loop using the Responses API")
-        # The system prompt is sent as the top-level `instructions`
-        # parameter, so it is not part of the input items.
-        history: list[Any] = [{"role": "user", "content": user_prompt}]
-        previous_response_id: str | None = None
-        # Reasoning collected from every turn, for the formatted answer.
-        reasoning: list[str] = []
-        logger.info("User prompt: %s", user_prompt)
+        logger.debug("user prompt: %s", user_prompt)
 
         # -------------------------
         # Agent Loop
@@ -387,11 +196,103 @@ class Agent:
                 loop_turn,
                 to_json(history),
             )
-            response: Response = await llm.create_response(
-                history, previous_response_id
+            response: ChatCompletion = await llm.prompt(history)
+            llm_msg: ChatCompletionMessage = response.choices[0].message
+            finish_reason = response.choices[0].finish_reason
+            logger.debug("LLM finish_reason: %s", finish_reason)
+            llm.log_token_usage(response)
+
+            match finish_reason:
+                case "stop":
+                    logger.info(
+                        "\n========= >>> LLM TASK COMPLETED <<< ============\n"
+                        "response: %s",
+                        llm_msg.content,
+                    )
+                    break
+
+                case "length":
+                    raise TokenLimitError("Token limit reached.")
+
+                case "tool_calls":
+                    history.append(llm_msg)
+                    assert llm_msg.tool_calls is not None
+                    logger.info(
+                        "LLM is asking us to call tool(s): %s",
+                        llm_msg.tool_calls,
+                    )
+                    for tool_call in llm_msg.tool_calls:
+                        fn = tool_call.function  # type: ignore[union-attr]
+                        tool_name = fn.name
+                        tool_call_id = tool_call.id
+                        logger.debug(
+                            "Calling tool_call_id: %s, tool_name: %s",
+                            tool_call_id,
+                            tool_name,
+                        )
+                        result = await self._call_calc_tool(
+                            tool_name, fn.arguments
+                        )
+                        history.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": result,
+                            }
+                        )
+                    continue
+
+                case "content_filter":
+                    error = f"Content [{history}] blocked for safety reasons."
+                    raise ContentFilterError(error)
+
+                case _:
+                    error = f"Non-supported finish_reason: {finish_reason}"
+                    raise ValueError(error)
+
+        logger.info(
+            "\n======================================================\n"
+            "========= >>> END AGENT LOOP <<< =====================\n"
+            "======================================================"
+        )
+        return llm_msg.content or ""
+
+    async def _run_responses(
+        self,
+        llm: ResponsesClient,
+        user_prompt: str,
+        display_reasoning: bool = True,
+    ) -> str:
+        """Run the agent loop against the Responses API."""
+        logger.debug("Starting agent loop for the Responses API")
+        # The system_instructions is sent as the top-level `instructions`
+        # parameter, so it is not part of the history.
+        history: list[Any] = [{"role": "user", "content": user_prompt}]
+        previous_response_id: str | None = None
+        # Reasoning collected from every turn, for the formatted answer.
+        reasoning: list[str] = []
+        logger.info("user prompt: %s", user_prompt)
+
+        # -------------------------
+        # Agent Loop
+        # -------------------------
+        logger.info(
+            "\n======================================================\n"
+            "========= >>> START AGENT LOOP <<< ===================\n"
+            "======================================================"
+        )
+        loop_turn: int = 0
+        while True:
+            loop_turn += 1
+            logger.info(
+                "\n========= >>> START LOOP TURN <<< ===================\n"
+                "loop turn: %s\nhistory: %s",
+                loop_turn,
+                to_json(history),
             )
+            response: Response = await llm.prompt(history, previous_response_id)
             logger.debug("LLM response status: %s", response.status)
-            llm.report_usage(response)
+            llm.log_token_usage(response)
 
             match response.status:
                 case "completed":
@@ -419,7 +320,7 @@ class Agent:
 
                     tool_outputs: list[Any] = []
                     for tool_call in tool_calls:
-                        result = await self._call_tool(
+                        result = await self._call_calc_tool(
                             tool_call.name, tool_call.arguments
                         )
                         logger.debug("Tool call result: %s", result)
@@ -431,27 +332,25 @@ class Agent:
                             }
                         )
                     history = next_turn_input(
-                        llm.stateful, history, response.output, tool_outputs
+                        llm.is_stateful, history, response.output, tool_outputs
                     )
-                    previous_response_id = response.id if llm.stateful else None
+                    previous_response_id = (
+                        response.id if llm.is_stateful else None
+                    )
                     continue
 
                 case "incomplete":
                     details = response.incomplete_details
                     reason = details.reason if details is not None else None
                     if reason == "max_output_tokens":
-                        error = "Token limit reached."
-                        logger.error(error)
-                        raise TokenLimitError(error)
+                        raise TokenLimitError("Token limit reached.")
                     if reason == "content_filter":
                         error = (
                             f"Content [{history}] blocked for safety "
                             f"reasons."
                         )
-                        logger.error(error)
                         raise ContentFilterError(error)
                     error = f"Unknown incomplete reason: {reason}"
-                    logger.error(error)
                     raise ValueError(error)
 
                 case "failed":
@@ -459,7 +358,6 @@ class Agent:
                     detail = err.message if err is not None else "unknown error"
                     code = err.code if err is not None else None
                     error = f"LLM request failed: {detail} (code={code})"
-                    logger.error(error)
                     raise LLMRequestFailedError(error, code)
 
                 case _:
@@ -469,7 +367,6 @@ class Agent:
                     error = (
                         f"Non-supported response status:" f" {response.status}"
                     )
-                    logger.error(error)
                     raise ValueError(error)
 
         logger.info(

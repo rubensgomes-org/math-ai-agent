@@ -54,7 +54,7 @@ from openai.types.chat import ChatCompletionMessage
 
 from math_ai_agent.agent import agent as llm_module
 from math_ai_agent.agent.agent import Agent
-from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS
+from math_ai_agent.config.config import DEFAULT_LLM_TIMEOUT_SECONDS, LLMConfig
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.llm.llm_errors import (
     AgentBusyError,
@@ -68,15 +68,29 @@ from math_ai_agent.llm.utils import to_json
 # Helpers
 # ---------------------------------------------------------------------------
 
-_API_KEY = "test-api-key"
+_API_KEY_ENV = "TEST_LLM_KEY"
 _BASE_URL = "http://localhost:11434/v1"
 _MODEL = "test-model"
+_INSTRUCTIONS = "Test instructions."
 _USAGE = SimpleNamespace(
     prompt_tokens=10,
     completion_tokens=5,
     total_tokens=15,
 )
 _TOOL_RESULT = SimpleNamespace(data=8, structured_content={"result": 8})
+_ADD_TOOL = mcp_types.Tool(
+    name="add",
+    description="Add two numbers",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "a": {"type": "number"},
+            "b": {"type": "number"},
+        },
+        "required": ["a", "b"],
+    },
+)
+# The Chat Completions tool definitions the client sends for _ADD_TOOL.
 _TOOLS = [
     {
         "type": "function",
@@ -144,9 +158,20 @@ def _make_chat_completion(
     return response
 
 
+def _llm_config(**updates) -> LLMConfig:
+    """Build an ``LLMConfig`` with test values and ``updates`` applied."""
+    return LLMConfig(
+        model_base_url=_BASE_URL,
+        model=_MODEL,
+        api_key_env=_API_KEY_ENV,
+        system_instructions=_INSTRUCTIONS,
+        **updates,
+    )
+
+
 def _make_client():
     """Create an ChatCompletionsClient instance with test parameters."""
-    return ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    return ChatCompletionsClient(_llm_config(), [_ADD_TOOL])
 
 
 # ---------------------------------------------------------------------------
@@ -156,9 +181,9 @@ def _make_client():
 
 def test_init_sets_instance_attributes():
     """Instantiation sets instance attributes."""
-    client = ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    client = ChatCompletionsClient(_llm_config(), [_ADD_TOOL])
     assert client.openai_client is not None
-    assert client.tools is _TOOLS
+    assert client.tools == _TOOLS
     assert client.model == _MODEL
     assert isinstance(client, ChatCompletionsClient)
 
@@ -175,74 +200,52 @@ def test_to_json_dumps_sdk_objects_and_falls_back_to_str():
 
 
 @pytest.mark.asyncio
-async def test_close_closes_openai_client():
+async def test_async_with_closes_openai_client():
+    """Leaving an ``async with`` block closes the client."""
     client = _make_client()
     with patch.object(
         client.openai_client, "close", new_callable=AsyncMock
     ) as mock_close:
-        await client.close()
+        async with client as entered:
+            assert entered is client
     mock_close.assert_awaited_once()
 
 
 def test_init_uses_default_timeout():
-    client = ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS)
+    client = ChatCompletionsClient(_llm_config(), [_ADD_TOOL])
     assert client.openai_client.timeout == DEFAULT_LLM_TIMEOUT_SECONDS
 
 
 def test_init_uses_given_timeout():
-    client = ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS, 30)
+    client = ChatCompletionsClient(_llm_config(timeout_seconds=30), [_ADD_TOOL])
     assert client.openai_client.timeout == 30
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("temperature", [0.0, 0.2])
-async def test_create_response_sends_temperature(temperature):
+async def test_prompt_sends_temperature(temperature):
     """A set temperature is sent, including 0."""
     client = ChatCompletionsClient(
-        _API_KEY, _BASE_URL, _MODEL, _TOOLS, temperature=temperature
+        _llm_config(temperature=temperature), [_ADD_TOOL]
     )
     mock_create = AsyncMock(return_value=_make_chat_completion())
     client.openai_client.chat = SimpleNamespace(
         completions=SimpleNamespace(create=mock_create)
     )
 
-    await client.create_response([{"role": "user", "content": "4+4?"}])
+    await client.prompt([{"role": "user", "content": "4+4?"}])
 
     assert mock_create.await_args.kwargs["temperature"] == temperature
-
-
-def test_init_empty_api_key_raises():
-    """Empty api_key raises ValueError."""
-    with pytest.raises(ValueError, match="api_key must not be empty"):
-        ChatCompletionsClient("", _BASE_URL, _MODEL, _TOOLS)
-
-
-def test_init_empty_base_url_raises():
-    """Empty base_url raises ValueError."""
-    with pytest.raises(ValueError, match="base_url must not be empty"):
-        ChatCompletionsClient(_API_KEY, "", _MODEL, _TOOLS)
-
-
-def test_init_empty_model_raises():
-    """Empty model raises ValueError."""
-    with pytest.raises(ValueError, match="model must not be empty"):
-        ChatCompletionsClient(_API_KEY, _BASE_URL, "", _TOOLS)
 
 
 def test_init_empty_tools_raises():
     """Empty tools list raises ValueError."""
     with pytest.raises(ValueError, match="tools must not be empty"):
-        ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, [])
-
-
-def test_init_none_api_key_raises():
-    """None api_key raises ValueError."""
-    with pytest.raises(ValueError, match="api_key must not be empty"):
-        ChatCompletionsClient(None, _BASE_URL, _MODEL, _TOOLS)
+        ChatCompletionsClient(_llm_config(), [])
 
 
 # ---------------------------------------------------------------------------
-# format_tools
+# _format_tools
 # ---------------------------------------------------------------------------
 
 
@@ -269,24 +272,26 @@ _TOOLS_DEFINITIONS = [
 
 def test_format_tools_nests_each_definition_under_function():
     """Each definition becomes a nested Chat Completions function tool."""
-    assert ChatCompletionsClient.format_tools(_MCP_TOOLS) == [
+    # pylint: disable-next=protected-access
+    assert ChatCompletionsClient._format_tools(_MCP_TOOLS) == [
         {"type": "function", "function": definition}
         for definition in _TOOLS_DEFINITIONS
     ]
 
 
 def test_format_tools_empty_list():
-    assert ChatCompletionsClient.format_tools([]) == []
+    # pylint: disable-next=protected-access
+    assert ChatCompletionsClient._format_tools([]) == []
 
 
 # ---------------------------------------------------------------------------
-# create_response — text response
+# prompt — text response
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_create_response_returns_completion():
-    """create_response returns the ChatCompletion from the API."""
+async def test_prompt_returns_completion():
+    """prompt returns the ChatCompletion from the API."""
     fake_response = _make_chat_completion(content="The answer is 8")
     client = _make_client()
 
@@ -296,7 +301,7 @@ async def test_create_response_returns_completion():
     )
 
     history = [{"role": "user", "content": "4+4?"}]
-    result = await client.create_response(history)
+    result = await client.prompt(history)
 
     assert result is fake_response
     assert result.choices[0].message.content == "The answer is 8"
@@ -304,14 +309,13 @@ async def test_create_response_returns_completion():
         model=_MODEL,
         messages=history,
         tools=_TOOLS,
-        store=False,
         temperature=omit,
     )
 
 
 @pytest.mark.asyncio
-async def test_create_response_with_tool_calls():
-    """create_response handles a response with tool_calls."""
+async def test_prompt_with_tool_calls():
+    """prompt handles a response with tool_calls."""
     tool_call = SimpleNamespace(
         id="call_123",
         function=SimpleNamespace(
@@ -332,7 +336,7 @@ async def test_create_response_with_tool_calls():
     )
 
     history = [{"role": "user", "content": "2+3?"}]
-    result = await client.create_response(history)
+    result = await client.prompt(history)
 
     assert result is fake_response
     assert result.choices[0].message.content is None
@@ -341,8 +345,8 @@ async def test_create_response_with_tool_calls():
 
 
 @pytest.mark.asyncio
-async def test_create_response_with_none_content_no_tool_calls():
-    """create_response handles None content without tool_calls."""
+async def test_prompt_with_none_content_no_tool_calls():
+    """prompt handles None content without tool_calls."""
     fake_response = _make_chat_completion(
         content=None,
         tool_calls=None,
@@ -356,15 +360,15 @@ async def test_create_response_with_none_content_no_tool_calls():
     )
 
     history = [{"role": "user", "content": "hello"}]
-    result = await client.create_response(history)
+    result = await client.prompt(history)
 
     assert result.choices[0].message.content is None
     assert result.choices[0].message.tool_calls is None
 
 
 @pytest.mark.asyncio
-async def test_create_response_passes_all_messages():
-    """create_response forwards the full message history."""
+async def test_prompt_passes_all_messages():
+    """prompt forwards the full message history."""
     fake_response = _make_chat_completion(content="done")
     client = _make_client()
 
@@ -379,20 +383,19 @@ async def test_create_response_passes_all_messages():
         {"role": "assistant", "content": "4"},
         {"role": "user", "content": "And 3+3?"},
     ]
-    await client.create_response(history)
+    await client.prompt(history)
 
     mock_create.assert_awaited_once_with(
         model=_MODEL,
         messages=history,
         tools=_TOOLS,
-        store=False,
         temperature=omit,
     )
 
 
 @pytest.mark.asyncio
-async def test_create_response_multiple_tool_calls():
-    """create_response handles multiple tool calls in one response."""
+async def test_prompt_multiple_tool_calls():
+    """prompt handles multiple tool calls in one response."""
     tool_calls = [
         SimpleNamespace(
             id="call_1",
@@ -416,7 +419,7 @@ async def test_create_response_multiple_tool_calls():
     )
 
     history = [{"role": "user", "content": "(1+2) + (3+4)?"}]
-    result = await client.create_response(history)
+    result = await client.prompt(history)
 
     assert len(result.choices[0].message.tool_calls) == 2
 
@@ -439,7 +442,7 @@ def agent_env():
     """Build an ``Agent`` with a fake MCP client and a patched LLM.
 
     Yields a ``SimpleNamespace`` whose ``responses`` list is consumed
-    one entry per ``create_response`` call, whose ``histories`` list
+    one entry per ``prompt`` call, whose ``histories`` list
     records a snapshot of the history sent on each call, and whose
     ``call_tool`` mock records every dispatched calculator tool call.
     """
@@ -455,10 +458,10 @@ def agent_env():
 
     env.agent = Agent(
         SimpleNamespace(call_tool=env.call_tool),
-        ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
+        ChatCompletionsClient(_llm_config(), [_ADD_TOOL]),
     )
     with patch.object(
-        ChatCompletionsClient, "create_response", side_effect=_next_response
+        ChatCompletionsClient, "prompt", side_effect=_next_response
     ):
         yield env
 
@@ -466,7 +469,10 @@ def agent_env():
 @pytest.mark.asyncio
 async def test_agent_context_manager_closes_llm_client(agent_env):
     with patch.object(
-        ChatCompletionsClient, "close", new_callable=AsyncMock
+        ChatCompletionsClient,
+        "__aexit__",
+        new_callable=AsyncMock,
+        return_value=None,
     ) as mock_close:
         async with agent_env.agent as agent:
             assert agent is agent_env.agent
@@ -658,42 +664,31 @@ async def test_agent_create_selects_client_for_api_style(
     app_config.llm.api_style = (
         "responses" if client_type is ResponsesClient else "chat"
     )
-    with (
-        patch.object(llm_module, "get_config", return_value=app_config),
-        patch.object(llm_module, "get_api_key", return_value=_API_KEY),
-    ):
+    with patch.object(llm_module, "get_config", return_value=app_config):
         agent = await Agent.create(fake_calc)
     llm = agent._llm  # pylint: disable=protected-access
     assert isinstance(llm, client_type)
-    assert llm.tools == client_type.format_tools(_MCP_TOOLS)
+    # pylint: disable-next=protected-access
+    assert llm.tools == client_type._format_tools(_MCP_TOOLS)
     assert llm.openai_client.timeout == app_config.llm.timeout_seconds
     assert llm.temperature == app_config.llm.temperature
 
 
 @pytest.mark.asyncio
-async def test_agent_create_passes_reasoning_summary(app_config, fake_calc):
-    """Agent.create passes llm.reasoning_summary to the Responses client."""
-    app_config.llm.api_style = "responses"
-    app_config.llm.reasoning_summary = "detailed"
+async def test_agent_create_closes_llm_when_construction_fails(fake_calc):
+    """A failure building the agent closes the new LLM client."""
     with (
-        patch.object(llm_module, "get_config", return_value=app_config),
-        patch.object(llm_module, "get_api_key", return_value=_API_KEY),
-    ):
-        agent = await Agent.create(fake_calc)
-    assert agent._llm.reasoning_summary == "detailed"  # pylint: disable=W0212
-
-
-@pytest.mark.asyncio
-async def test_agent_create_propagates_missing_api_key(app_config, fake_calc):
-    """A missing API key aborts agent creation."""
-    with (
-        patch.object(llm_module, "get_config", return_value=app_config),
+        patch.object(Agent, "__init__", side_effect=RuntimeError("boom")),
         patch.object(
-            llm_module, "get_api_key", side_effect=RuntimeError("no key")
-        ),
+            ChatCompletionsClient,
+            "__aexit__",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mock_close,
     ):
-        with pytest.raises(RuntimeError, match="no key"):
+        with pytest.raises(RuntimeError, match="boom"):
             await Agent.create(fake_calc)
+    mock_close.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
@@ -726,10 +721,10 @@ def single_slot_agent(app_config):
 
     agent = Agent(
         SimpleNamespace(call_tool=AsyncMock()),
-        ChatCompletionsClient(_API_KEY, _BASE_URL, _MODEL, _TOOLS),
+        ChatCompletionsClient(_llm_config(), [_ADD_TOOL]),
     )
     with patch.object(
-        ChatCompletionsClient, "create_response", side_effect=_gated_response
+        ChatCompletionsClient, "prompt", side_effect=_gated_response
     ):
         yield agent, gate
 
@@ -762,7 +757,7 @@ async def test_agent_run_frees_slot_after_error(single_slot_agent):
     gate.set()
     with patch.object(
         ChatCompletionsClient,
-        "create_response",
+        "prompt",
         side_effect=RuntimeError("LLM down"),
     ):
         with pytest.raises(RuntimeError, match="LLM down"):

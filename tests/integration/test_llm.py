@@ -49,7 +49,6 @@ import logging
 
 from math_ai_agent.config.config import (
     configure_logging,
-    get_api_key,
     get_config,
 )
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
@@ -93,15 +92,10 @@ async def prompt_llm() -> None:
     logger.info("Starting LLM prompt test")
     messages = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
     tools = await get_mcp_tools()
-    llm = ChatCompletionsClient(
-        get_api_key(),
-        get_config().llm.model_base_url,
-        get_config().llm.model,
-        tools,
-    )
     messages.append({"role": "user", "content": "4+4?"})
     logger.debug("Sending prompt: %s", messages[-1]["content"])
-    response = await llm.create_response(messages)
+    async with ChatCompletionsClient(get_config().llm, tools) as llm:
+        response = await llm.prompt(messages)
     logger.info("Assistant: %s", response.choices[0].message.content)
 
 

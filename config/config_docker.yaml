@@ -26,10 +26,7 @@ llm:
     max_concurrent_prompts: 10
     # Responses API: store responses on the server and send only new
     # items each turn via previous_response_id.
-    stateful: false
-    # Responses API only: reasoning summary detail ("auto", "concise", or
-    # "detailed").
-    reasoning_summary: "detailed"
+    is_stateful: false
 
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.

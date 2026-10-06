@@ -36,127 +36,59 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-"""Abstract LLM client around the OpenAI SDK.
-
-``LLMClient`` validates parameters, builds the underlying
-``AsyncOpenAI`` client, and declares the methods each API client
-implements.  Its concrete clients live in
-:mod:`math_ai_agent.llm.chat_completions_client` and
-:mod:`math_ai_agent.llm.responses_client`.
-"""
+"""Abstract client for OpenAI-compatible LLM APIs."""
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 
-import mcp_types
 from openai import AsyncOpenAI
 
-from math_ai_agent.config.config import (
-    DEFAULT_LLM_TIMEOUT_SECONDS,
-    get_config,
-)
+from math_ai_agent.config.config import LLMConfig
 
 logger = logging.getLogger(__name__)
 
 
 class LLMClient[ResponseT](ABC):
-    """Shared validation and ``AsyncOpenAI`` construction.
+    """Abstract type w/common interface to models using OpenAI APIs"""
 
-    Each instance holds its own ``AsyncOpenAI`` client, model name,
-    tool definitions, and the ``llm.system_instructions`` from
-    ``config.yaml``.  ``ResponseT`` is the SDK response type returned
-    by the concrete client's API.
-    """
-
-    def __init__(
-        self,
-        api_key: str,
-        base_url: str,
-        model: str,
-        tools: list[dict],
-        timeout_seconds: float = DEFAULT_LLM_TIMEOUT_SECONDS,
-        temperature: float | None = None,
-    ) -> None:
-        """Create an ``AsyncOpenAI`` client for the LLM.
-
-        ``api_key``, ``base_url``, ``model`` and ``tools`` must be
-        non-empty.
-
-        Args:
-            api_key: API key for the OpenAI-compatible service.
-            base_url: Base URL of the inference endpoint.
-            model: Model identifier to use for completions.
-            tools: Tool definitions in the format matching this client.
-            timeout_seconds: Seconds to wait for each LLM response.
-            temperature: Sampling temperature, or ``None`` to use the
-                provider default.
-
-        Raises:
-            ValueError: If a required parameter is empty or ``None``.
-        """
-        if not api_key:
-            logger.error("api_key is empty or None")
-            raise ValueError("api_key must not be empty")
-        if not base_url:
-            logger.error("base_url is empty or None")
-            raise ValueError("base_url must not be empty")
-        if not model:
-            logger.error("model is empty or None")
-            raise ValueError("model must not be empty")
+    def __init__(self, llm_config: LLMConfig, tools: list[dict]) -> None:
         if not tools:
-            logger.error("tools is empty or None")
             raise ValueError("tools must not be empty")
         logger.info(
-            "Initializing LLM %s with base_url=%s, model=%s, tool_count=%d",
+            "Initializing LLM=%s with base_url=%s, model=%s, tool_count=%d",
             type(self).__name__,
-            base_url,
-            model,
+            llm_config.model_base_url,
+            llm_config.model,
             len(tools),
         )
         self.openai_client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            timeout=timeout_seconds,
+            api_key=llm_config.api_key,
+            base_url=llm_config.model_base_url,
+            timeout=llm_config.timeout_seconds,
         )
         self.tools = tools
-        self.model = model
-        self.temperature = temperature
-        self.system_instructions = get_config().llm.system_instructions
+        self.model = llm_config.model
+        self.temperature = llm_config.temperature
+        self.system_instructions = llm_config.system_instructions
 
-    async def close(self) -> None:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         """Close the underlying ``AsyncOpenAI`` HTTP connections."""
         logger.debug("Closing LLM %s", type(self).__name__)
         await self.openai_client.close()
 
-    @staticmethod
     @abstractmethod
-    def format_tools(tools: list[mcp_types.Tool]) -> list[dict]:
-        """Format MCP tools definitions for this client's API.
-
-        Args:
-            tools: The MCP server's tools.
-
-        Returns:
-            A list of tool dicts in this client's API format.
-        """
-
-    @abstractmethod
-    async def create_response(self, history: list[Any]) -> ResponseT:
-        """Send the conversation history and return the response.
-
-        Args:
-            history: Conversation history in this client's API format.
-
-        Returns:
-            The response from the configured model.
-        """
+    async def prompt(self, history: list[Any]) -> ResponseT: ...
 
     @staticmethod
     @abstractmethod
-    def report_usage(response: ResponseT) -> None:
-        """Log the token usage reported in ``response``.
-
-        Args:
-            response: The response returned by the model.
-        """
+    def log_token_usage(response: ResponseT) -> None: ...

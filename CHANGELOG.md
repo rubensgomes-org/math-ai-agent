@@ -9,9 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `LLMClient` supports `async with`, closing its HTTP connections on exit;
+  it replaces the removed `close()`.
+
 ### Changed
 
+- Replaced `get_api_key()` with `LLMConfig.api_key`, read from
+  `api_key_env` at config load; a missing key now fails config validation.
+- LLM client constructors take `(llm_config, tools)` instead of individual
+  settings, where `tools` are MCP tools formatted by the now-private
+  `_format_tools()`; empty `model_base_url` or `model` now fails config
+  validation.
+- Renamed `LLMClient.create_response()` to `prompt()` and `report_usage()`
+  to `log_token_usage()`.
+- Renamed the `llm.stateful` setting to `llm.is_stateful`.
+- Removed the `llm.reasoning_summary` setting; the Responses client no
+  longer sends `reasoning`.
+- The Chat Completions client no longer sends `store=False`.
+
 ### Fixed
+
+- `Agent.create` closes the LLM client if building the agent fails.
 
 ## [0.0.31] - 2026-10-05
 
