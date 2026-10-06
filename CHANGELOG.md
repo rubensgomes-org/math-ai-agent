@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `python -m math_ai_agent` runs the web app.
+
 ### Changed
+
+- Replaced `Agent.create(calc)` with `async with Agent(calc)`, which builds
+  the configured LLM client on entry.
+- Moved the command-line entry point from `app.main` to `cli.main`;
+  `app.run()` starts the web server.
 
 ### Fixed
 

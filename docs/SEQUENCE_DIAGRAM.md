@@ -28,7 +28,7 @@ sequenceDiagram
     Client->>Session: initialize()
     Session->>Http: POST initialize
     Http->>Server: HTTP request
-    App->>Agent: Agent.create(calc)
+    App->>Agent: Agent(calc).__aenter__()
     Agent->>Client: tools_definitions()
     Client->>Session: list_tools()
     Session->>Http: POST tools/list

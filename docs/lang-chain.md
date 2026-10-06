@@ -144,5 +144,5 @@ poetry add "langchain@^1.4.0" "langchain-openai@^1.6.0"
 ## Possible Next Step
 
 Implement this as a third `llm.api_style` value (e.g. `langchain`) dispatched
-from `Agent.create()` in `agent/agent.py`, so all three paths stay switchable from
-`config.yaml`.
+from `Agent._create_llm()` in `agent/agent.py`, so all three paths stay
+switchable from `config.yaml`.

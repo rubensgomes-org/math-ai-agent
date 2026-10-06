@@ -45,7 +45,7 @@ class LLMClient[ResponseT](ABC):
         traceback: TracebackType | None,
     ) -> None:
         """Close the underlying ``AsyncOpenAI`` HTTP connections."""
-        logger.debug("Closing LLM %s", type(self).__name__)
+        logger.debug("Closing LLM client%s", type(self).__name__)
         await self.openai_client.close()
 
     @abstractmethod

@@ -12,7 +12,8 @@ from httpx import ASGITransport, AsyncClient, Request, Response
 from openai import APIConnectionError, InternalServerError, RateLimitError
 
 from math_ai_agent import app as app_module
-from math_ai_agent.app import Payload, app, lifespan, main
+from math_ai_agent.app import Payload, app, lifespan
+from math_ai_agent.cli import main
 from math_ai_agent.llm import (
     AgentBusyError,
     ContentFilterError,
@@ -328,13 +329,13 @@ async def test_lifespan_builds_agent_and_closes_clients():
     with (
         patch.object(app_module, "CalcMCPClient", return_value=calc),
         patch.object(
-            app_module.Agent, "create", AsyncMock(return_value=agent)
-        ) as mock_create,
+            app_module, "Agent", return_value=agent
+        ) as mock_agent_class,
     ):
         async with lifespan(fastapi_app):
             assert fastapi_app.state.agent is agent
             calc.__aexit__.assert_not_awaited()
             agent.__aexit__.assert_not_awaited()
-    mock_create.assert_awaited_once_with(calc)
+    mock_agent_class.assert_called_once_with(calc)
     agent.__aexit__.assert_awaited_once()
     calc.__aexit__.assert_awaited_once()

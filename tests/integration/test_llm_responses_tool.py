@@ -39,12 +39,12 @@ async def main() -> None:
     get_config().llm.api_style = "responses"
     async with CalcMCPClient() as calc:
         await show_tools(calc)
-        agent = await Agent.create(calc)
         user_input = (
             " ".join(sys.argv[1:]) if len(sys.argv) > 1 else input("User: ")
         )
         logger.debug("Sending user prompt: %s", user_input)
-        logger.info("Assistant: %s", await agent.run(user_input))
+        async with Agent(calc) as agent:
+            logger.info("Assistant: %s", await agent.run(user_input))
     logger.info("Integration test completed")
 
 

@@ -39,9 +39,13 @@ class Agent:
     def __init__(
         self,
         calc: CalcMCPClient,
-        llm: ChatCompletionsClient | ResponsesClient,
+        llm: ChatCompletionsClient | ResponsesClient | None = None,
     ) -> None:
-        """Create an agent from an open MCP connection and an LLM client."""
+        """Create an agent from an open MCP connection.
+
+        When ``llm`` is omitted, the configured LLM client is built on
+        entering the agent's context.
+        """
         self._calc = calc
         self._llm = llm
         # Allows llm.max_concurrent_prompts from config.yaml prompts to run
@@ -52,8 +56,21 @@ class Agent:
         )
 
     async def __aenter__(self) -> Self:
+        if self._llm is None:
+            self._llm = await self._create_llm()
         await self._exit_stack.enter_async_context(self._llm)
         return self
+
+    async def _create_llm(self) -> ChatCompletionsClient | ResponsesClient:
+        """Discover the MCP tools and build the configured LLM client."""
+        tools: list[mcp_types.Tool] = await self._calc.list_tools()
+        llm_config = get_config().llm
+        logger.info(
+            "Creating LLM client using api_style=%s", llm_config.api_style
+        )
+        if llm_config.api_style == "responses":
+            return ResponsesClient(llm_config, tools)
+        return ChatCompletionsClient(llm_config, tools)
 
     async def __aexit__(
         self,
@@ -61,27 +78,8 @@ class Agent:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        logger.info("closing agent")
         await self._exit_stack.__aexit__(exc_type, exc_value, traceback)
-
-    @classmethod
-    async def create(cls, calc: CalcMCPClient) -> "Agent":
-        """Discover the MCP tools and build the configured LLM client."""
-        llm_config = get_config().llm
-        logger.info(
-            "Creating AI agent using LLM api_style=%s",
-            llm_config.api_style,
-        )
-        tools: list[mcp_types.Tool] = await calc.list_tools()
-        llm: ChatCompletionsClient | ResponsesClient
-        if llm_config.api_style == "responses":
-            llm = ResponsesClient(llm_config, tools)
-        else:
-            llm = ChatCompletionsClient(llm_config, tools)
-        async with AsyncExitStack() as stack:
-            stack.push_async_exit(llm)
-            agent = cls(calc, llm)
-            stack.pop_all()
-        return agent
 
     async def run(
         self, user_prompt: str, display_reasoning: bool = True
@@ -91,6 +89,8 @@ class Agent:
             The LLM's answer.  The Responses API answer also includes
             a reasoning section when ``display_reasoning`` is ``True``.
         """
+        if self._llm is None:
+            raise RuntimeError("Enter the agent's context before running")
         if self._prompt_slots.locked():
             logger.warning("Rejecting prompt: all prompt slots are in use")
             raise AgentBusyError("Too many prompts are running")

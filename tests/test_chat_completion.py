@@ -605,7 +605,7 @@ async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
 
 
 # ---------------------------------------------------------------------------
-# Agent.create — api_style selection
+# Agent context — api_style selection
 # ---------------------------------------------------------------------------
 
 
@@ -619,16 +619,16 @@ def fake_calc():
 @pytest.mark.parametrize(
     "client_type", [ChatCompletionsClient, ResponsesClient]
 )
-async def test_agent_create_selects_client_for_api_style(
+async def test_agent_enter_selects_client_for_api_style(
     app_config, fake_calc, client_type
 ):
-    """Agent.create builds the LLM client matching llm.api_style."""
+    """Entering the agent builds the LLM client matching llm.api_style."""
     app_config.llm.api_style = (
         "responses" if client_type is ResponsesClient else "chat"
     )
     with patch.object(llm_module, "get_config", return_value=app_config):
-        agent = await Agent.create(fake_calc)
-    llm = agent._llm  # pylint: disable=protected-access
+        async with Agent(fake_calc) as agent:
+            llm = agent._llm  # pylint: disable=protected-access
     assert isinstance(llm, client_type)
     # pylint: disable-next=protected-access
     assert llm.tools == client_type._format_tools(_MCP_TOOLS)
@@ -637,20 +637,10 @@ async def test_agent_create_selects_client_for_api_style(
 
 
 @pytest.mark.asyncio
-async def test_agent_create_closes_llm_when_construction_fails(fake_calc):
-    """A failure building the agent closes the new LLM client."""
-    with (
-        patch.object(Agent, "__init__", side_effect=RuntimeError("boom")),
-        patch.object(
-            ChatCompletionsClient,
-            "__aexit__",
-            new_callable=AsyncMock,
-            return_value=None,
-        ) as mock_close,
-    ):
-        with pytest.raises(RuntimeError, match="boom"):
-            await Agent.create(fake_calc)
-    mock_close.assert_awaited_once()
+async def test_agent_run_requires_entered_context(fake_calc):
+    """Running an agent without an LLM client raises RuntimeError."""
+    with pytest.raises(RuntimeError):
+        await Agent(fake_calc).run("1+1?")
 
 
 # ---------------------------------------------------------------------------
