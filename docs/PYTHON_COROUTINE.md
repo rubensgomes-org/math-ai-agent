@@ -31,7 +31,7 @@ does not run it; it returns a coroutine object that the event loop runs.
 
 ```python
 async def run(self, user_prompt: str) -> str:
-    response = await llm.create_response(history)
+    response = await llm.prompt(history)
     ...
 ```
 

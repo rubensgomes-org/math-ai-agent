@@ -58,8 +58,8 @@ from langchain_core.tools import StructuredTool
 from langchain_openai import ChatOpenAI
 
 from math_ai_agent.config.config import (
-    get_api_key,
     get_api_style,
+    get_config,
     get_model,
     get_model_base_url,
 )
@@ -90,7 +90,7 @@ async def lc_agent_loop(user_prompt: str) -> str:
     model = ChatOpenAI(
         model=get_model(),  # nvidia/nemotron-3-super-120b-a12b
         base_url=get_model_base_url(),  # https://integrate.api.nvidia.com/v1
-        api_key=get_api_key(),  # from NVIDIA_API_KEY
+        api_key=get_config().llm.api_key,  # from NVIDIA_API_KEY
         use_responses_api=(get_api_style() == "responses"),
         store=False,  # keep the no-retention stance
         temperature=0,

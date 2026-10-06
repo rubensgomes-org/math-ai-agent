@@ -141,6 +141,7 @@ out/
 
 ### AI plan files ###
 misc/tasks/
+*.bkp
 
 ### ---------- >>> Secrets <<< ---------- ###
 # Core secrets files
@@ -175,3 +176,6 @@ certs/
 
 # do not added coverage results
 coverage.xml
+
+# drawio backup files
+*.bkp

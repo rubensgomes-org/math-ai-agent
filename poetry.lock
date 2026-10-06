@@ -233,14 +233,14 @@ redis = ["redis (>=2.10.5)"]
 
 [[package]]
 name = "cachetools"
-version = "7.2.0"
+version = "7.2.1"
 description = "Extensible memoizing collections and decorators"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "cachetools-7.2.0-py3-none-any.whl", hash = "sha256:3045213f186b89fdd95d94441354c4bd87c570b7a38d8c3fd1d9dd37f6dc90d8"},
-    {file = "cachetools-7.2.0.tar.gz", hash = "sha256:bcac1a1b8da6909994a2957238a57b8140dab7c5c5c69a43669654fe87a33c1d"},
+    {file = "cachetools-7.2.1-py3-none-any.whl", hash = "sha256:63aa53dfe7473c10cccdd5a01dedf76ef2c4b73a58840d9396e7d0752cbdac3b"},
+    {file = "cachetools-7.2.1.tar.gz", hash = "sha256:b1a7537025c06abf96fcc1443e496af9a3fb95e774e70e1f0af226f73f7f2dcc"},
 ]
 
 [[package]]
@@ -1146,14 +1146,14 @@ server = ["authlib (>=1.6.11)", "cyclopts (>=4.0.0)", "exceptiongroup (>=1.2.2)"
 
 [[package]]
 name = "filelock"
-version = "4.0.11"
+version = "4.0.12"
 description = "A platform independent file lock."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "filelock-4.0.11-py3-none-any.whl", hash = "sha256:1cbdc4ace7fb11d2f6d073f5c3d91537a23b3d58d2bf2fdffc12c6d717a589c6"},
-    {file = "filelock-4.0.11.tar.gz", hash = "sha256:9dc453a1edd25626a6fc97c2cb1bd9f7e46345843d40b3181c071761fb9a5f7a"},
+    {file = "filelock-4.0.12-py3-none-any.whl", hash = "sha256:5f17ee83ecee8a6f3e389c75822fb70a1c2f0506b99438a6dffa1d56793588c8"},
+    {file = "filelock-4.0.12.tar.gz", hash = "sha256:cf42711a7ac791818b299fab0332a088c65aeeefa36290de98db92c434303b0c"},
 ]
 
 [[package]]
@@ -2852,20 +2852,21 @@ files = [
 
 [[package]]
 name = "pysonar"
-version = "1.8.0.5390"
+version = "1.9.0.5762"
 description = "Sonar Scanner for the Python Ecosystem"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "pysonar-1.8.0.5390-py3-none-any.whl", hash = "sha256:f4857bb2dea6ecec66a5a0699d23e58f2a2a4fe2829bf4764662ac39bd7e1c8c"},
-    {file = "pysonar-1.8.0.5390.tar.gz", hash = "sha256:bf0682906f17debf2dd43cb343882ae0826e5a5d698d24e5dc3900ee96991387"},
+    {file = "pysonar-1.9.0.5762-py3-none-any.whl", hash = "sha256:d370b3d2a69686ecb16163860e94e461b770f2a1cd0a59d4156f409d7fe7469f"},
+    {file = "pysonar-1.9.0.5762.tar.gz", hash = "sha256:b2721f45b34b65ecf244bb69699b0b247a800c3fd3e673fd997b7454706f1a28"},
 ]
 
 [package.dependencies]
 jproperties = ">=2.1,<3"
 requests = ">=2.32,<3"
 tomli = ">=2.0,<3"
+urllib3 = ">=2.8.0,<3"
 
 [[package]]
 name = "pytest"

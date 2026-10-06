@@ -36,12 +36,7 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-
-"""LLM client for the OpenAI Responses API (``POST /v1/responses``).
-
-The system prompt, the multi-turn control flow, and the calculator MCP
-tool dispatch all live in :mod:`math_ai_agent.agent.agent`.
-"""
+"""LLM client for the OpenAI Responses API (``POST /v1/responses``)."""
 
 import logging
 from typing import Any, cast
@@ -50,10 +45,7 @@ import mcp_types
 from openai import omit
 from openai.types.responses import Response
 
-from math_ai_agent.config.config import (
-    DEFAULT_LLM_TIMEOUT_SECONDS,
-    ReasoningSummary,
-)
+from math_ai_agent.config.config import LLMConfig
 from math_ai_agent.llm.llm_client import LLMClient
 from math_ai_agent.llm.utils import (
     function_definition,
@@ -65,41 +57,16 @@ logger = logging.getLogger(__name__)
 
 
 class ResponsesClient(LLMClient[Response]):
-    """Async OpenAI client for the Responses API.
-
-    The system prompt is supplied by the caller and sent as the
-    top-level ``instructions`` parameter rather than as a message
-    item.  When ``stateful`` is ``False``, ``store`` is ``False`` and
-    the caller replays the whole conversation on every turn.  When it
-    is ``True``, responses are stored and continued with
-    ``previous_response_id``, which not every provider supports.
-    """
+    """OpenAI Responses API (``POST /v1/responses``)."""
 
     def __init__(
-        self,
-        api_key: str,
-        base_url: str,
-        model: str,
-        tools: list[dict],
-        timeout: float = DEFAULT_LLM_TIMEOUT_SECONDS,
-        temperature: float | None = None,
-        stateful: bool = False,
-        reasoning_summary: ReasoningSummary | None = None,
+        self, llm_config: LLMConfig, tools: list[mcp_types.Tool]
     ) -> None:
-        """Create the client; see ``LLMClient`` for the other args.
-
-        Args:
-            stateful: Store responses on the server so turns can be
-                continued with ``previous_response_id``.
-            reasoning_summary: Reasoning summary detail to request, or
-                ``None`` to not request one.
-        """
-        super().__init__(api_key, base_url, model, tools, timeout, temperature)
-        self.stateful = stateful
-        self.reasoning_summary = reasoning_summary
+        super().__init__(llm_config, self._format_tools(tools))
+        self.is_stateful = llm_config.is_stateful
 
     @staticmethod
-    def format_tools(tools: list[mcp_types.Tool]) -> list[dict]:
+    def _format_tools(tools: list[mcp_types.Tool]) -> list[dict]:
         """Format MCP tools definitions for the Responses API.
 
         Unlike the Chat Completions format, the Responses API uses a
@@ -125,23 +92,9 @@ class ResponsesClient(LLMClient[Response]):
             {"type": "function", **function_definition(tool)} for tool in tools
         ]
 
-    async def create_response(
-        self,
-        history: list[Any],
-        previous_response_id: str | None = None,
+    async def prompt(
+        self, history: list[Any], previous_response_id: str | None = None
     ) -> Response:
-        """Send input items and return the response.
-
-        Args:
-            history: Responses API input Items: the whole
-                conversation when stateless, or only the new items when
-                continuing ``previous_response_id``.
-            previous_response_id: ID of the stored response to
-                continue, or ``None`` to start a new conversation.
-
-        Returns:
-            The ``Response`` from the configured model.
-        """
         # The call to the LLM model has:
         # - instructions: you should always add this instruction because there
         #     is no guarantee the LLM model will save this
@@ -165,50 +118,29 @@ class ResponsesClient(LLMClient[Response]):
             to_json(history),
             to_json(self.tools),
         )
-        # See the note in ChatCompletionsClient.create_response: this
-        # call never streams, so narrow it back to ``Response``.
         response = cast(
             Response,
             await self.openai_client.responses.create(
                 model=self.model,
-                input=history,  # type: ignore[arg-type]
-                # Models without reasoning may reject this field.
-                reasoning=(
-                    {"summary": self.reasoning_summary}
-                    if self.reasoning_summary
-                    else omit
-                ),
+                input=history,
                 tools=self.tools,  # type: ignore[arg-type]
                 instructions=self.system_instructions,
                 # ``store`` controls server-side retention of the
                 # request and response.  Unlike Chat Completions, the
                 # Responses API is stateful by default (depending on
                 # support by the LLM model), so it must be disabled
-                # explicitly when stateless.  Provider notes:
-                #
-                # * OpenRouter rejects ``store=True`` (and any
-                #   non-null ``previous_response_id``) with HTTP 400,
-                #   and NVIDIA rejects ``previous_response_id`` with
-                #   HTTP 501.  Both work only when stateless.
-                store=self.stateful,
+                # explicitly when stateless.
+                store=self.is_stateful,
                 # ``omit`` leaves the field out of the request.
                 previous_response_id=previous_response_id or omit,
                 temperature=omit_if_none(self.temperature),
             ),
         )
-        logger.debug(
-            "LLM response:\n%s",
-            to_json(response),
-        )
+        logger.debug("LLM response:\n%s", to_json(response))
         return response
 
     @staticmethod
-    def report_usage(response: Response) -> None:
-        """Log the token usage reported in ``response``.
-
-        Args:
-            response: The ``Response`` returned by the model.
-        """
+    def log_token_usage(response: Response) -> None:
         usage = response.usage
         if usage is not None:
             logger.info(

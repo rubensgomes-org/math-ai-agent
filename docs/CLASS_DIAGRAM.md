@@ -24,15 +24,15 @@ llm/llm_client.py, llm/chat_completions_client.py, llm/responses_client.py
                   │  openai_client ◆── [AsyncOpenAI]
                   │  model, tools, temperature   │
                   │  format_tools()              │
-                  │  create_response()           │
+                  │  prompt()                    │
                   │  report_usage()              │
                   └──────────────▲───────────────┘
                    ┌─────────────┴──────────────┐
       ┌────────────┴────────────┐   ┌───────────┴─────────────┐
       │ ChatCompletionsClient   │   │ ResponsesClient         │
       │  format_tools()         │   │  format_tools()         │
-      │  create_response()      │   │  stateful               │
-      │  → /v1/chat/completions │   │  create_response()      │
+      │  prompt()               │   │  stateful               │
+      │  → /v1/chat/completions │   │  prompt()               │
       └─────────────────────────┘   │  → /v1/responses        │
   Chat Completions API: March 2023  └─────────────────────────┘
                                      Responses API: March 2025

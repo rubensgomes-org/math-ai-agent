@@ -44,31 +44,50 @@ import logging.config
 import os
 from importlib.resources import files
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_LLM_TIMEOUT_SECONDS = 120.0
 CALCULATOR_MCP_URL_ENV = "CALCULATOR_MCP_URL"
-ReasoningSummary = Literal["auto", "concise", "detailed"]
 
 
 class LLMConfig(BaseModel):
-    """The ``llm`` section of config.yaml."""
+    """The ``llm`` section of config.yaml.
+
+    ``api_key`` is read from the ``api_key_env`` environment variable at
+    construction and is excluded from ``repr()`` and ``model_dump()``.
+    """
 
     api_style: Literal["chat", "responses"] = "chat"
-    model_base_url: str
-    model: str
+    model_base_url: str = Field(min_length=1)
+    model: str = Field(min_length=1)
     api_key_env: str
     system_instructions: str
     timeout_seconds: float = Field(default=DEFAULT_LLM_TIMEOUT_SECONDS, gt=0)
     max_concurrent_prompts: int = Field(default=10, gt=0)
-    stateful: bool = False
+    is_stateful: bool = False
     temperature: float | None = Field(default=None, ge=0, le=2)
-    reasoning_summary: ReasoningSummary | None = None
+    api_key: str = Field(default="", exclude=True, repr=False)
+
+    @model_validator(mode="after")
+    def _load_api_key(self) -> Self:
+        """Set ``api_key`` from the ``api_key_env`` environment variable.
+
+        Raises:
+            ValueError: If the environment variable is not set or empty.
+        """
+        logger.debug("LLM API key environment variable: %s", self.api_key_env)
+        api_key = os.environ.get(self.api_key_env)
+        if not api_key:
+            error = f"{self.api_key_env} environment variable is not set."
+            logger.error(error)
+            raise ValueError(error)
+        self.api_key = api_key
+        return self
 
 
 class CalculatorMCPConfig(BaseModel):
@@ -158,26 +177,3 @@ def configure_logging() -> None:
     """Apply the logging configuration from config.yaml."""
     logging.config.dictConfig(get_config().logging)
     logger.debug("Loaded config from %s", _resolve_config_path())
-
-
-def get_api_key() -> str:
-    """Return the LLM API key from the environment.
-
-    The config.yaml ``llm.api_key_env`` setting names the environment
-    variable holding the key; the key value itself is never stored in
-    config.yaml.  Only the variable name is logged, never the key.
-
-    Returns:
-        The API key read from the configured environment variable.
-
-    Raises:
-        RuntimeError: If the environment variable is not set or empty.
-    """
-    env_name = get_config().llm.api_key_env
-    logger.debug("LLM API key environment variable: %s", env_name)
-    api_key = os.environ.get(env_name)
-    if not api_key:
-        error = f"{env_name} environment variable is not set."
-        logger.error(error)
-        raise RuntimeError(error)
-    return api_key

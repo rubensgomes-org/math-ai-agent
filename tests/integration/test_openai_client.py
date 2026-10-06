@@ -54,7 +54,6 @@ from openai import OpenAI, OpenAIError
 
 from math_ai_agent.config.config import (
     configure_logging,
-    get_api_key,
     get_config,
 )
 
@@ -84,39 +83,37 @@ def run_client() -> None:
     base_url = get_config().llm.model_base_url
     model = get_config().llm.model
     logger.info("Connecting to %s using model %s", base_url, model)
-    client = OpenAI(
-        api_key=get_api_key(),
-        base_url=base_url,
-    )
-
     prompt = "How do I check if a Python object is an instance of a class?"
+    with OpenAI(
+        api_key=get_config().llm.api_key,
+        base_url=base_url,
+    ) as client:
+        logger.debug("========== %s API CALL (BEGIN) ==========", "NEW")
+        logger.debug("Sending prompt: %s", prompt)
 
-    logger.debug("========== %s API CALL (BEGIN) ==========", "NEW")
-    logger.debug("Sending prompt: %s", prompt)
+        try:
+            start = time.perf_counter()
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": _SYSTEM_INSTRUCTIONS},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            elapsed = time.perf_counter() - start
 
-    try:
-        start = time.perf_counter()
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": _SYSTEM_INSTRUCTIONS},
-                {"role": "user", "content": prompt},
-            ],
-        )
-        elapsed = time.perf_counter() - start
-
-        logger.info("Response received successfully")
-        result = response.choices[0].message.content
-        logger.debug("Response text: %s", result)
-        print(result)
-        print(f"\n[Model: {model} | API: NEW | " f"Time: {elapsed:.2f}s]\n")
-    except OpenAIError:
-        logger.exception(
-            "Failed to get response from model %s via NEW API",
-            model,
-        )
-    finally:
-        logger.debug("========== %s API CALL (END) ==========", "NEW")
+            logger.info("Response received successfully")
+            result = response.choices[0].message.content
+            logger.debug("Response text: %s", result)
+            print(result)
+            print(f"\n[Model: {model} | API: NEW | " f"Time: {elapsed:.2f}s]\n")
+        except OpenAIError:
+            logger.exception(
+                "Failed to get response from model %s via NEW API",
+                model,
+            )
+        finally:
+            logger.debug("========== %s API CALL (END) ==========", "NEW")
 
 
 def main() -> None:

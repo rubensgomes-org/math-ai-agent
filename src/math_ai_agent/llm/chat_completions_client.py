@@ -38,9 +38,6 @@
 
 """LLM client for the legacy OpenAI Chat Completions API
 (``POST /v1/chat/completions``).
-
-The system prompt, the multi-turn control flow, and the calculator MCP
-tool dispatch all live in :mod:`math_ai_agent.agent.agent`.
 """
 
 import logging
@@ -49,6 +46,7 @@ from typing import Any, cast
 import mcp_types
 from openai.types.chat import ChatCompletion
 
+from math_ai_agent.config.config import LLMConfig
 from math_ai_agent.llm.llm_client import LLMClient
 from math_ai_agent.llm.utils import (
     function_definition,
@@ -60,15 +58,16 @@ logger = logging.getLogger(__name__)
 
 
 class ChatCompletionsClient(LLMClient[ChatCompletion]):
-    """Async OpenAI client for the legacy Chat Completions API."""
+    """OpenAI ChatCompletions API (``POST /v1/chat/completions``)."""
+
+    def __init__(
+        self, llm_config: LLMConfig, tools: list[mcp_types.Tool]
+    ) -> None:
+        super().__init__(llm_config, self._format_tools(tools))
 
     @staticmethod
-    def format_tools(tools: list[mcp_types.Tool]) -> list[dict]:
+    def _format_tools(tools: list[mcp_types.Tool]) -> list[dict]:
         """Format MCP tools definitions for the Chat Completions API.
-
-        Args:
-            tools: The MCP server's tools.
-
         Returns:
             A list of dicts in the Chat Completions tool format::
 
@@ -89,16 +88,7 @@ class ChatCompletionsClient(LLMClient[ChatCompletion]):
             for tool in tools
         ]
 
-    async def create_response(self, history: list[Any]) -> ChatCompletion:
-        """Send the conversation history and return the response.
-
-        Args:
-            history: Conversation history as a list of
-                role/content dicts.
-
-        Returns:
-            The ``ChatCompletion`` from the configured model.
-        """
+    async def prompt(self, history: list[Any]) -> ChatCompletion:
         logger.debug(
             "LLM client sending %d message(s) to model %s\n"
             "Messages:\n%s\n"
@@ -108,41 +98,20 @@ class ChatCompletionsClient(LLMClient[ChatCompletion]):
             to_json(history),
             to_json(self.tools),
         )
-        # ``create()`` is overloaded on ``stream``; because the
-        # arguments below are loosely typed, some type checkers widen
-        # the result to include the streaming variant.  This call never
-        # streams, so narrow it back to ``ChatCompletion``.
         response = cast(
             ChatCompletion,
             await self.openai_client.chat.completions.create(
                 model=self.model,
-                messages=history,  # type: ignore[arg-type]
+                messages=history,
                 tools=self.tools,  # type: ignore[arg-type]
-                # See the note on ``store`` in ResponsesClient.  The
-                # Chat Completions default is already ``false``, but
-                # omitting the field is not reliably the same as
-                # sending it: OpenAI accounts carry a separate
-                # data-retention setting that can enable storage when
-                # the parameter is absent.  Sending it makes the
-                # intent explicit rather than dependent on how the
-                # account happens to be configured.
-                store=False,
                 temperature=omit_if_none(self.temperature),
             ),
         )
-        logger.debug(
-            "LLM response:\n%s",
-            to_json(response),
-        )
+        logger.debug("LLM response:\n%s", to_json(response))
         return response
 
     @staticmethod
-    def report_usage(response: ChatCompletion) -> None:
-        """Log the token usage reported in ``response``.
-
-        Args:
-            response: The ``ChatCompletion`` returned by the model.
-        """
+    def log_token_usage(response: ChatCompletion) -> None:
         usage = response.usage
         if usage is not None:
             logger.info(

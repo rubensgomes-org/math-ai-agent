@@ -14,6 +14,7 @@ llm:
     # Nemotron frontier NVIDIA models for agentic workflows, coding and tool use
     # see list of NVIDIA models: https://integrate.api.nvidia.com/v1/models
     # https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/modelcard
+    # nemotron is a reasoning model
     model: "nvidia/nemotron-3-ultra-550b-a55b"
     # Name of the environment variable holding the API key.
     # Get a key from https://build.nvidia.com (keys start with "nvapi-").
@@ -32,6 +33,7 @@ llm:
     # `gpt-6-luna` is an OpenAI low cost LLM:
     #   Input tokens:  $0.10 per 1 million input tokens
     #   Output tokens: $0.50 per 1 million output tokens
+    # gpt-6-luna is a non-reasoning LLM model
 #    model: "gpt-6-luna"
     # Name of the environment variable holding the API key.
     # Get a key from https://platform.openai.com/api-keys
@@ -54,12 +56,7 @@ llm:
     # Responses API only: store responses on the server and send only new
     # items each turn via previous_response_id. NVIDIA and OpenRouter do
     # not support it; OpenAI does and keeps stored responses for 30 days.
-    stateful: false
-
-    # Responses API only: reasoning summary detail ("auto", "concise", or
-    # "detailed"). Remove it for models without reasoning, which may reject
-    # the request.
-    reasoning_summary: "detailed"
+    is_stateful: false
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.
