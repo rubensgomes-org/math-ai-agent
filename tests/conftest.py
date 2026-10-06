@@ -38,15 +38,33 @@
 
 """Shared pytest fixtures."""
 
+import os
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from math_ai_agent.agent import agent
+from math_ai_agent.config import config
 from math_ai_agent.config.config import AppConfig
 
 TEST_LLM_KEY_ENV = "TEST_LLM_KEY"
 TEST_LLM_KEY = "test-llm-key"
+
+
+def _set_bundled_api_key_env() -> None:
+    """Give the bundled config's API key variable a dummy value.
+
+    ``math_ai_agent.app`` loads the config at import, which fails when
+    the key variable is unset (e.g., in CI).
+    """
+    # pylint: disable-next=protected-access
+    with open(config._resolve_config_path(), encoding="utf-8") as f:
+        api_key_env = yaml.safe_load(f)["llm"]["api_key_env"]
+    os.environ.setdefault(api_key_env, TEST_LLM_KEY)
+
+
+_set_bundled_api_key_env()
 
 
 @pytest.fixture(autouse=True)

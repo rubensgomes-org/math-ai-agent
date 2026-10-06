@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `Agent.create` closes the LLM client if building the agent fails.
+- Unit tests no longer require the LLM API key environment variable, so
+  they run in CI without secrets.
 
 ## [0.0.31] - 2026-10-05
 
