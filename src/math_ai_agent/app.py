@@ -1,17 +1,9 @@
-"""The FastAPI web server app.
+"""The FastAPI web server app."""
 
-Launches a FastAPI web server with the following endpoints:
-    - `GET /` returns the index.html page.
-    - `GET /health` returns 200 with plain text `OK`.
-    - `POST /prompt/` submits user prompt and returns AI response.
-"""
-
-import argparse
 import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from importlib.metadata import version
 from pathlib import Path
 
 import uvicorn
@@ -34,16 +26,13 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 _INDEX_HTML = Path(__file__).parent / "static" / "index.html"
-_DISTRIBUTION_NAME = "math-ai-agent"
 
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     """Connect to the MCP server and build the agent for the app's lifetime."""
-    logger.info("Starting application...")
     async with CalcMCPClient() as calc:
-        logger.info("Established Calculator MCP connection")
-        async with await Agent.create(calc) as agent:
+        async with Agent(calc) as agent:
             fastapi_app.state.agent = agent
             yield
             logger.warning("Shutting down the application...")
@@ -87,14 +76,6 @@ async def health() -> str:
 @app.post("/prompt/")
 async def prompt(payload: Payload, request: Request) -> dict[str, str]:
     """Accept a prompt text from the user and return an answer.
-
-    Args:
-        payload: The validated question and display choice from the
-            request body.
-        request: The request, used to reach the app's ``Agent``.
-
-    Returns:
-        A dict containing the `answer` key with the response.
 
     Raises:
         HTTPException: 503 if too many prompts are already running,
@@ -146,32 +127,13 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
 
 
 # -------------------------------------------------
-# main() and related functions
+# run()
 # -------------------------------------------------
-def _parse_args(argv: list[str] | None) -> argparse.Namespace:
-    """Parse the command-line arguments; ``--version`` prints and exits."""
-    parser = argparse.ArgumentParser(prog=_DISTRIBUTION_NAME)
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {version(_DISTRIBUTION_NAME)}",
-    )
-    return parser.parse_args(argv)
-
-
-def main(argv: list[str] | None = None) -> None:
+def run() -> None:
     """Run the web app with uvicorn on the configured host and port.
 
     ``log_config=None`` stops uvicorn from replacing the logging
     configuration from ``config.yaml`` with its own.
-
-    Args:
-        argv: Command-line arguments; defaults to ``sys.argv[1:]``.
     """
-    _parse_args(argv)
     web = get_config().web
     uvicorn.run(app, host=web.host, port=web.port, log_config=None)
-
-
-if __name__ == "__main__":
-    main()
