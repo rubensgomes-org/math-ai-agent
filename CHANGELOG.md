@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.32] - 2026-10-06
+
+### Added
+
 - `LLMClient` supports `async with`, closing its HTTP connections on exit;
   it replaces the removed `close()`.
 
