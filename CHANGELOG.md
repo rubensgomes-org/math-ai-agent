@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Removed a stray `poetry` import in `calc_client.py` that crashed the
+  installed CLI with `ModuleNotFoundError`.
+
 ## [0.0.35] - 2026-10-07
 
 ### Added

@@ -13,7 +13,6 @@ from key_value.aio.stores.filetree import (
     FileTreeV1KeySanitizationStrategy,
 )
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
-from poetry.console.commands import self
 
 from math_ai_agent.config.config import get_config
 
