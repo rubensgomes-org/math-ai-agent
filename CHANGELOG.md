@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.35] - 2026-10-07
+
+### Added
+
 - `cli.main()` configures logging and logs startup before running the web
   app.
 
