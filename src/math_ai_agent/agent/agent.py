@@ -88,6 +88,12 @@ class Agent:
         self, user_prompt: str, display_reasoning: bool = True
     ) -> str:
         """Run the agent loop for the configured OpenAI API style."""
+        # IMPORTANT: we need to add the following explicit guard because
+        # otherwise mypy would trigger a static analysis error due to potntial
+        # null object, since self._llm is optional at construction time, and
+        # only assigned during __aenter__
+        if self._llm is None:
+            raise RuntimeError("Agent must be entered before calling run()")
         if self._prompt_slots.locked():
             logger.warning("Rejecting prompt: all prompt slots are in use")
             raise AgentBusyError("Too many prompts are running")
