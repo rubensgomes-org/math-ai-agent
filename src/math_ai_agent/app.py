@@ -1,4 +1,4 @@
-"""The FastAPI web server app."""
+"""Start and run the FastAPI web server app."""
 
 import json
 import logging
@@ -75,14 +75,7 @@ async def health() -> str:
 
 @app.post("/prompt/")
 async def prompt(payload: Payload, request: Request) -> dict[str, str]:
-    """Accept a prompt text from the user and return an answer.
-
-    Raises:
-        HTTPException: 503 if too many prompts are already running,
-            422 if the content is blocked by a safety filter, 502 if
-            the LLM reaches its token limit or the request fails, or
-            500 for any other error.
-    """
+    """Accept a prompt text from the user and return an answer."""
     prompt_text = payload.text.strip()
     agent: Agent = request.app.state.agent
     try:
@@ -127,13 +120,9 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
 
 
 # -------------------------------------------------
-# run()
+# run() - starts uvicorn web server
 # -------------------------------------------------
 def run() -> None:
-    """Run the web app with uvicorn on the configured host and port.
-
-    ``log_config=None`` stops uvicorn from replacing the logging
-    configuration from ``config.yaml`` with its own.
-    """
+    """Run the web app with uvicorn on the configured host and port."""
     web = get_config().web
     uvicorn.run(app, host=web.host, port=web.port, log_config=None)

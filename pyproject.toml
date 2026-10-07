@@ -105,7 +105,7 @@ addopts = "--cov --cov-report=term-missing --cov-report=xml"
 [tool.sonar]
 # SONAR_TOKEN must be defined as an environment variable
 organization = "rubensgomes-org"
-projectKey = "rubensgomes-org"
+projectKey = "rubensgomes-org_math-ai-agent"
 projectName = "math-ai-agent"
 qualitygate.wait = true
 sources = "src/"

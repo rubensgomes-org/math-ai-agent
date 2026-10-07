@@ -1,4 +1,7 @@
-"""Run the app with ``python -m math_ai_agent``."""
+"""Executes the math-ai-agent package code at startup
+
+``poetry run python -m math-ai-agent``
+"""
 
 # pylint: disable=invalid-name
 

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class LLMClient[ResponseT](ABC):
-    """Abstract type w/common interface to models using OpenAI APIs"""
+    """Abstract type w/common interface for LLM models using OpenAI APIs"""
 
     def __init__(self, llm_config: LLMConfig, tools: list[dict]) -> None:
         if not tools:
@@ -45,7 +45,7 @@ class LLMClient[ResponseT](ABC):
         traceback: TracebackType | None,
     ) -> None:
         """Close the underlying ``AsyncOpenAI`` HTTP connections."""
-        logger.debug("Closing LLM client%s", type(self).__name__)
+        logger.debug("Closing LLM OpenAI client %s", type(self).__name__)
         await self.openai_client.close()
 
     @abstractmethod
