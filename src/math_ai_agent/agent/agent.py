@@ -58,6 +58,8 @@ class Agent:
     async def __aenter__(self) -> Self:
         if self._llm is None:
             self._llm = await self._create_llm()
+        # 1. opens self._llm: async __aenter__
+        # 2. register self._llm async __axit__ callback function
         await self._exit_stack.enter_async_context(self._llm)
         return self
 
@@ -78,19 +80,14 @@ class Agent:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        logger.info("closing agent")
+        logger.info("Closing agent")
+        # hands the agent's cleanup over to the AsyncExitStack
         await self._exit_stack.__aexit__(exc_type, exc_value, traceback)
 
     async def run(
         self, user_prompt: str, display_reasoning: bool = True
     ) -> str:
-        """Run the agent loop for the configured OpenAI API style.
-        Returns:
-            The LLM's answer.  The Responses API answer also includes
-            a reasoning section when ``display_reasoning`` is ``True``.
-        """
-        if self._llm is None:
-            raise RuntimeError("Enter the agent's context before running")
+        """Run the agent loop for the configured OpenAI API style."""
         if self._prompt_slots.locked():
             logger.warning("Rejecting prompt: all prompt slots are in use")
             raise AgentBusyError("Too many prompts are running")
@@ -118,8 +115,9 @@ class Agent:
                 f"Error calling tool '{tool_name}': arguments must be a JSON"
                 " object",
             )
-        logger.debug("Calling calculator MCP tool %s with %s", tool_name, args)
         try:
+            logger.debug("Calling calculator MCP tool %s with %s", tool_name,
+                         args)
             result = await self._calc.call_tool(tool_name, args)
         except ToolError as error:
             return tool_error(tool_name, str(error))
@@ -233,7 +231,7 @@ class Agent:
         previous_response_id: str | None = None
         # Reasoning collected from every turn, for the formatted answer.
         reasoning: list[str] = []
-        logger.info("user prompt: %s", user_prompt)
+        logger.info("user_prompt: %s", user_prompt)
 
         # -------------------------
         # Agent Loop

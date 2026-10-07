@@ -1,7 +1,7 @@
 """LLM client for the OpenAI Responses API (``POST /v1/responses``)."""
 
 import logging
-from typing import Any, cast
+from typing import Any, cast, final
 
 import mcp_types
 from openai import omit
@@ -17,7 +17,7 @@ from math_ai_agent.llm.utils import (
 
 logger = logging.getLogger(__name__)
 
-
+@final
 class ResponsesClient(LLMClient[Response]):
     """OpenAI Responses API (``POST /v1/responses``)."""
 

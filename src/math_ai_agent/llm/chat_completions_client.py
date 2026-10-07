@@ -3,7 +3,7 @@
 """
 
 import logging
-from typing import Any, cast
+from typing import Any, cast, final
 
 import mcp_types
 from openai.types.chat import ChatCompletion
@@ -18,7 +18,7 @@ from math_ai_agent.llm.utils import (
 
 logger = logging.getLogger(__name__)
 
-
+@final
 class ChatCompletionsClient(LLMClient[ChatCompletion]):
     """OpenAI ChatCompletions API (``POST /v1/chat/completions``)."""
 

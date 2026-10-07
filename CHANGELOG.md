@@ -9,7 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `cli.main()` configures logging and logs startup before running the web
+  app.
+
 ### Changed
+
+- The CLI `--help` description now comes from the package summary.
+- Marked `ChatCompletionsClient` and `ResponsesClient` as `@final`.
+- `Agent.run()` no longer raises `RuntimeError` when called outside the
+  agent's context.
+- Changed the SonarQube Cloud `projectKey` to
+  `rubensgomes-org_math-ai-agent`.
 
 ### Fixed
 
