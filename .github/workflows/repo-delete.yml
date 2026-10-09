@@ -1,0 +1,75 @@
+# =============================================================================
+# Delete ACR Repository
+#
+# DESTRUCTIVE. Deletes an entire repository -- every tag and every manifest --
+# from an Azure Container Registry.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: Delete ACR Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Image namespace. With artifactId this forms the repository <environment>/<artifactId>.'
+        required: true
+        type: choice
+        options:
+          - dev
+          - lab
+      confirm:
+        description: >
+          EVERY TAG AND MANIFEST IN THE REPOSITORY IS DELETED PERMANENTLY.
+          There is no soft-delete and no recycle bin. Push anything you care
+          about elsewhere first. Check this box to confirm.
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-delete
+  cancel-in-progress: false
+
+jobs:
+  resolve-acr:
+    name: Resolve the ACR registry name
+    runs-on: ubuntu-latest
+    outputs:
+      acr_name: ${{ steps.resolve.outputs.acr_name }}
+    steps:
+      - id: resolve
+        env:
+          ENVIRONMENT_NAME: ${{ inputs.environment_name }}
+        run: |
+          set -euo pipefail
+          case "$ENVIRONMENT_NAME" in
+            dev) acr_name=crrgomesdev01 ;;
+            lab) acr_name=crrgomeslab02 ;;
+            *)
+              echo "Unknown environment: '${ENVIRONMENT_NAME}'." >&2
+              exit 1
+              ;;
+          esac
+          echo "acr_name=${acr_name}" >> "$GITHUB_OUTPUT"
+          echo "Resolved acr_name: ${acr_name}"
+
+  delete:
+    name: Delete ACR repository
+    needs: resolve-acr
+    if: ${{ inputs.confirm }}
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-repo-delete.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      registry-name: ${{ needs.resolve-acr.outputs.acr_name }}
+      artifact-id: math-ai-agent
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
