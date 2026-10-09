@@ -1,5 +1,5 @@
 # =============================================================================
-# Build and Verify
+# Python Build and Verify
 #
 # Installs dependencies, then runs static type checking, static code
 # analysis, and unit test coverage. Runs on push or manual dispatch; the
@@ -11,7 +11,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: Build and Verify
+name: Python Build and Verify
 
 on:
     push:

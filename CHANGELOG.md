@@ -9,9 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `build-deploy.yml` provisions the container app and its dependencies via
+  `azure-iac`'s `aca-create.yml` before building and deploying, skipping
+  this step when the container app already exists.
+
 ### Changed
 
+- Workflow input `environment` renamed to `environment_name` in
+  `build-deploy.yml`.
+- `build-verify.yml` workflow renamed to `Python Build and Verify`.
+
+### Removed
+
+- `.github/workflows/aca-create.yml`; `build-deploy.yml` now provisions the
+  container app.
+
 ### Fixed
+
+- `build-deploy.yml` fails on an unknown environment instead of continuing
+  with an empty registry name.
 
 ## [0.0.36] - 2026-10-07
 

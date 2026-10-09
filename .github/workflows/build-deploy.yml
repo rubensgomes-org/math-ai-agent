@@ -1,15 +1,13 @@
 # =============================================================================
 # Build and Deploy to ACA
 #
-# Builds the application and its container image, pushes the image to an
-# EXISTING Azure Container Registry, verifies the push, smoke-tests the image
-# and purges the untagged manifests it orphaned. Then updates the EXISTING
-# Azure Container App to run the newly published image with NVIDIA_API_KEY
-# stored as a container app secret and CALCULATOR_MCP_URL set.
-#
-# The EXISTING Azure Container Registry and Container App are expected to be
-# provisioned using one of the workflows in the Terraform IaC `azure-iac`
-# repo.
+# Provisions the Azure Container App and its dependencies (ACR, key vault,
+# network) via the `azure-iac` repo's `aca-create.yml` workflow. Then builds
+# the application and its container image, pushes the image to the ACR,
+# verifies the push, smoke-tests the image and purges the untagged manifests
+# it orphaned. Finally updates the container app to run the newly published
+# image with NVIDIA_API_KEY stored as a container app secret and
+# CALCULATOR_MCP_URL set.
 #
 # This project's source code and documentation were generated with the
 # assistance of Artificial Intelligence (AI). For more information, please
@@ -21,7 +19,7 @@ name: Build and Deploy to ACA
 on:
   workflow_dispatch:
     inputs:
-      environment:
+      environment_name:
         description: 'Image namespace, used as <environment>/<artifactId>:<tag>.'
         required: false
         default: dev
@@ -41,59 +39,40 @@ concurrency:
   group: build-deploy
   cancel-in-progress: false
 
+env:
+  # Naming convention from azure-iac: rg-rgomesapp-<env>, ca-<app>-<env>.
+  # NOTE: ALL container apps SHOULD use rg-rgomesapp-<env>.
+  RESOURCE_GROUP: rg-rgomesapp-${{ inputs.environment_name }}
+  CONTAINER_APP: ca-mathagent-${{ inputs.environment_name }}
+
 jobs:
-  registry:
+  resolve-acr:
     name: Resolve the ACR registry name
     runs-on: ubuntu-latest
     outputs:
-      registry-name: ${{ steps.registry.outputs.registry-name }}
+      acr_name: ${{ steps.resolve.outputs.acr_name }}
     steps:
-      - name: Resolve the registry name
-        id: registry
+      - id: resolve
         env:
-          ENVIRONMENT: ${{ inputs.environment }}
+          ENVIRONMENT_NAME: ${{ inputs.environment_name }}
         run: |
-          echo "=============================================================="
-          echo " STEP: Resolve the registry name"
-          echo "=============================================================="
           set -euo pipefail
-          case "$ENVIRONMENT" in
-            dev) echo "registry-name=crrgomesdev01" >> "$GITHUB_OUTPUT" ;;
-            lab) echo "registry-name=crrgomeslab02" >> "$GITHUB_OUTPUT" ;;
+          case "$ENVIRONMENT_NAME" in
+            dev) acr_name=crrgomesdev01 ;;
+            lab) acr_name=crrgomeslab02 ;;
+            *)
+              echo "Unknown environment: '${ENVIRONMENT_NAME}'." >&2
+              exit 1
+              ;;
           esac
+          echo "acr_name=${acr_name}" >> "$GITHUB_OUTPUT"
+          echo "Resolved acr_name: ${acr_name}"
 
-  build:
-    name: Build and push image to ACR registry
-    needs: registry
-    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-push-python.yml@v0
-    with:
-      environment: ${{ inputs.environment }}
-      tag: ${{ inputs.tag }}
-      registry-name: ${{ needs.registry.outputs.registry-name }}
-      artifact-id: math-ai-agent
-      python-version: '3.14'
-      poetry-version: '2.5.1'
-      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
-      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-    secrets:
-      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-
-  deploy:
-    name: Deploy image to ACA container app
-    needs: [registry, build]
+  check-aca:
+    name: Check whether the ACA container app exists
     runs-on: ubuntu-latest
-    env:
-      ARTIFACT_ID: math-ai-agent
-      ENVIRONMENT: ${{ inputs.environment }}
-      REGISTRY_NAME: ${{ needs.registry.outputs.registry-name }}
-      # Naming convention from azure-iac: rg-rgomesapp-<env>, ca-<app>-<env>.
-      RESOURCE_GROUP: rg-rgomesapp-${{ inputs.environment }}
-      CONTAINER_APP: ca-mathagent-${{ inputs.environment }}
-      # Container app secret name holding NVIDIA_API_KEY.
-      NVIDIA_SECRET_NAME: nvidia-api-key
-      # ACA resolves an app name to its ingress within the same environment.
-      CALCULATOR_MCP_URL: http://ca-mathmcp-${{ inputs.environment }}/mcp
+    outputs:
+      aca_exists: ${{ steps.check.outputs.aca_exists }}
     steps:
       - name: Sign in to Azure
         uses: rubensgomes-org/azure-workflows/.github/actions/azure-login@v0
@@ -103,8 +82,83 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Fails fast if Terraform (rubensgomes-org/azure-iac) has not already
-      # provisioned this container app; this workflow never creates one.
+      # Lists by name rather than `az containerapp show` so a missing resource
+      # group is not an error, while Azure CLI failures still fail the job.
+      - name: Check whether the container app exists
+        id: check
+        run: |
+          echo "=============================================================="
+          echo " STEP: Check whether the container app exists"
+          echo "=============================================================="
+          set -euo pipefail
+          count="$(az resource list \
+            --name "$CONTAINER_APP" \
+            --resource-type Microsoft.App/containerApps \
+            --query "length(@)" -o tsv)"
+          aca_exists=false
+          if [ "$count" -gt 0 ]; then
+            aca_exists=true
+          fi
+          echo "aca_exists=${aca_exists}" >> "$GITHUB_OUTPUT"
+          echo "Container app '${CONTAINER_APP}' exists: ${aca_exists}"
+
+  create-aca:
+    # this job creates ACA and all dependencies (ACR, KV, network...)
+    name: Create ACA container app
+    needs: [resolve-acr, check-aca]
+    if: ${{ needs.check-aca.outputs.aca_exists != 'true' }}
+    uses: rubensgomes-org/azure-iac/.github/workflows/aca-create.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      acr_name: ${{ needs.resolve-acr.outputs.acr_name }}
+      apps: '["mathagent"]'
+      health_probe_paths: '{"mathagent":"/health"}'
+    secrets:
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+  build-push-image:
+    name: Build and push image to ACR registry
+    # wait for create-aca because we may need an ACR to be created as well
+    needs: [resolve-acr, create-aca]
+    # Runs when create-aca is skipped because the container app exists.
+    if: ${{ !failure() && !cancelled() }}
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-build-push-python.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      tag: ${{ inputs.tag }}
+      registry-name: ${{ needs.resolve-acr.outputs.acr_name }}
+      artifact-id: math-ai-agent
+      poetry-version: '2.5.1'
+      python-version: '3.14'
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+  deploy-image:
+    name: Deploy image to ACA container app
+    needs: [resolve-acr, build-push-image]
+    # A skipped create-aca would otherwise skip this job too.
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_ID: math-ai-agent
+      ENVIRONMENT: ${{ inputs.environment_name }}
+      REGISTRY_NAME: ${{ needs.resolve-acr.outputs.acr_name }}
+      # Container app secret name holding NVIDIA_API_KEY.
+      NVIDIA_SECRET_NAME: nvidia-api-key
+      # ACA resolves an app name to its ingress within the same environment.
+      CALCULATOR_MCP_URL: http://ca-mathmcp-${{ inputs.environment_name }}/mcp
+    steps:
+      - name: Sign in to Azure
+        uses: rubensgomes-org/azure-workflows/.github/actions/azure-login@v0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
       - name: Ensure the container app is provisioned
         run: |
           echo "=============================================================="
@@ -115,9 +169,8 @@ jobs:
               -g "$RESOURCE_GROUP" \
               -n "$CONTAINER_APP" \
               --query name -o tsv >/dev/null; then
-            echo "Container app '${CONTAINER_APP}' is not provisioned in" \
-              "resource group '${RESOURCE_GROUP}'." >&2
-            echo "Provision it via rubensgomes-org/azure-iac first." >&2
+            echo "Container app '${CONTAINER_APP}' not found in resource" \
+              "group '${RESOURCE_GROUP}' after the create-aca job." >&2
             exit 1
           fi
 
