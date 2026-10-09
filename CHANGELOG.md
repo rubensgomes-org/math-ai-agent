@@ -12,10 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `build-deploy.yml` provisions the container app and its dependencies via
   `azure-iac`'s `aca-create.yml` before building and deploying, skipping
   this step when the container app already exists.
-- `repo-delete.yml` workflow deleting the `math-ai-agent` ACR repository.
 
 ### Changed
 
+- `aca-destroy.yml`, renamed to `Delete Repo and Destroy ACA`, now also
+  deletes the app's ACR repository after destroying the container app.
 - Workflow input `environment` renamed to `environment_name` in
   `build-deploy.yml`.
 - `build-verify.yml` workflow renamed to `Python Build and Verify`.

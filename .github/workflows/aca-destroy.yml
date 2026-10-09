@@ -1,17 +1,18 @@
 # =============================================================================
-# Destroy ACA
+# Delete Repo and Destroy ACA
 #
 # DESTRUCTIVE. Destroys the container apps module only, by calling the
-# reusable ACA Destroy workflow in the Terraform IaC `azure-iac` repo.
-# Resource groups, networking, log analytics, managed identity, key vault,
-# ACR and the container app environment are left standing.
+# reusable ACA Destroy workflow in the Terraform IaC `azure-iac` repo, then
+# deletes the app's ACR repository. Resource groups, networking, log
+# analytics, managed identity, key vault, the ACR registry and the container
+# app environment are left standing.
 #
 # This project's source code and documentation were generated with the
 # assistance of Artificial Intelligence (AI). For more information, please
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: Destroy ACA
+name: Delete Repo and Destroy ACA
 
 on:
   workflow_dispatch:
@@ -25,8 +26,9 @@ on:
           - lab
       confirm:
         description: >
-          DESTROYS THE CONTAINER APPS ONLY. Resource groups, managed
-          identity, key vault, ACR and the environment are NOT touched.
+          DESTROYS THE CONTAINER APPS AND THE APP'S ACR REPOSITORY ONLY.
+          Resource groups, managed identity, key vault, the ACR registry and
+          the environment are NOT touched.
           Choose "Yes" to confirm.
         required: true
         type: choice
@@ -43,7 +45,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  destroy:
+  resolve-acr:
+    name: Resolve the ACR registry name
+    runs-on: ubuntu-latest
+    outputs:
+      acr_name: ${{ steps.resolve.outputs.acr_name }}
+    steps:
+      - id: resolve
+        env:
+          ENVIRONMENT_NAME: ${{ inputs.environment_name }}
+        run: |
+          set -euo pipefail
+          case "$ENVIRONMENT_NAME" in
+            dev) acr_name=crrgomesdev01 ;;
+            lab) acr_name=crrgomeslab02 ;;
+            *)
+              echo "Unknown environment: '${ENVIRONMENT_NAME}'." >&2
+              exit 1
+              ;;
+          esac
+          echo "acr_name=${acr_name}" >> "$GITHUB_OUTPUT"
+          echo "Resolved acr_name: ${acr_name}"
+
+  delete-acr-repo:
+    name: Delete ACR repository
+    needs: [resolve-acr, destroy-aca]
+    if: ${{ inputs.confirm == 'Yes' }}
+    uses: rubensgomes-org/azure-workflows/.github/workflows/acr-repo-delete.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      registry-name: ${{ needs.resolve-acr.outputs.acr_name }}
+      artifact-id: math-ai-agent
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+  destroy-aca:
     name: Destroy the ACA container app
     uses: rubensgomes-org/azure-iac/.github/workflows/aca-destroy.yml@v0
     with:
