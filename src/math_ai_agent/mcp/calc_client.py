@@ -25,11 +25,11 @@ class CalcMCPClient(Client):
     def __init__(self) -> None:
         """Initializes the client from the ``calculator_mcp`` config."""
         mcp_config = get_config().server.calculator_mcp
-        server_url: str = mcp_config.url
-        logger.debug("MCP server URL: %s", server_url)
+        self._server_url: str = mcp_config.url
+        logger.debug("MCP server URL: %s", self._server_url)
         if not mcp_config.is_oauth:
-            logger.info("Connection to  local MCP server: %s", server_url)
-            super().__init__(server_url)
+            logger.info("Connecting to local MCP server: %s", self._server_url)
+            super().__init__(self._server_url)
             return
 
         token_dir = mcp_config.token_dir
@@ -48,14 +48,16 @@ class CalcMCPClient(Client):
                 "token_endpoint_auth_method": "client_secret_post",
             },
         )
-        logger.info("Using OAuth to authenticate to remote MCP server: %s",
-                    server_url)
-        super().__init__(server_url, auth=oauth)
+        logger.info(
+            "Using OAuth to authenticate to remote MCP server: %s",
+            self._server_url,
+        )
+        super().__init__(self._server_url, auth=oauth)
 
-    # async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-    #     """Close the client from the ``calculator_mcp`` config."""
-    #     logger.debug("Closing Calculator client from MCP server: %s", self)
-    #     await super().__aexit__(exc_type, exc_val, exc_tb)
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Close the Calculator MCP client."""
+        logger.debug("Closing Calculator MCP client: %s", self._server_url)
+        await super().__aexit__(exc_type, exc_val, exc_tb)
 
     @staticmethod
     def _create_token_store(token_dir: str) -> FileTreeStore:

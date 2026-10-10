@@ -9,7 +9,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient, Request, Response
-from openai import APIConnectionError, InternalServerError, RateLimitError
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 
 from math_ai_agent import app as app_module
 from math_ai_agent.app import Payload, app, lifespan
@@ -167,18 +172,37 @@ _LLM_REQUEST = Request("POST", "https://llm.test/v1/responses")
 
 
 @pytest.mark.asyncio
+async def test_prompt_returns_llm_status_when_llm_server_fails(
+    mock_agent, caplog
+):
+    error = InternalServerError(
+        "Internal server error",
+        response=Response(500, request=_LLM_REQUEST),
+        body=None,
+    )
+    mock_agent.run.side_effect = error
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.post("/prompt/", json={"text": "1+1?"})
+        assert response.status_code == 500
+        assert response.json()["detail"] == (
+            f"LLM API server error: {error.message}"
+        )
+    assert "LLM API server error" in caplog.text
+    assert "Traceback" not in caplog.text
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "error",
     [
-        InternalServerError(
-            "Internal server error",
-            response=Response(500, request=_LLM_REQUEST),
-            body=None,
-        ),
         APIConnectionError(request=_LLM_REQUEST),
+        APITimeoutError(request=_LLM_REQUEST),
     ],
 )
-async def test_prompt_returns_502_when_llm_service_fails(
+async def test_prompt_returns_502_when_llm_connection_fails(
     mock_agent, caplog, error
 ):
     mock_agent.run.side_effect = error
@@ -189,9 +213,9 @@ async def test_prompt_returns_502_when_llm_service_fails(
         response = await client.post("/prompt/", json={"text": "1+1?"})
         assert response.status_code == 502
         assert response.json()["detail"] == (
-            f"LLM service error: {error.message}"
+            f"LLM API server network connection error: {error.message}"
         )
-    assert "LLM service error" in caplog.text
+    assert "LLM API server network connection error" in caplog.text
     assert "Traceback" not in caplog.text
 
 
@@ -208,9 +232,9 @@ async def test_prompt_returns_provider_message_when_llm_rejects(mock_agent):
         transport=transport, base_url="http://test"
     ) as client:
         response = await client.post("/prompt/", json={"text": "1+1?"})
-        assert response.status_code == 502
+        assert response.status_code == 429
         assert response.json()["detail"] == (
-            f"LLM service error: {provider_message}"
+            f"LLM API server error: {provider_message}"
         )
 
 

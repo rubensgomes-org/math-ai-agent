@@ -6,6 +6,7 @@ Re-exports the LLM exceptions so callers can use
 
 from math_ai_agent.llm.llm_errors import (
     AgentBusyError,
+    AgentError,
     ContentFilterError,
     LLMRequestFailedError,
     TokenLimitError,
@@ -13,6 +14,7 @@ from math_ai_agent.llm.llm_errors import (
 
 __all__ = [
     "AgentBusyError",
+    "AgentError",
     "ContentFilterError",
     "LLMRequestFailedError",
     "TokenLimitError",

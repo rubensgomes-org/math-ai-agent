@@ -122,8 +122,9 @@ class Agent:
                 " object",
             )
         try:
-            logger.debug("Calling calculator MCP tool %s with %s", tool_name,
-                         args)
+            logger.debug(
+                "Calling calculator MCP tool %s with %s", tool_name, args
+            )
             result = await self._calc.call_tool(tool_name, args)
         except ToolError as error:
             return tool_error(tool_name, str(error))
@@ -309,8 +310,12 @@ class Agent:
                     details = response.incomplete_details
                     reason = details.reason if details is not None else None
                     if reason == "max_output_tokens":
+                        # TODO: return 200 with the partial answer, since
+                        # the LLM ran but hit max_output_tokens.
                         raise TokenLimitError("Token limit reached.")
                     if reason == "content_filter":
+                        # TODO: return 200 with the partial answer, since
+                        # the LLM ran but filtered some content.
                         error = (
                             f"Content [{history}] blocked for safety "
                             f"reasons."

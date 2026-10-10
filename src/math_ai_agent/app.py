@@ -13,12 +13,7 @@ from openai import APIConnectionError, APIStatusError
 
 from math_ai_agent.agent import Agent
 from math_ai_agent.config.config import configure_logging, get_config
-from math_ai_agent.llm import (
-    AgentBusyError,
-    ContentFilterError,
-    LLMRequestFailedError,
-    TokenLimitError,
-)
+from math_ai_agent.llm import AgentError
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 from math_ai_agent.payload import Payload
 
@@ -31,11 +26,10 @@ _INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     """Connect to the MCP server and build the agent for the app's lifetime."""
-    async with CalcMCPClient() as calc:
-        async with Agent(calc) as agent:
-            fastapi_app.state.agent = agent
-            yield
-            logger.warning("Shutting down the application...")
+    async with CalcMCPClient() as calc, Agent(calc) as agent:
+        fastapi_app.state.agent = agent
+        yield
+        logger.warning("Shutting down the application...")
 
 
 # -------------------------------------------------
@@ -44,7 +38,7 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(lifespan=lifespan)
 
 
-def _llm_error_message(error: APIStatusError | APIConnectionError) -> str:
+def _error_message(error: APIStatusError | APIConnectionError) -> str:
     """Return the LLM provider's error message, or the SDK's when absent."""
     body = getattr(error, "body", None)
     if isinstance(body, dict):
@@ -75,43 +69,43 @@ async def health() -> str:
 
 @app.post("/prompt/")
 async def prompt(payload: Payload, request: Request) -> dict[str, str]:
-    """Accept a prompt text from the user and return an answer."""
+    """Accept a prompt from the user and return the LLM agent's answer."""
     prompt_text = payload.text.strip()
     agent: Agent = request.app.state.agent
     try:
         logger.debug("Calling LLM with user prompt: %s", prompt_text)
         output = await agent.run(prompt_text, payload.display_reasoning)
-    except AgentBusyError as error:
+    except AgentError as error:
+        logger.error("Agent error answering prompt: %s", error)
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The server is busy. Please try again shortly.",
+            status_code=error.status_code, detail=error.client_message
         ) from error
-    except ContentFilterError as error:
+    except APIStatusError as error:
+        logger.error("LLM API server error answering prompt: %s", error)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="The prompt was blocked by the LLM safety filter.",
+            status_code=error.status_code,
+            detail=f"LLM API server error: {_error_message(error)}",
         ) from error
-    except TokenLimitError as error:
+    except APIConnectionError as error:
+        logger.error(
+            "LLM API server network connection error answering prompt: %s",
+            error,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="The LLM reached its token limit before answering.",
-        ) from error
-    except LLMRequestFailedError as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="The LLM request failed. Please try again.",
-        ) from error
-    except (APIStatusError, APIConnectionError) as error:
-        logger.error("LLM service error answering prompt: %s", error)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"LLM service error: {_llm_error_message(error)}",
+            detail=(
+                "LLM API server network connection error: "
+                f"{_error_message(error)}"
+            ),
         ) from error
     except Exception as error:
         logger.exception("Unexpected error answering prompt: %s", prompt_text)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred. Please try again.",
+            detail=(
+                "An unexpected error occurred processing the prompt. "
+                "Please try again."
+            ),
         ) from error
     logger.debug(
         "Output:\n%s", json.dumps(output, indent=2, ensure_ascii=False)

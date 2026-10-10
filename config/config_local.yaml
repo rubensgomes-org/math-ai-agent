@@ -4,17 +4,24 @@ llm:
     api_style: "responses"
 
     # ---------- >>> NVIDIA Open LLM <<< ----------------------------
-    model_base_url: "https://integrate.api.nvidia.com/v1"
-    model: "nvidia/nemotron-3-ultra-550b-a55b"
-    api_key_env: "NVIDIA_API_KEY"
-    temperature: 0.2
+    # model_base_url: "https://integrate.api.nvidia.com/v1"
+    # model: "nvidia/nemotron-3-ultra-550b-a55b"
+    # api_key_env: "NVIDIA_API_KEY"
+    # temperature: 0.2
 
     # ---------- >>> OpenAI Paid LLM <<< ----------------------------
-#    model_base_url: "https://api.openai.com/v1"
-#    model: "gpt-6-luna"
-#    api_key_env: "OPENAI_API_KEY"
+    # model_base_url: "https://api.openai.com/v1"
+    # model: "gpt-6-luna"
+    # api_key_env: "OPENAI_API_KEY"
     # temperature is an unsupported parameter for `gpt-6-luna`
     #temperature:
+
+    # ---------- >>> MS Foundry LLM <<< ----------------------------
+    # MS Foundry Azure OpenAI endpoint
+    model_base_url: "https://aif-rgomes-dev.openai.azure.com/openai/v1"
+    model: "gpt-5-nano"
+    api_key_env: "FOUNDRY_API_KEY"
+    # temperature: 0.2
 
     # Seconds to wait for each LLM response before failing.
     timeout_seconds: 120

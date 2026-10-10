@@ -17,6 +17,7 @@ from math_ai_agent.llm.utils import (
 
 logger = logging.getLogger(__name__)
 
+
 @final
 class ResponsesClient(LLMClient[Response]):
     """OpenAI Responses API (``POST /v1/responses``)."""

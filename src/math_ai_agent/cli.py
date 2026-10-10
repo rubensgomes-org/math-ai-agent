@@ -8,10 +8,11 @@ from math_ai_agent.config.config import configure_logging
 
 _DISTRIBUTION_NAME = "math-ai-agent"
 
+
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog=_DISTRIBUTION_NAME,
-        description=f"%(prog)s {metadata(_DISTRIBUTION_NAME)["Summary"]}"
+        description=f"%(prog)s {metadata(_DISTRIBUTION_NAME)["Summary"]}",
     )
     parser.add_argument(
         "--version",
@@ -28,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     # Import the app only after parsing so --help and --version stay fast.
     # pylint: disable-next=import-outside-toplevel
     from math_ai_agent.app import run
+
     configure_logging()
     logger = logging.getLogger(__name__)
     logger.info("Starting %s", _DISTRIBUTION_NAME)
