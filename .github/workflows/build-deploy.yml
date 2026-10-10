@@ -40,9 +40,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Naming convention from azure-iac: rg-rgomesapp-<env>, ca-<app>-<env>.
-  # NOTE: ALL container apps SHOULD use rg-rgomesapp-<env>.
-  RESOURCE_GROUP: rg-rgomesapp-${{ inputs.environment_name }}
+  # Naming convention from azure-iac: rg-<workload>app-<env>, ca-<app>-<env>.
+  # NOTE: ALL container apps SHOULD use rg-<workload>app-<env>.
+  RESOURCE_GROUP: rg-${{ vars.TF_VAR_WORKLOAD }}app-${{ inputs.environment_name }}
   CONTAINER_APP: ca-mathagent-${{ inputs.environment_name }}
 
 jobs:

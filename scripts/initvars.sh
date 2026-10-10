@@ -109,6 +109,7 @@ declare -Ar ACTION_VARIABLES=(
   [TF_VAR_LOCATION]="${TF_VAR_location:-}"
   [TF_VAR_STORAGE_ACCOUNT_ID]="${TF_VAR_storage_account_id:-}"
   [TF_VAR_TARGET_PORT]="${TF_VAR_target_port:-}"
+  [TF_VAR_WORKLOAD]="${TF_VAR_workload:-rgomes}"
 )
 
 declare -ar ACTION_VARIABLE_ORDER=(
@@ -120,6 +121,7 @@ declare -ar ACTION_VARIABLE_ORDER=(
   TF_VAR_LOCATION
   TF_VAR_STORAGE_ACCOUNT_ID
   TF_VAR_TARGET_PORT
+  TF_VAR_WORKLOAD
 )
 
 # Variables this script used to manage and no longer does. The

@@ -1,0 +1,47 @@
+llm:
+    #   "responses" -> POST /v1/responses         (primary OpenAI API)
+    #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
+    api_style: "responses"
+
+    # ---------- >>> MS Foundry LLM <<< ----------------------------
+    # MS Foundry Azure OpenAI endpoint
+    model_base_url: "https://aif-rgomes-dev.openai.azure.com/openai/v1"
+    model: "gpt-5-nano"
+    api_key_env: "FOUNDRY_API_KEY"
+    # temperature: 0.2
+
+    # Seconds to wait for each LLM response before failing.
+    timeout_seconds: 120
+    # Concurrent prompts ≈ prompts per second × average seconds per prompt.
+    max_concurrent_prompts: 10
+    # Responses API: store responses on the server and send only new
+    # items each turn via previous_response_id.
+    is_stateful: false
+
+    system_instructions: >-
+        You are a careful math assistant tutor helping solve math problems.
+        Always write a short plan first. Do NOT do arithmetic in your head.
+        For every math operation, request a tool call to the calculator.
+        After tool results, continue. Provide final answer with explanation.
+        Respond in plain text only. Do NOT use LaTeX, Markdown, or any other
+        special formatting: no backslashes, no asterisks, no dollar-sign or
+        parenthesis math delimiters. Write math inline, like 4 x 3 = 12.
+        Your answer is shown in a plain text box that cannot render
+        formatting.
+
+server:
+    calculator_mcp:
+        # URL of the Calculator MCP Server ACA living in the same CAE
+        url: "https://ca-mathmcp-dev/mcp"
+        is_oauth: false
+        # token_dir not needed when OAuth is not used.
+        token_dir: ""
+        # callback_port not needed when OAuth is not used.
+        callback_port: 0
+
+web:
+    # IP of the running ACA container
+    host: "0.0.0.0"
+    # Port of the running ACA container
+    port: 8080
+

@@ -1,0 +1,49 @@
+# =============================================================================
+# Import App Configuration
+#
+# Imports config/azure_aca_config.yaml into the environment's Azure App
+# Configuration store by calling the reusable config-app-import workflow in
+# the `azure-workflows` repo.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: Import App Configuration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Estate environment; also the key-value label.'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - lab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: config-app
+  cancel-in-progress: false
+
+jobs:
+  import-config:
+    name: Import the App Configuration key-values
+    # Store name from azure-iac: appcs-<workload>-<env>.
+    uses: rubensgomes-org/azure-workflows/.github/workflows/config-app-import.yml@v0
+    with:
+      name: appcs-${{ vars.TF_VAR_WORKLOAD }}-${{ inputs.environment_name }}
+      path: config/azure_aca_config.yaml
+      format: yaml
+      label: ${{ inputs.environment_name }}
+      prefix: ca-mathagent
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}

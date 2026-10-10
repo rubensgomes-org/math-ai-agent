@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `config-app-import` and `config-app-delete` workflows for the App
+  Configuration store.
+
 ### Changed
+
+- `build-deploy` workflow reads the workload from the `TF_VAR_WORKLOAD`
+  Actions variable, managed by `scripts/initvars.sh`.
 
 ### Fixed
 
