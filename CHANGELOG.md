@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.38] - 2026-10-10
+
+### Added
+
+### Changed
+
 - `/prompt/` returns the LLM provider's HTTP status on provider errors
   instead of 502; network and timeout errors still return 502.
 - `/prompt/` LLM error details now start with `LLM API server error:` or
