@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `key-vault-import` and `key-vault-delete` workflows, driven by
+  `config/azure_kv_import.yaml` and `config/azure_kv_delete.yaml`.
+
 ### Changed
+
+- `scripts/initvars.sh` also sets the `FOUNDRY_API_KEY` and
+  `OPENAI_API_KEY` Actions secrets.
 
 ### Fixed
 

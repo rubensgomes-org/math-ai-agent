@@ -1,0 +1,49 @@
+# =============================================================================
+# Import Key Vault Secrets
+#
+# Imports the secrets named in config/azure_kv_import.yaml into the
+# environment's Azure Key Vault, as "ca-mathagent--<name>", by calling the
+# reusable key-vault-import workflow in the `azure-workflows` repo.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: Import Key Vault Secrets
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Estate environment.'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - lab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: key-vault
+  cancel-in-progress: false
+
+jobs:
+  import-secrets:
+    name: Import the Key Vault secrets
+    # Vault name from azure-iac: kv-<workload>-<env>.
+    uses: rubensgomes-org/azure-workflows/.github/workflows/key-vault-import.yml@v0
+    with:
+      vault-name: kv-${{ vars.TF_VAR_WORKLOAD }}-${{ inputs.environment_name }}
+      path: config/azure_kv_import.yaml
+      prefix: ca-mathagent
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      # Resolves the secrets.NAME placeholders in the YAML file.
+      caller-secrets: ${{ toJSON(secrets) }}
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}

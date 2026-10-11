@@ -1,0 +1,63 @@
+# =============================================================================
+# Delete Key Vault Secrets
+#
+# DESTRUCTIVE. Deletes the secrets listed in config/azure_kv_delete.yaml, as
+# "ca-mathagent--<name>", from the environment's Azure Key Vault by calling
+# the reusable key-vault-delete workflow in the `azure-workflows` repo.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: Delete Key Vault Secrets
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Estate environment.'
+        required: true
+        type: choice
+        options:
+          - dev
+          - lab
+      purge:
+        description: 'Permanently purge the secrets after deleting them.'
+        required: true
+        default: false
+        type: boolean
+      confirm:
+        description: >
+          DELETES THE LISTED SECRETS FROM THE KEY VAULT.
+          Choose "Yes" to confirm.
+        required: true
+        type: choice
+        default: "No"
+        options:
+          - "No"
+          - "Yes"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: key-vault
+  cancel-in-progress: false
+
+jobs:
+  delete-secrets:
+    name: Delete the Key Vault secrets
+    if: ${{ inputs.confirm == 'Yes' }}
+    # Vault name from azure-iac: kv-<workload>-<env>.
+    uses: rubensgomes-org/azure-workflows/.github/workflows/key-vault-delete.yml@v0
+    with:
+      vault-name: kv-${{ vars.TF_VAR_WORKLOAD }}-${{ inputs.environment_name }}
+      path: config/azure_kv_delete.yaml
+      prefix: ca-mathagent
+      purge: ${{ inputs.purge }}
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}

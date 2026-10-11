@@ -1,0 +1,4 @@
+# The key names below must NOT use "_".
+FOUNDRY-API-KEY: ${{ secrets.FOUNDRY_API_KEY }}
+NVIDIA-API-KEY: ${{ secrets.NVIDIA_API_KEY }}
+OPENAI-API-KEY: ${{ secrets.OPENAI_API_KEY }}
