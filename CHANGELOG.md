@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `config-app-import` and `config-app-delete` workflows for the App
   Configuration store.
+- `docs/APP_CONFIGURATION.md` with the App Configuration data-plane role
+  setup.
 
 ### Changed
 
