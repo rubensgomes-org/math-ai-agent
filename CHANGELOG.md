@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.40] - 2026-10-11
+
+### Added
+
 - Load config from Azure App Configuration when `APP_CONFIG_ENDPOINT` is
   set (label from `APP_CONFIG_LABEL`, default `dev`).
 - `azure-appconfiguration-provider` and `azure-identity` dependencies.
