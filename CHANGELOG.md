@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `key-vault-import` passes only the secrets it imports, not
+  `toJSON(secrets)`, which GitHub flagged as possibly malicious.
+
 ## [0.0.40] - 2026-10-11
 
 ### Added

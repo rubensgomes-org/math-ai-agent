@@ -44,6 +44,10 @@ jobs:
       azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
       azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     secrets:
-      # Resolves the secrets.NAME placeholders in the YAML file.
-      caller-secrets: ${{ toJSON(secrets) }}
+      # Resolves the secrets.NAME placeholders in the YAML file; keep in
+      # sync with it. Not toJSON(secrets), which GitHub flags as malicious.
+      caller-secrets: >-
+        {"FOUNDRY_API_KEY": ${{ toJSON(secrets.FOUNDRY_API_KEY) }},
+        "NVIDIA_API_KEY": ${{ toJSON(secrets.NVIDIA_API_KEY) }},
+        "OPENAI_API_KEY": ${{ toJSON(secrets.OPENAI_API_KEY) }}}
       azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
