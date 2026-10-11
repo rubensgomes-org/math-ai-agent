@@ -10,6 +10,27 @@ The app configuration resource is assigned a system-managed identity which is gr
 
 
 
+
+
+## User-Assigned Managed Identiry (UAMI)
+
+A single shared ** User-Assigned
+Managed Identity** is provisioned in the `azure-iac` Terraform `managed-identiry` module to used by every ACA container app.  The UAMI is called `id-<workload>app-<env>` (e.g., id-rgomes-dev).
+
+This UAMI has been granted "App Configuration Data Reader" role on the App Configuration store inside the Terraform `azure-iac` `app-configuration` module. Therefore, any ACA container app with the assigned UAMI should be able to load/read app configuration store data using the `DefaultAzureCredential` In a container app, `DefaultAzureCredential` acts as a managed-identity credential.
+
+The following environment variables are set in the container app by Terraform `azure-iac` during provisioning:
+
+- AZURE_CLIENT_ID
+- KEY_VAULT_URI
+- APP_CONFIG_ENDPOINT
+
+
+The following environment variables are set by the `build-deploy.yml` workflow of this project:
+
+- NVIDIA_API_KEY
+- CALCULATOR_MCP_URL
+
 ## Data-Plane Role
 
 You need an Entra ID data-plane role on the store. Being Owner or Contributor of the subscription only covers the control plane, so it doesn't let you read key-values.
@@ -25,3 +46,31 @@ az role assignment create \
   --assignee-principal-type User \
   --scope "$APPCS_ID"
 ```
+
+## Endpoint and Client Connection
+
+The client reads the store endpoint from the `APP_CONFIG_ENDPOINT`
+environment variable (dev: `https://appcs-rgomes-dev.azconfig.io`).
+azure-iac sets it on each container app:
+
+1. Module `05-app-configuration` outputs `appcs_endpoint`.
+2. Root `12-container-apps` passes it as `app_configuration_endpoint`.
+3. Module `container-apps` sets it as `APP_CONFIG_ENDPOINT`.
+
+The client connects with:
+
+```python
+load(endpoint=endpoint, credential=DefaultAzureCredential(), ...)
+```
+
+- `DefaultAzureCredential` uses the UAMI selected by `AZURE_CLIENT_ID`.
+- It gets an Entra ID token from the ACA identity endpoint; no secrets.
+- The SDK calls the store over HTTPS with the token as a bearer token.
+
+It loads the `ca-mathagent/*` keys with the `APP_CONFIG_LABEL` label
+(default `dev`) and merges them over the YAML file, which still supplies
+`logging`.
+
+Locally, `APP_CONFIG_ENDPOINT` is unset and only the YAML file is used.
+To test against the store, export it and run `az login`; the data-plane
+role above is required.

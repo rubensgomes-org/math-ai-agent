@@ -9,9 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Load config from Azure App Configuration when `APP_CONFIG_ENDPOINT` is
+  set (label from `APP_CONFIG_LABEL`, default `dev`).
+- `azure-appconfiguration-provider` and `azure-identity` dependencies.
+
 ### Changed
 
+- `docs/APP_CONFIGURATION.md` describes the UAMI, environment variables,
+  endpoint, and client connection.
+
 ### Fixed
+
+- `config-app-import` prefix is now `ca-mathagent/`, so keys are separated
+  from the prefix.
 
 ## [0.0.39] - 2026-10-11
 

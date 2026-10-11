@@ -282,3 +282,65 @@ def test_api_key_not_exposed(monkeypatch):
     llm = config.get_config().llm
     assert "secret-key" not in repr(llm)
     assert "api_key" not in llm.model_dump()
+
+
+# ---------------------------------------------------------------------------
+# Azure App Configuration
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def app_configuration_values(monkeypatch):
+    """Patch the store loader; return the recorded calls."""
+    calls = []
+
+    def fake_load(endpoint, label):
+        calls.append((endpoint, label))
+        return {"llm": {"model": "store-model", "timeout_seconds": "30"}}
+
+    monkeypatch.setattr(config, "load_app_configuration", fake_load)
+    return calls
+
+
+@pytest.mark.usefixtures("env_config")
+def test_get_config_merges_app_configuration(
+    monkeypatch, app_configuration_values
+):
+    monkeypatch.setenv("APP_CONFIG_ENDPOINT", "https://appcs.azconfig.io")
+    monkeypatch.setenv("APP_CONFIG_LABEL", "lab")
+    result = config.get_config()
+    assert app_configuration_values == [("https://appcs.azconfig.io", "lab")]
+    assert result.llm.model == "store-model"
+    assert result.llm.timeout_seconds == 30
+    assert result.llm.system_instructions == "Test instructions."
+    assert result.logging["version"] == 1
+
+
+@pytest.mark.usefixtures("env_config")
+def test_get_config_app_configuration_label_defaults_to_dev(
+    monkeypatch, app_configuration_values
+):
+    monkeypatch.setenv("APP_CONFIG_ENDPOINT", "https://appcs.azconfig.io")
+    monkeypatch.delenv("APP_CONFIG_LABEL", raising=False)
+    config.get_config()
+    assert app_configuration_values == [("https://appcs.azconfig.io", "dev")]
+
+
+@pytest.mark.parametrize("value", [None, ""])
+@pytest.mark.usefixtures("env_config")
+def test_get_config_without_endpoint_uses_yaml(
+    monkeypatch, app_configuration_values, value
+):
+    if value is None:
+        monkeypatch.delenv("APP_CONFIG_ENDPOINT", raising=False)
+    else:
+        monkeypatch.setenv("APP_CONFIG_ENDPOINT", value)
+    assert config.get_config().llm.model == "test-model"
+    assert not app_configuration_values
+
+
+def test_deep_merge_overrides_nested_and_keeps_others():
+    base = {"a": {"b": 1, "c": 2}, "d": 3}
+    result = config._deep_merge(base, {"a": {"b": 9}, "e": 4})
+    assert result == {"a": {"b": 9, "c": 2}, "d": 3, "e": 4}
+    assert base == {"a": {"b": 1, "c": 2}, "d": 3}

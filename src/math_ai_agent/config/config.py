@@ -11,10 +11,15 @@ from typing import Any, Literal, Self
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
+from math_ai_agent.config.app_configuration import load_app_configuration
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_LLM_TIMEOUT_SECONDS = 120.0
 CALCULATOR_MCP_URL_ENV = "CALCULATOR_MCP_URL"
+APP_CONFIG_ENDPOINT_ENV = "APP_CONFIG_ENDPOINT"
+APP_CONFIG_LABEL_ENV = "APP_CONFIG_LABEL"
+DEFAULT_APP_CONFIG_LABEL = "dev"
 
 
 class LLMConfig(BaseModel):
@@ -107,8 +112,39 @@ def load_config(path: Path) -> AppConfig:
     Raises:
         pydantic.ValidationError: If the file does not match the models.
     """
+    return AppConfig.model_validate(_read_yaml(path))
+
+
+def _read_yaml(path: Path) -> dict[str, Any]:
+    """Return the YAML mapping in the file at ``path``."""
     with open(path, encoding="utf-8") as f:
-        return AppConfig.model_validate(yaml.safe_load(f))
+        return yaml.safe_load(f)
+
+
+def _merge_app_configuration(mapping: dict[str, Any]) -> dict[str, Any]:
+    """Return ``mapping`` overlaid with Azure App Configuration values.
+
+    Applies only when ``APP_CONFIG_ENDPOINT`` is set; the label comes
+    from ``APP_CONFIG_LABEL``.
+    """
+    endpoint = os.environ.get(APP_CONFIG_ENDPOINT_ENV)
+    if not endpoint:
+        return mapping
+    label = os.environ.get(APP_CONFIG_LABEL_ENV) or DEFAULT_APP_CONFIG_LABEL
+    return _deep_merge(mapping, load_app_configuration(endpoint, label))
+
+
+def _deep_merge(
+    base: dict[str, Any], override: dict[str, Any]
+) -> dict[str, Any]:
+    """Return ``base`` with ``override`` merged in, recursing into dicts."""
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
 
 
 def _apply_env_overrides(app_config: AppConfig) -> AppConfig:
@@ -132,7 +168,8 @@ def _apply_env_overrides(app_config: AppConfig) -> AppConfig:
 @functools.cache
 def get_config() -> AppConfig:
     """Return the application config, loaded once on first call."""
-    return _apply_env_overrides(load_config(_resolve_config_path()))
+    mapping = _merge_app_configuration(_read_yaml(_resolve_config_path()))
+    return _apply_env_overrides(AppConfig.model_validate(mapping))
 
 
 def configure_logging() -> None:
