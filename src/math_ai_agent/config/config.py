@@ -147,10 +147,12 @@ def _load_azure_config(endpoint: str) -> AppConfig:
 
     Only ``logging`` comes from the YAML file.
     """
-    logger.debug("Loading config from Azure App Configuration endpoint: %s", endpoint)
+    logger.debug(
+        "Loading config from Azure App Configuration endpoint: %s", endpoint
+    )
     mapping = load_app_configuration(endpoint, _environment_label())
     # Only the logging section comes from the YAML file.  The Dockerfile sets
-    # MATHAIAGENT_CONFIG=/etc/math-ai-agent/config.yaml and copies 
+    # MATHAIAGENT_CONFIG=/etc/math-ai-agent/config.yaml and copies
     # config/config_docker.yaml to that path.
     mapping["logging"] = _read_yaml(_resolve_config_path())["logging"]
     context = {KEY_VAULT_URI_CONTEXT: _required_env(KEY_VAULT_URI_ENV)}
