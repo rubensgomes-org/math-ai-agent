@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The app connects to the calculator MCP server before uvicorn starts.
+  A connection failure logs one error line, without a traceback, and exits
+  with code 1. Start the app with `poetry run math-ai-agent`; launching
+  `uvicorn math_ai_agent.app:app` directly no longer connects to MCP.
+
 ### Fixed
 
 ## [0.0.43] - 2026-10-12

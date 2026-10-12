@@ -97,11 +97,18 @@ Server as a client.
     docker rm math-ai-agent
     ```
 
+- To clean-up the docker environment:
+
+    ```bash
+    docker system prune --all --volumes
+    ```
+
 ### Using `docker compose` commands
 
 - Build and launch container
 
     ```bash
+    pushd ~/github/rubens/dev/python/math-ai-agent/
     APP_VERSION="$(poetry version -s)" docker compose up --build -d
     docker compose ps
     # Verify - expect OK

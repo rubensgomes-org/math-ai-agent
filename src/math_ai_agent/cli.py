@@ -33,9 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging()
     logger = logging.getLogger(__name__)
     logger.info("Starting %s", _DISTRIBUTION_NAME)
-    # app:run starts uvicorn web server, and returns None
-    run()
-    return 0
+    # run() connects to the MCP server, then serves until shutdown
+    return run()
 
 
 if __name__ == "__main__":

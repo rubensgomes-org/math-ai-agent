@@ -17,7 +17,7 @@ from openai import (
 )
 
 from math_ai_agent import app as app_module
-from math_ai_agent.app import Payload, app, lifespan
+from math_ai_agent.app import Payload, app
 from math_ai_agent.cli import main
 from math_ai_agent.llm import (
     AgentBusyError,
@@ -316,20 +316,66 @@ def test_math_question_model_requires_question():
         Payload()
 
 
-@patch("math_ai_agent.app.uvicorn.run")
-@patch("math_ai_agent.app.get_config")
-def test_main_runs_uvicorn_with_configured_host_and_port(
-    mock_get_config, mock_run
-):
-    mock_get_config.return_value.web.host = "0.0.0.0"
-    mock_get_config.return_value.web.port = 1234
-    main([])
-    mock_run.assert_called_once_with(
+def _async_context(target: MagicMock) -> MagicMock:
+    """Make ``target`` an async context manager that yields itself."""
+    target.__aenter__ = AsyncMock(return_value=target)
+    target.__aexit__ = AsyncMock(return_value=None)
+    return target
+
+
+@pytest.fixture()
+def startup_mocks():
+    """Patch the MCP client, agent, config, and uvicorn used by ``run``."""
+    calc = _async_context(MagicMock())
+    agent = _async_context(MagicMock())
+    with (
+        patch.object(app_module, "CalcMCPClient", return_value=calc),
+        patch.object(app_module, "Agent", return_value=agent) as agent_class,
+        patch.object(app_module, "get_config") as get_config,
+        patch.object(app_module.uvicorn, "Config") as config_class,
+        patch.object(app_module.uvicorn, "Server") as server_class,
+    ):
+        get_config.return_value.web.host = "0.0.0.0"
+        get_config.return_value.web.port = 1234
+        server_class.return_value.serve = AsyncMock()
+        yield {
+            "calc": calc,
+            "agent": agent,
+            "agent_class": agent_class,
+            "config_class": config_class,
+            "server": server_class.return_value,
+        }
+
+
+def test_main_connects_mcp_then_serves(startup_mocks):
+    calc, agent = startup_mocks["calc"], startup_mocks["agent"]
+
+    async def serve():
+        assert app.state.agent is agent
+        calc.__aexit__.assert_not_awaited()
+        agent.__aexit__.assert_not_awaited()
+
+    startup_mocks["server"].serve.side_effect = serve
+    assert main([]) == 0
+    startup_mocks["agent_class"].assert_called_once_with(calc)
+    startup_mocks["config_class"].assert_called_once_with(
         app, host="0.0.0.0", port=1234, log_config=None
     )
+    startup_mocks["server"].serve.assert_awaited_once()
+    agent.__aexit__.assert_awaited_once()
+    calc.__aexit__.assert_awaited_once()
 
 
-@patch("math_ai_agent.app.uvicorn.run")
+def test_main_returns_1_when_mcp_connection_fails(startup_mocks):
+    startup_mocks["calc"].__aenter__.side_effect = ConnectionError("refused")
+    with patch.object(app_module, "logger") as mock_logger:
+        assert main([]) == 1
+    startup_mocks["server"].serve.assert_not_awaited()
+    mock_logger.error.assert_called_once()
+    assert "exc_info" not in mock_logger.error.call_args.kwargs
+
+
+@patch("math_ai_agent.app.run")
 def test_main_version_prints_version_and_exits(mock_run, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(["--version"])
@@ -339,27 +385,3 @@ def test_main_version_prints_version_and_exits(mock_run, capsys):
         f"math-ai-agent {package_version}"
     )
     mock_run.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_lifespan_builds_agent_and_closes_clients():
-    calc = MagicMock()
-    calc.__aenter__ = AsyncMock(return_value=calc)
-    calc.__aexit__ = AsyncMock(return_value=None)
-    agent = MagicMock()
-    agent.__aenter__ = AsyncMock(return_value=agent)
-    agent.__aexit__ = AsyncMock(return_value=None)
-    fastapi_app = MagicMock()
-    with (
-        patch.object(app_module, "CalcMCPClient", return_value=calc),
-        patch.object(
-            app_module, "Agent", return_value=agent
-        ) as mock_agent_class,
-    ):
-        async with lifespan(fastapi_app):
-            assert fastapi_app.state.agent is agent
-            calc.__aexit__.assert_not_awaited()
-            agent.__aexit__.assert_not_awaited()
-    mock_agent_class.assert_called_once_with(calc)
-    agent.__aexit__.assert_awaited_once()
-    calc.__aexit__.assert_awaited_once()

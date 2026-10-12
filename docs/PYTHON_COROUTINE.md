@@ -91,9 +91,9 @@ the loop directly.
 
 ### How This App Runs
 
-`poetry run math-ai-agent` starts uvicorn with one worker process, which
-runs one event loop. At startup, the loop runs the app's `lifespan`, which
-opens the MCP connection and builds the `Agent`. After that, every
+`poetry run math-ai-agent` runs one event loop in one process. The loop
+first opens the MCP connection and builds the `Agent`, then starts uvicorn
+in the same loop. After that, every
 `POST /prompt/` request becomes a task that runs `Agent.run()`. Its awaits
 on the LLM and on MCP tool calls are where the loop switches to other
 users.

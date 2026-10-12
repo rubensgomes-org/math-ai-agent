@@ -54,7 +54,7 @@ Run all commands from the project root.
 | 3 | `poetry run python tests/integration/test_llm.py`                      | Tool schemas accepted by the model         | ✅  | ✅  |
 | 4 | `poetry run python tests/integration/test_llm_chat_completion_tool.py` | The Chat Completions agent loop            | ✅  | ✅  |
 | 5 | `poetry run python tests/integration/test_llm_responses_tool.py`       | The Responses agent loop                   | ✅  | ✅  |
-| 6 | `poetry run uvicorn math_ai_agent.app:app --reload`                    | The whole app end to end                   | ✅  | ✅  |
+| 6 | `poetry run math-ai-agent`                                             | The whole app end to end                   | ✅  | ✅  |
 
 **Step 1 — LLM only.** Sends one question straight to the model, no MCP
 involved. The `Connecting to <url> using model <model>` log line echoes exactly
@@ -88,7 +88,7 @@ Look for `function_call` items in the response and `Calling call_id: <id>,
 tool_name: <name>` in the output. This step forces `llm.api_style` to
 `responses`, so it always drives the Responses loop.
 
-**Step 6 — the web app.** Open <http://127.0.0.1:8000>, type a math question,
+**Step 6 — the web app.** Open <http://127.0.0.1:9090>, type a math question,
 and submit. `POST /prompt/` runs `Agent.run()`, which follows whichever path
 `llm.api_style` selects.
 

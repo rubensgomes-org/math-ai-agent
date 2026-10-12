@@ -13,9 +13,9 @@ llm:
     temperature: 0.2
 
     # ---------- >>> OpenAI Paid LLM <<< ----------------------------
-#    model_base_url: "https://api.openai.com/v1"
-#    model: "gpt-6-luna"
-#    api_key_env: "OPENAI_API_KEY"
+    # model_base_url: "https://api.openai.com/v1"
+    # model: "gpt-6-luna"
+    # api_key_env: "OPENAI_API_KEY"
     # temperature is an unsupported parameter for `gpt-6-luna`
     #temperature:
 
@@ -56,7 +56,7 @@ server:
         callback_port: 10202
 
 web:
-    host: "127.0.0.1"
+    host: "0.0.0.0"
     # ensure below port does not conflict with locally running MCP server.
     port: 9090
 

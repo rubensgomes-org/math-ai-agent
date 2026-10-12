@@ -18,7 +18,7 @@ sequenceDiagram
     participant Http as httpx2.AsyncClient
     participant Server as Calculator MCP server
 
-    Note over App,Server: Startup (FastAPI lifespan)
+    Note over App,Server: Startup (before uvicorn serves)
     App->>Client: create
     Client->>Transport: create (from the configured URL)
     App->>Client: __aenter__()
@@ -46,6 +46,6 @@ sequenceDiagram
     end
     Agent-->>App: answer
 
-    Note over App,Server: Shutdown (FastAPI lifespan)
+    Note over App,Server: Shutdown (after uvicorn stops)
     App->>Client: __aexit__() closes session and connection pool
 ```

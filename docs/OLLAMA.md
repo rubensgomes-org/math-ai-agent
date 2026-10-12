@@ -86,7 +86,7 @@ non-empty, so set it to any string:
 ```bash
 export OLLAMA_API_KEY="ollama"
 ollama serve                  # if not already running
-poetry run uvicorn math_ai_agent.app:app --reload
+poetry run math-ai-agent
 ```
 
 ### Which `api_style` to use

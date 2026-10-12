@@ -1,9 +1,9 @@
 """Start and run the FastAPI web server app."""
 
+import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack
 from pathlib import Path
 
 import uvicorn
@@ -23,19 +23,10 @@ logger = logging.getLogger(__name__)
 _INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
 
-@asynccontextmanager
-async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
-    """Connect to the MCP server and build the agent for the app's lifetime."""
-    async with CalcMCPClient() as calc, Agent(calc) as agent:
-        fastapi_app.state.agent = agent
-        yield
-        logger.warning("Shutting down the application...")
-
-
 # -------------------------------------------------
 # Create the FastAPI app instance
 # -------------------------------------------------
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 
 def _error_message(error: APIStatusError | APIConnectionError) -> str:
@@ -114,9 +105,40 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
 
 
 # -------------------------------------------------
-# run() - starts uvicorn web server
+# run() - connects to the MCP server, then starts uvicorn web server
 # -------------------------------------------------
-def run() -> None:
-    """Run the web app with uvicorn on the configured host and port."""
-    web = get_config().web
-    uvicorn.run(app, host=web.host, port=web.port, log_config=None)
+def run() -> int:
+    """Run the web app with uvicorn; return the process exit code."""
+    return asyncio.run(_serve())
+
+
+async def _serve() -> int:
+    """Connect to the MCP server, then serve until shutdown.
+
+    Connecting before uvicorn starts keeps MCP errors out of uvicorn's
+    lifespan, so they are logged here without a traceback.
+    """
+    async with AsyncExitStack() as stack:
+        try:
+            logger.info(
+                "Connecting to calculator MCP server %s",
+                get_config().server.calculator_mcp.url,
+            )
+            calc = await stack.enter_async_context(CalcMCPClient())
+            logger.info(
+                "Initializing Agent to use LLM model %s",
+                get_config().llm.model,
+            )
+            agent = await stack.enter_async_context(Agent(calc))
+        except Exception as error:  # pylint: disable=broad-exception-caught
+            logger.error("Cannot start the application: %s", error)
+            return 1
+        app.state.agent = agent
+        web = get_config().web
+        config = uvicorn.Config(
+            app, host=web.host, port=web.port, log_config=None
+        )
+        logger.info("Starting web server on %s:%s", web.host, web.port)
+        await uvicorn.Server(config).serve()
+        logger.warning("Shutting down the application...")
+    return 0
