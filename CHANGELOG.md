@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.42] - 2026-10-12
+
+### Added
+
+### Changed
+
 - Shortened workflow display names: `ACA Create and Deploy`,
   `ACA Delete and Destroy`, `KV Secrets Import`, and `KV Secrets Delete`.
 
