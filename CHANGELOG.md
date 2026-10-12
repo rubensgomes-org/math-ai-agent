@@ -9,7 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `HTTPX_LOG_LEVEL` environment variable overrides the `httpx` logger
+  level from config.yaml. `build-deploy.yml` sets it to `DEBUG` on the
+  container app.
+
 ### Changed
+
+- Container logging (`config/config_docker.yaml`) drops uvicorn access
+  lines, such as ACA `/health` probes, by setting `uvicorn.access` to
+  `WARNING`.
+- The `openai` logger is no longer set in `config/config_docker.yaml`;
+  the SDK's `OPENAI_LOG` variable (lowercase) sets its level instead, and
+  it defaults to `WARNING`. `build-deploy.yml` sets `OPENAI_LOG=debug` on
+  the container app.
+- Startup and LLM request logs include the LLM base URL.
+- The dev Foundry endpoint (`config/azure_aca_config_dev.yaml`) is
+  `https://aif-rgomes-dev.services.ai.azure.com/openai/v1`.
 
 ### Fixed
 

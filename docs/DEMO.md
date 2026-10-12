@@ -199,8 +199,8 @@ az containerapp exec \
 ```bash
 ENV=dev # rubens azure account
 #ENV=lab # 3cloud azure account
-HOST="localhost:9090"
-#HOST="ca-mathagent-${ENV}"
+#HOST="localhost:9090"
+HOST="ca-mathagent-${ENV}"
 
 curl -v "http://${HOST}/health"
 ```
@@ -210,8 +210,8 @@ curl -v "http://${HOST}/health"
 ```bash
 ENV=dev # rubens azure account
 #ENV=lab # 3cloud azure account
-HOST="localhost:9090"
-#HOST="ca-mathagent-${ENV}"
+#HOST="localhost:9090"
+HOST="ca-mathagent-${ENV}"
 
 # Simple prompt:
 curl -s -X POST http://${HOST}/prompt/ \

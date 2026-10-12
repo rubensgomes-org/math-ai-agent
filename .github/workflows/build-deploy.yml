@@ -200,10 +200,14 @@ jobs:
           echo "=============================================================="
           echo " STEP: Update the container app with the new image"
           echo " az containerapp update -g ${RESOURCE_GROUP}" \
-            "-n ${CONTAINER_APP} --image ${IMAGE}"
+            "-n ${CONTAINER_APP} --image ${IMAGE}" \
+            "--set-env-vars OPENAI_LOG=debug HTTPX_LOG_LEVEL=DEBUG"
           echo "=============================================================="
           set -euo pipefail
+          # OPENAI_LOG (lowercase) sets the OpenAI SDK "openai" log level.
+          # HTTPX_LOG_LEVEL overrides the "httpx" log level in config.yaml.
           az containerapp update \
             -g "$RESOURCE_GROUP" \
             -n "$CONTAINER_APP" \
-            --image "$IMAGE"
+            --image "$IMAGE" \
+            --set-env-vars OPENAI_LOG=debug HTTPX_LOG_LEVEL=DEBUG

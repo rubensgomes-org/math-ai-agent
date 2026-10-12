@@ -25,11 +25,18 @@ class LLMClient[ResponseT](ABC):
             llm_config.model,
             len(tools),
         )
+        logger.debug(
+            "AsyncOpenAI client initialized with api_key=%s, base_url=%s, timeout=%s",
+            llm_config.api_key,
+            llm_config.model_base_url,
+            llm_config.timeout_seconds,
+        )
         self.openai_client = AsyncOpenAI(
             api_key=llm_config.api_key,
             base_url=llm_config.model_base_url,
             timeout=llm_config.timeout_seconds,
         )
+        self.base_url = llm_config.model_base_url
         self.tools = tools
         self.model = llm_config.model
         self.temperature = llm_config.temperature

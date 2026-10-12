@@ -144,8 +144,9 @@ async def _serve() -> int:
             )
             calc = await stack.enter_async_context(CalcMCPClient())
             logger.info(
-                "Initializing Agent to use LLM model %s",
+                "Initializing Agent to use LLM model: %s at url: %s",
                 get_config().llm.model,
+                get_config().llm.model_base_url,
             )
             agent = await stack.enter_async_context(Agent(calc))
         except Exception as error:  # pylint: disable=broad-exception-caught

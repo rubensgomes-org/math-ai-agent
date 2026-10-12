@@ -238,6 +238,40 @@ def test_configure_logging_applies_config():
     assert logging.getLogger().level == logging.WARNING
 
 
+@pytest.fixture()
+def httpx_logger(monkeypatch):
+    """Yield the ``httpx`` logger at WARNING; restore its level after."""
+    monkeypatch.delenv(config.HTTPX_LOG_LEVEL_ENV, raising=False)
+    httpx = logging.getLogger(config.HTTPX_LOGGER_NAME)
+    original_level = httpx.level
+    httpx.setLevel(logging.WARNING)
+    yield httpx
+    httpx.setLevel(original_level)
+
+
+@pytest.mark.usefixtures("env_config")
+@pytest.mark.parametrize("value", ["debug", "DEBUG"])
+def test_configure_logging_applies_httpx_log_level(
+    monkeypatch, httpx_logger, value
+):
+    monkeypatch.setenv(config.HTTPX_LOG_LEVEL_ENV, value)
+    config.configure_logging()
+    assert httpx_logger.level == logging.DEBUG
+
+
+@pytest.mark.usefixtures("env_config")
+def test_configure_logging_keeps_httpx_level_when_unset(httpx_logger):
+    config.configure_logging()
+    assert httpx_logger.level == logging.WARNING
+
+
+@pytest.mark.usefixtures("env_config", "httpx_logger")
+def test_configure_logging_invalid_httpx_log_level_raises(monkeypatch):
+    monkeypatch.setenv(config.HTTPX_LOG_LEVEL_ENV, "chatty")
+    with pytest.raises(ValueError, match="CHATTY"):
+        config.configure_logging()
+
+
 # ---------------------------------------------------------------------------
 # LLMConfig.api_key
 # ---------------------------------------------------------------------------

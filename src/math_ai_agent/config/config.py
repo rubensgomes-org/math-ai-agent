@@ -31,6 +31,11 @@ KEY_VAULT_URI_ENV = "KEY_VAULT_URI"
 # label in azure mode.
 CONTAINER_APP_NAME_ENV = "CONTAINER_APP_NAME"
 
+# HTTPX_LOG_LEVEL_ENV overrides the "httpx" logger level from config.yaml.
+# httpx itself no longer reads this variable.
+HTTPX_LOG_LEVEL_ENV = "HTTPX_LOG_LEVEL"
+HTTPX_LOGGER_NAME = "httpx"
+
 # KEY_VAULT_URI_CONTEXT is the key in the pydantic validation context that
 # contains the Key Vault URI.
 KEY_VAULT_URI_CONTEXT = "key_vault_uri"
@@ -197,6 +202,10 @@ def get_config() -> AppConfig:
 
 
 def configure_logging() -> None:
-    """Apply the logging configuration from config.yaml."""
+    """Apply config.yaml logging, then any ``HTTPX_LOG_LEVEL`` override."""
     logging.config.dictConfig(get_config().logging)
     logger.debug("Loaded config from %s", _resolve_config_path())
+    httpx_level = os.environ.get(HTTPX_LOG_LEVEL_ENV)
+    if httpx_level:
+        logging.getLogger(HTTPX_LOGGER_NAME).setLevel(httpx_level.upper())
+        logger.info("httpx log level set to %s", httpx_level.upper())

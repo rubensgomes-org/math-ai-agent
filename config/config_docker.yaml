@@ -106,7 +106,8 @@ logging:
         #############################################################
         # ---------- >>> httpx <<< ---------------------------------#
         #############################################################
-        # HTTP request/response summaries — set to INFO to log them
+        # HTTP request/response summaries — set to INFO to log them.
+        # The HTTPX_LOG_LEVEL environment variable overrides this level.
         httpx:
             level: WARNING
             handlers:
@@ -124,17 +125,20 @@ logging:
         #############################################################
         # ---------- >>> openai <<< --------------------------------#
         #############################################################
-        openai:
-            level: INFO
-            handlers:
-                - console
-            propagate: false
+        # Not configured here so the OpenAI SDK's OPENAI_LOG environment
+        # variable (lowercase, e.g. "debug") sets the "openai" level.
         #############################################################
         # ---------- >>> uvicorn <<< -------------------------------#
         #############################################################
         # Server: startup, shutdown, and errors
         uvicorn:
             level: INFO
+            handlers:
+                - console
+            propagate: false
+        # HTTP access lines, mostly ACA health probes — set to INFO to log them
+        uvicorn.access:
+            level: WARNING
             handlers:
                 - console
             propagate: false

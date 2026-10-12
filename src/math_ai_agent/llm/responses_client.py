@@ -67,14 +67,16 @@ class ResponsesClient(LLMClient[Response]):
         # - tools: you should always pass when you want the LLM to consider
         #     these tools on the new request.
         logger.debug(
-            "LLM client sending request with:\n"
+            "LLM client sending request to:\n"
             "model %s\n"
+            "base url %s\n"
             "temperature %s\n"
             "instructions %s\n"
             "previous_response_id %s\n"
             "input items %s\n"
             "tools %s",
             self.model,
+            self.base_url,
             self.temperature,
             self.system_instructions,
             previous_response_id,

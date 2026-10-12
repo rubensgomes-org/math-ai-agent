@@ -4,9 +4,15 @@ llm:
     #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
     api_style: "responses"
 
+    # ---------- >>> NVIDIA Open LLM <<< ----------------------------
+    # model_base_url: "https://integrate.api.nvidia.com/v1"
+    # model: "nvidia/nemotron-3-ultra-550b-a55b"
+    # api_key_env: "NVIDIA_API_KEY"
+    # temperature: 0.8
+
     # ---------- >>> MS Foundry LLM <<< ----------------------------
     # MS Foundry Azure OpenAI endpoint
-    model_base_url: "https://aif-rgomes-dev.openai.azure.com/openai/v1"
+    model_base_url: "https://aif-rgomes-dev.services.ai.azure.com/openai/v1"
     model: "gpt-5-nano"
     api_key_env: "FOUNDRY_API_KEY"
     # temperature: 0.2
