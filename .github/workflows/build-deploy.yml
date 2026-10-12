@@ -13,7 +13,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: ACA Create and Deploy Image Container App
+name: ACA Create and Deploy
 
 on:
   workflow_dispatch:
