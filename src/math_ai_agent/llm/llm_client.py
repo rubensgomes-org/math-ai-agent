@@ -11,6 +11,9 @@ from math_ai_agent.config.config import LLMConfig
 
 logger = logging.getLogger(__name__)
 
+_VISIBLE_SECRET_CHARS = 4
+_SECRET_MASK = "****"
+
 
 class LLMClient[ResponseT](ABC):
     """Abstract type w/common interface for LLM models using OpenAI APIs"""
@@ -26,8 +29,9 @@ class LLMClient[ResponseT](ABC):
             len(tools),
         )
         logger.debug(
-            "AsyncOpenAI client initialized with api_key=%s, base_url=%s, timeout=%s",
-            llm_config.api_key,
+            "AsyncOpenAI client initialized with api_key=%s, base_url=%s, "
+            "timeout=%s",
+            _mask_secret(llm_config.api_key),
             llm_config.model_base_url,
             llm_config.timeout_seconds,
         )
@@ -61,3 +65,10 @@ class LLMClient[ResponseT](ABC):
     @staticmethod
     @abstractmethod
     def log_token_usage(response: ResponseT) -> None: ...
+
+
+def _mask_secret(secret: str) -> str:
+    """Return ``secret`` masked except for its last few characters."""
+    if len(secret) <= _VISIBLE_SECRET_CHARS:
+        return _SECRET_MASK
+    return _SECRET_MASK + secret[-_VISIBLE_SECRET_CHARS:]

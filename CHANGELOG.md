@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it defaults to `WARNING`. `build-deploy.yml` sets `OPENAI_LOG=debug` on
   the container app.
 - Startup and LLM request logs include the LLM base URL.
+- The LLM client logs its base URL, timeout, and the last 4 characters of
+  its API key at `DEBUG`.
 - The dev Foundry endpoint (`config/azure_aca_config_dev.yaml`) is
   `https://aif-rgomes-dev.services.ai.azure.com/openai/v1`.
 
