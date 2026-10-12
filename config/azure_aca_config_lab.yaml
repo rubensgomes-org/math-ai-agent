@@ -33,7 +33,7 @@ llm:
 server:
     calculator_mcp:
         # URL of the Calculator MCP Server ACA living in the same CAE
-        url: "https://ca-mathmcp-lab/mcp"
+        url: "http://ca-mathmcp-lab/mcp"
         is_oauth: false
         # token_dir not needed when OAuth is not used.
         token_dir: ""

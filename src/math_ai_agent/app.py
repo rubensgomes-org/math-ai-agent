@@ -3,7 +3,8 @@
 import asyncio
 import json
 import logging
-from contextlib import AsyncExitStack
+from collections.abc import Iterator
+from contextlib import AsyncExitStack, contextmanager
 from pathlib import Path
 
 import uvicorn
@@ -104,6 +105,23 @@ async def prompt(payload: Payload, request: Request) -> dict[str, str]:
     return {"answer": output}
 
 
+class _GracefulServer(uvicorn.Server):
+    """Uvicorn server that does not re-raise SIGINT/SIGTERM on shutdown.
+
+    ``uvicorn.Server`` re-raises the captured signal after ``serve()``
+    returns, which cancels the caller's cleanup and prints a traceback.
+    """
+
+    @contextmanager
+    def capture_signals(self) -> Iterator[None]:
+        """Install uvicorn's signal handlers, then drop captured signals."""
+        with super().capture_signals():
+            try:
+                yield
+            finally:
+                self._captured_signals.clear()
+
+
 # -------------------------------------------------
 # run() - connects to the MCP server, then starts uvicorn web server
 # -------------------------------------------------
@@ -139,6 +157,6 @@ async def _serve() -> int:
             app, host=web.host, port=web.port, log_config=None
         )
         logger.info("Starting web server on %s:%s", web.host, web.port)
-        await uvicorn.Server(config).serve()
+        await _GracefulServer(config).serve()
         logger.warning("Shutting down the application...")
     return 0

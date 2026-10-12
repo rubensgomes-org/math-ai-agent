@@ -9,9 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/DEMO.md` with commands for demoing the app in Azure Container Apps.
+
 ### Changed
 
 ### Fixed
+
+- The ACA calculator MCP URL (`config/azure_aca_config_*.yaml`) uses
+  `http://`; `https://` with the short app name timed out at startup.
+- Ctrl+C or SIGTERM shuts down without a traceback, after closing the
+  MCP client and agent.
 
 ## [0.0.44] - 2026-10-12
 

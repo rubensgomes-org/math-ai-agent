@@ -4,6 +4,7 @@
 connect to the MCP server or start OAuth.
 """
 
+import signal
 from importlib.metadata import version
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -333,7 +334,7 @@ def startup_mocks():
         patch.object(app_module, "Agent", return_value=agent) as agent_class,
         patch.object(app_module, "get_config") as get_config,
         patch.object(app_module.uvicorn, "Config") as config_class,
-        patch.object(app_module.uvicorn, "Server") as server_class,
+        patch.object(app_module, "_GracefulServer") as server_class,
     ):
         get_config.return_value.web.host = "0.0.0.0"
         get_config.return_value.web.port = 1234
@@ -373,6 +374,16 @@ def test_main_returns_1_when_mcp_connection_fails(startup_mocks):
     startup_mocks["server"].serve.assert_not_awaited()
     mock_logger.error.assert_called_once()
     assert "exc_info" not in mock_logger.error.call_args.kwargs
+
+
+@pytest.mark.parametrize("captured", [signal.SIGINT, signal.SIGTERM])
+def test_graceful_server_does_not_reraise_captured_signal(captured):
+    server = app_module._GracefulServer(app_module.uvicorn.Config(app))
+    original_handler = signal.getsignal(captured)
+    with server.capture_signals():
+        server.handle_exit(captured, None)
+    assert server.should_exit
+    assert signal.getsignal(captured) is original_handler
 
 
 @patch("math_ai_agent.app.run")
