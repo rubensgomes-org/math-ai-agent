@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.47] - 2026-10-12
+
+### Added
+
+### Changed
+
 - The `build-deploy.yml` workflow is renamed to "ACA Build and Deploy".
 
 ### Fixed
