@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.45] - 2026-10-12
+
+### Added
+
 - `docs/DEMO.md` with commands for demoing the app in Azure Container Apps.
 
 ### Changed
