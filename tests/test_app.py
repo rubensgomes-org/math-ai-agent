@@ -378,6 +378,7 @@ def test_main_returns_1_when_mcp_connection_fails(startup_mocks):
 
 @pytest.mark.parametrize("captured", [signal.SIGINT, signal.SIGTERM])
 def test_graceful_server_does_not_reraise_captured_signal(captured):
+    # pylint: disable-next=protected-access
     server = app_module._GracefulServer(app_module.uvicorn.Config(app))
     original_handler = signal.getsignal(captured)
     with server.capture_signals():
