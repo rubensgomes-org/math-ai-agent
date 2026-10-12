@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.41] - 2026-10-12
+
+### Added
+
 - `key-vault-import` and `key-vault-delete` workflows, driven by
   `config/azure_kv_import.yaml` and `config/azure_kv_delete.yaml`.
 - `azure-keyvault-secrets` dependency.
