@@ -10,7 +10,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: Delete Key Vault Secrets
+name: Key Vault Secrets Delete
 
 on:
   workflow_dispatch:

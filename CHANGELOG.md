@@ -11,11 +11,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `key-vault-import` and `key-vault-delete` workflows, driven by
   `config/azure_kv_import.yaml` and `config/azure_kv_delete.yaml`.
+- `azure-keyvault-secrets` dependency.
 
 ### Changed
 
+- With `APP_CONFIG_ENDPOINT` set, all settings come from App Configuration
+  (label from `CONTAINER_APP_NAME`) and the LLM API key from Key Vault;
+  only `logging` comes from YAML. `APP_CONFIG_LABEL` is removed.
+- `build-deploy` no longer stores `NVIDIA_API_KEY` as a container app
+  secret; app secrets are in the shared Key Vault.
+- `build-deploy` no longer sets `CALCULATOR_MCP_URL`; the URL comes from
+  App Configuration.
 - `scripts/initvars.sh` also sets the `FOUNDRY_API_KEY` and
   `OPENAI_API_KEY` Actions secrets.
+- `config-app-import` imports `config/azure_aca_config_<env>.yaml`, one
+  file per environment.
+- Workflow display names start with the resource, such as
+  `App Configuration Import` and `Key Vault Secrets Delete`.
+- `config.load_config` is now private (`_load_config`); use `get_config`.
+
+### Removed
+
+- `CALCULATOR_MCP_URL` override; set the URL in the YAML file.
 
 ### Fixed
 

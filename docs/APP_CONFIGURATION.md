@@ -26,11 +26,6 @@ The following environment variables are set in the container app by Terraform `a
 - APP_CONFIG_ENDPOINT
 
 
-The following environment variables are set by the `build-deploy.yml` workflow of this project:
-
-- NVIDIA_API_KEY
-- CALCULATOR_MCP_URL
-
 ## Data-Plane Role
 
 You need an Entra ID data-plane role on the store. Being Owner or Contributor of the subscription only covers the control plane, so it doesn't let you read key-values.
@@ -67,9 +62,11 @@ load(endpoint=endpoint, credential=DefaultAzureCredential(), ...)
 - It gets an Entra ID token from the ACA identity endpoint; no secrets.
 - The SDK calls the store over HTTPS with the token as a bearer token.
 
-It loads the `ca-mathagent/*` keys with the `APP_CONFIG_LABEL` label
-(default `dev`) and merges them over the YAML file, which still supplies
-`logging`.
+With `APP_CONFIG_ENDPOINT` set, every setting comes from the
+`ca-mathagent/*` keys, labeled with the `CONTAINER_APP_NAME` suffix
+(`ca-mathagent-dev` -> `dev`). Only `logging` comes from the YAML file.
+The API key comes from the `KEY_VAULT_URI` vault secret
+`ca-mathagent--<api_key_env>`, with `_` replaced by `-`.
 
 Locally, `APP_CONFIG_ENDPOINT` is unset and only the YAML file is used.
 To test against the store, export it and run `az login`; the data-plane

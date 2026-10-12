@@ -1,7 +1,7 @@
 # =============================================================================
 # Import App Configuration
 #
-# Imports config/azure_aca_config.yaml into the environment's Azure App
+# Imports config/azure_aca_config_<env>.yaml into the environment's Azure App
 # Configuration store by calling the reusable config-app-import workflow in
 # the `azure-workflows` repo.
 #
@@ -10,7 +10,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: Import App Configuration
+name: App Configuration Import
 
 on:
   workflow_dispatch:
@@ -38,7 +38,7 @@ jobs:
     uses: rubensgomes-org/azure-workflows/.github/workflows/config-app-import.yml@v0
     with:
       name: appcs-${{ vars.TF_VAR_WORKLOAD }}-${{ inputs.environment_name }}
-      path: config/azure_aca_config.yaml
+      path: config/azure_aca_config_${{ inputs.environment_name }}.yaml
       format: yaml
       label: ${{ inputs.environment_name }}
       prefix: ca-mathagent/

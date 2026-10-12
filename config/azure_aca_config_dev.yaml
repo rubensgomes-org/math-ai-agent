@@ -1,3 +1,4 @@
+# "dev" environment configuration settings.
 llm:
     #   "responses" -> POST /v1/responses         (primary OpenAI API)
     #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)

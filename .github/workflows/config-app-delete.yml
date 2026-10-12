@@ -11,7 +11,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: Delete App Configuration
+name: App Configuration Delete
 
 on:
   workflow_dispatch:

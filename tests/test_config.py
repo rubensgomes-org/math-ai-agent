@@ -20,6 +20,12 @@ def _clear_config_cache():
     config.get_config.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _local_mode(monkeypatch):
+    """Run in local mode unless a test opts into Azure mode."""
+    monkeypatch.delenv("APP_CONFIG_ENDPOINT", raising=False)
+
+
 @pytest.fixture()
 def cfg():
     """Return a minimal config.yaml mapping."""
@@ -103,12 +109,12 @@ def test_resolve_config_path_default(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# load_config
+# _load_config
 # ---------------------------------------------------------------------------
 
 
 def test_load_config_parses_values(tmp_path, cfg):
-    result = config.load_config(_write(tmp_path, cfg))
+    result = config._load_config(_write(tmp_path, cfg))
     assert result.llm.model == "test-model"
     assert result.llm.model_base_url == "http://localhost:11434/v1"
     assert result.llm.system_instructions == "Test instructions."
@@ -119,61 +125,61 @@ def test_load_config_parses_values(tmp_path, cfg):
 
 
 def test_load_config_api_style_defaults_to_chat(tmp_path, cfg):
-    assert config.load_config(_write(tmp_path, cfg)).llm.api_style == "chat"
+    assert config._load_config(_write(tmp_path, cfg)).llm.api_style == "chat"
 
 
 def test_load_config_api_style_responses(tmp_path, cfg):
     cfg["llm"]["api_style"] = "responses"
-    result = config.load_config(_write(tmp_path, cfg))
+    result = config._load_config(_write(tmp_path, cfg))
     assert result.llm.api_style == "responses"
 
 
 def test_load_config_unknown_api_style_raises(tmp_path, cfg):
     cfg["llm"]["api_style"] = "wat"
     with pytest.raises(ValidationError, match="api_style"):
-        config.load_config(_write(tmp_path, cfg))
+        config._load_config(_write(tmp_path, cfg))
 
 
 @pytest.mark.parametrize("key", ["model_base_url", "model"])
 def test_load_config_empty_llm_value_raises(tmp_path, cfg, key):
     cfg["llm"][key] = ""
     with pytest.raises(ValidationError, match=key):
-        config.load_config(_write(tmp_path, cfg))
+        config._load_config(_write(tmp_path, cfg))
 
 
 def test_load_config_load_limits_default(tmp_path, cfg):
-    result = config.load_config(_write(tmp_path, cfg))
+    result = config._load_config(_write(tmp_path, cfg))
     assert result.llm.timeout_seconds == config.DEFAULT_LLM_TIMEOUT_SECONDS
     assert result.llm.max_concurrent_prompts == 10
 
 
 def test_load_config_is_stateful(tmp_path, cfg):
-    assert config.load_config(_write(tmp_path, cfg)).llm.is_stateful is False
+    assert config._load_config(_write(tmp_path, cfg)).llm.is_stateful is False
     cfg["llm"]["is_stateful"] = True
-    assert config.load_config(_write(tmp_path, cfg)).llm.is_stateful is True
+    assert config._load_config(_write(tmp_path, cfg)).llm.is_stateful is True
 
 
 def test_load_config_temperature_defaults_to_none(tmp_path, cfg):
-    assert config.load_config(_write(tmp_path, cfg)).llm.temperature is None
+    assert config._load_config(_write(tmp_path, cfg)).llm.temperature is None
 
 
 @pytest.mark.parametrize("value", [0, 0.2, 2])
 def test_load_config_temperature_in_range(tmp_path, cfg, value):
     cfg["llm"]["temperature"] = value
-    assert config.load_config(_write(tmp_path, cfg)).llm.temperature == value
+    assert config._load_config(_write(tmp_path, cfg)).llm.temperature == value
 
 
 @pytest.mark.parametrize("value", [-0.1, 2.1])
 def test_load_config_temperature_out_of_range_raises(tmp_path, cfg, value):
     cfg["llm"]["temperature"] = value
     with pytest.raises(ValidationError, match="temperature"):
-        config.load_config(_write(tmp_path, cfg))
+        config._load_config(_write(tmp_path, cfg))
 
 
 def test_load_config_load_limits_custom(tmp_path, cfg):
     cfg["llm"]["timeout_seconds"] = 30
     cfg["llm"]["max_concurrent_prompts"] = 3
-    result = config.load_config(_write(tmp_path, cfg))
+    result = config._load_config(_write(tmp_path, cfg))
     assert result.llm.timeout_seconds == 30
     assert result.llm.max_concurrent_prompts == 3
 
@@ -183,25 +189,25 @@ def test_load_config_load_limits_custom(tmp_path, cfg):
 def test_load_config_non_positive_load_limit_raises(tmp_path, cfg, key, value):
     cfg["llm"][key] = value
     with pytest.raises(ValidationError, match=key):
-        config.load_config(_write(tmp_path, cfg))
+        config._load_config(_write(tmp_path, cfg))
 
 
 def test_load_config_is_oauth_true(tmp_path, cfg):
     cfg["server"]["calculator_mcp"]["is_oauth"] = True
-    result = config.load_config(_write(tmp_path, cfg))
+    result = config._load_config(_write(tmp_path, cfg))
     assert result.server.calculator_mcp.is_oauth is True
 
 
 def test_load_config_is_oauth_missing_defaults_false(tmp_path, cfg):
     del cfg["server"]["calculator_mcp"]["is_oauth"]
-    result = config.load_config(_write(tmp_path, cfg))
+    result = config._load_config(_write(tmp_path, cfg))
     assert result.server.calculator_mcp.is_oauth is False
 
 
 def test_load_config_missing_section_raises(tmp_path, cfg):
     del cfg["llm"]
     with pytest.raises(ValidationError, match="llm"):
-        config.load_config(_write(tmp_path, cfg))
+        config._load_config(_write(tmp_path, cfg))
 
 
 # ---------------------------------------------------------------------------
@@ -212,25 +218,6 @@ def test_load_config_missing_section_raises(tmp_path, cfg):
 @pytest.mark.usefixtures("env_config")
 def test_get_config_reads_env_path():
     assert config.get_config().llm.model == "test-model"
-
-
-@pytest.mark.usefixtures("env_config")
-def test_get_config_calculator_mcp_url_override(monkeypatch):
-    monkeypatch.setenv("CALCULATOR_MCP_URL", "http://ca-mathmcp-dev/mcp")
-    mcp = config.get_config().server.calculator_mcp
-    assert mcp.url == "http://ca-mathmcp-dev/mcp"
-    assert mcp.token_dir == "/tmp/tokens"
-
-
-@pytest.mark.parametrize("value", [None, ""])
-@pytest.mark.usefixtures("env_config")
-def test_get_config_calculator_mcp_url_unset_keeps_file(monkeypatch, value):
-    if value is None:
-        monkeypatch.delenv("CALCULATOR_MCP_URL", raising=False)
-    else:
-        monkeypatch.setenv("CALCULATOR_MCP_URL", value)
-    url = config.get_config().server.calculator_mcp.url
-    assert url == "http://localhost:9000/mcp"
 
 
 @pytest.mark.usefixtures("env_config")
@@ -285,62 +272,120 @@ def test_api_key_not_exposed(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Azure App Configuration
+# Azure mode
 # ---------------------------------------------------------------------------
+
+AZURE_ENV = {
+    "APP_CONFIG_ENDPOINT": "https://appcs.azconfig.io",
+    "KEY_VAULT_URI": "https://kv.vault.azure.net/",
+    "CONTAINER_APP_NAME": "ca-mathagent-lab",
+}
 
 
 @pytest.fixture()
-def app_configuration_values(monkeypatch):
-    """Patch the store loader; return the recorded calls."""
-    calls = []
+def store_mapping():
+    """Return App Configuration settings as the store loader yields them."""
+    return {
+        "llm": {
+            "api_style": "responses",
+            "model_base_url": "https://aif.openai.azure.com/openai/v1",
+            "model": "store-model",
+            "api_key_env": "FOUNDRY_API_KEY",
+            "system_instructions": "Store instructions.",
+            "timeout_seconds": "30",
+            "is_stateful": "false",
+        },
+        "server": {
+            "calculator_mcp": {
+                "url": "http://ca-mathmcp-lab/mcp",
+                "is_oauth": "false",
+                "token_dir": "",
+                "callback_port": "0",
+            }
+        },
+        "web": {"host": "0.0.0.0", "port": "8080"},
+    }
 
-    def fake_load(endpoint, label):
-        calls.append((endpoint, label))
-        return {"llm": {"model": "store-model", "timeout_seconds": "30"}}
 
-    monkeypatch.setattr(config, "load_app_configuration", fake_load)
+@pytest.fixture()
+def azure(
+    monkeypatch, env_config, store_mapping
+):  # pylint: disable=unused-argument
+    """Set Azure mode; return the recorded store and vault calls."""
+    calls = {"store": [], "vault": []}
+
+    def fake_store(endpoint, label):
+        calls["store"].append((endpoint, label))
+        return store_mapping
+
+    def fake_vault(vault_uri, name):
+        calls["vault"].append((vault_uri, name))
+        return "vault-key"
+
+    for name, value in AZURE_ENV.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.delenv("TEST_LLM_KEY", raising=False)
+    monkeypatch.setattr(config, "load_app_configuration", fake_store)
+    monkeypatch.setattr(config.key_vault, "read_secret", fake_vault)
     return calls
 
 
-@pytest.mark.usefixtures("env_config")
-def test_get_config_merges_app_configuration(
-    monkeypatch, app_configuration_values
-):
-    monkeypatch.setenv("APP_CONFIG_ENDPOINT", "https://appcs.azconfig.io")
-    monkeypatch.setenv("APP_CONFIG_LABEL", "lab")
+def test_get_config_azure_reads_store_with_app_label(azure):
     result = config.get_config()
-    assert app_configuration_values == [("https://appcs.azconfig.io", "lab")]
+    assert azure["store"] == [("https://appcs.azconfig.io", "lab")]
     assert result.llm.model == "store-model"
     assert result.llm.timeout_seconds == 30
-    assert result.llm.system_instructions == "Test instructions."
-    assert result.logging["version"] == 1
+    assert result.llm.is_stateful is False
+    assert result.web.port == 8080
 
 
-@pytest.mark.usefixtures("env_config")
-def test_get_config_app_configuration_label_defaults_to_dev(
-    monkeypatch, app_configuration_values
-):
-    monkeypatch.setenv("APP_CONFIG_ENDPOINT", "https://appcs.azconfig.io")
-    monkeypatch.delenv("APP_CONFIG_LABEL", raising=False)
-    config.get_config()
-    assert app_configuration_values == [("https://appcs.azconfig.io", "dev")]
+def test_get_config_azure_reads_api_key_from_vault(azure):
+    assert config.get_config().llm.api_key == "vault-key"
+    assert azure["vault"] == [
+        ("https://kv.vault.azure.net/", "ca-mathagent--FOUNDRY-API-KEY")
+    ]
+
+
+@pytest.mark.usefixtures("azure")
+def test_get_config_azure_ignores_yaml_settings():
+    mcp = config.get_config().server.calculator_mcp
+    assert mcp.url == "http://ca-mathmcp-lab/mcp"
+    assert mcp.token_dir == ""
+
+
+@pytest.mark.usefixtures("azure")
+def test_get_config_azure_takes_logging_from_yaml():
+    assert config.get_config().logging["version"] == 1
+
+
+@pytest.mark.usefixtures("azure")
+def test_get_config_azure_missing_setting_raises(store_mapping):
+    del store_mapping["llm"]["model"]
+    with pytest.raises(ValidationError, match="model"):
+        config.get_config()
+
+
+@pytest.mark.parametrize("name", ["KEY_VAULT_URI", "CONTAINER_APP_NAME"])
+@pytest.mark.usefixtures("azure")
+def test_get_config_azure_missing_env_raises(monkeypatch, name):
+    monkeypatch.delenv(name)
+    with pytest.raises(ValueError, match=name):
+        config.get_config()
+
+
+@pytest.mark.parametrize("app_name", ["mathagent", "ca-mathagent-"])
+@pytest.mark.usefixtures("azure")
+def test_get_config_azure_app_name_without_label_raises(monkeypatch, app_name):
+    monkeypatch.setenv("CONTAINER_APP_NAME", app_name)
+    with pytest.raises(ValueError, match="environment suffix"):
+        config.get_config()
 
 
 @pytest.mark.parametrize("value", [None, ""])
 @pytest.mark.usefixtures("env_config")
-def test_get_config_without_endpoint_uses_yaml(
-    monkeypatch, app_configuration_values, value
-):
+def test_get_config_without_endpoint_uses_yaml(monkeypatch, value):
     if value is None:
         monkeypatch.delenv("APP_CONFIG_ENDPOINT", raising=False)
     else:
         monkeypatch.setenv("APP_CONFIG_ENDPOINT", value)
     assert config.get_config().llm.model == "test-model"
-    assert not app_configuration_values
-
-
-def test_deep_merge_overrides_nested_and_keeps_others():
-    base = {"a": {"b": 1, "c": 2}, "d": 3}
-    result = config._deep_merge(base, {"a": {"b": 9}, "e": 4})
-    assert result == {"a": {"b": 9, "c": 2}, "d": 3, "e": 4}
-    assert base == {"a": {"b": 1, "c": 2}, "d": 3}

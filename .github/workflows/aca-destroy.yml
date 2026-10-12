@@ -12,7 +12,7 @@
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: Delete Image Repo and ACA
+name: ACA Delete Image Repo and Destroy Container App
 
 on:
   workflow_dispatch:

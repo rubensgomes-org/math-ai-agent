@@ -37,6 +37,7 @@ dependencies = [
     # Azure dependencies
     "azure-appconfiguration-provider (>=2.5,<3)",
     "azure-identity (>=1.26,<2)",
+    "azure-keyvault-secrets (>=4.11,<5)",
 ]
 
 [project.scripts]

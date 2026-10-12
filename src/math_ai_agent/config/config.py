@@ -9,24 +9,39 @@ from pathlib import Path
 from typing import Any, Literal, Self
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, model_validator
 
+from math_ai_agent.config import key_vault
 from math_ai_agent.config.app_configuration import load_app_configuration
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_LLM_TIMEOUT_SECONDS = 120.0
-CALCULATOR_MCP_URL_ENV = "CALCULATOR_MCP_URL"
+
+# APP_CONFIG_ENDPOINT_ENV is an environment variable set in every Azure
+# Container App by the "azure-iac" Terraform "container-apps" module.
 APP_CONFIG_ENDPOINT_ENV = "APP_CONFIG_ENDPOINT"
-APP_CONFIG_LABEL_ENV = "APP_CONFIG_LABEL"
-DEFAULT_APP_CONFIG_LABEL = "dev"
+
+# KEY_VAULT_URI_ENV is an environment variable set in every Azure
+# Container App by the "azure-iac" Terraform "container-apps" module.
+KEY_VAULT_URI_ENV = "KEY_VAULT_URI"
+
+# CONTAINER_APP_NAME is injected into every container app at runtime. This
+# environment variable is used by config.py to choose the App Configuration
+# label in azure mode.
+CONTAINER_APP_NAME_ENV = "CONTAINER_APP_NAME"
+
+# KEY_VAULT_URI_CONTEXT is the key in the pydantic validation context that
+# contains the Key Vault URI.
+KEY_VAULT_URI_CONTEXT = "key_vault_uri"
 
 
 class LLMConfig(BaseModel):
     """The ``llm`` section of config.yaml.
 
-    ``api_key`` is read from the ``api_key_env`` environment variable at
-    construction and is excluded from ``repr()`` and ``model_dump()``.
+    ``api_key`` is read at construction from Key Vault when the validation
+    context has a vault URI, else from the ``api_key_env`` environment
+    variable. It is excluded from ``repr()`` and ``model_dump()``.
     """
 
     api_style: Literal["chat", "responses"] = "chat"
@@ -41,12 +56,17 @@ class LLMConfig(BaseModel):
     api_key: str = Field(default="", exclude=True, repr=False)
 
     @model_validator(mode="after")
-    def _load_api_key(self) -> Self:
-        """Set ``api_key`` from the ``api_key_env`` environment variable.
-
-        Raises:
-            ValueError: If the environment variable is not set or empty.
-        """
+    def _load_api_key(self, info: ValidationInfo) -> Self:
+        """Set ``api_key`` from Key Vault or the environment."""
+        logger.debug("info.context: %s", info.context)
+        vault_uri = (info.context or {}).get(KEY_VAULT_URI_CONTEXT)
+        if vault_uri:
+            logger.debug(
+                "Reading LLM API key from Key Vault: %s", self.api_key_env
+            )
+            name = key_vault.secret_name(self.api_key_env)
+            self.api_key = key_vault.read_secret(vault_uri, name)
+            return self
         logger.debug("LLM API key environment variable: %s", self.api_key_env)
         api_key = os.environ.get(self.api_key_env)
         if not api_key:
@@ -106,7 +126,7 @@ def _resolve_config_path() -> Path:
     return Path(str(files("math_ai_agent.config").joinpath("config.yaml")))
 
 
-def load_config(path: Path) -> AppConfig:
+def _load_config(path: Path) -> AppConfig:
     """Parse and validate the config file at ``path``.
 
     Raises:
@@ -121,55 +141,55 @@ def _read_yaml(path: Path) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def _merge_app_configuration(mapping: dict[str, Any]) -> dict[str, Any]:
-    """Return ``mapping`` overlaid with Azure App Configuration values.
+def _load_azure_config(endpoint: str) -> AppConfig:
+    """Return the config from App Configuration and Key Vault.
 
-    Applies only when ``APP_CONFIG_ENDPOINT`` is set; the label comes
-    from ``APP_CONFIG_LABEL``.
+    Only ``logging`` comes from the YAML file.
     """
-    endpoint = os.environ.get(APP_CONFIG_ENDPOINT_ENV)
-    if not endpoint:
-        return mapping
-    label = os.environ.get(APP_CONFIG_LABEL_ENV) or DEFAULT_APP_CONFIG_LABEL
-    return _deep_merge(mapping, load_app_configuration(endpoint, label))
+    mapping = load_app_configuration(endpoint, _environment_label())
+    mapping["logging"] = _read_yaml(_resolve_config_path())["logging"]
+    context = {KEY_VAULT_URI_CONTEXT: _required_env(KEY_VAULT_URI_ENV)}
+    return AppConfig.model_validate(mapping, context=context)
 
 
-def _deep_merge(
-    base: dict[str, Any], override: dict[str, Any]
-) -> dict[str, Any]:
-    """Return ``base`` with ``override`` merged in, recursing into dicts."""
-    merged = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = _deep_merge(merged[key], value)
-        else:
-            merged[key] = value
-    return merged
+def _environment_label() -> str:
+    """Return the environment suffix of the container app name."""
+    app_name = _required_env(CONTAINER_APP_NAME_ENV)
+    _, separator, label = app_name.rpartition("-")
+    if not separator or not label:
+        raise ValueError(
+            f"{CONTAINER_APP_NAME_ENV} '{app_name}' has no environment suffix."
+        )
+    return label
 
 
-def _apply_env_overrides(app_config: AppConfig) -> AppConfig:
-    """Return ``app_config`` with environment variable overrides applied.
+def _required_env(name: str) -> str:
+    """Return the non-empty value of environment variable ``name``."""
+    value = os.environ.get(name)
+    if not value:
+        raise ValueError(f"{name} environment variable is not set.")
+    return value
 
-    A non-empty ``CALCULATOR_MCP_URL`` replaces
-    ``server.calculator_mcp.url``.
-    """
-    mcp_url = os.environ.get(CALCULATOR_MCP_URL_ENV)
-    if not mcp_url:
-        return app_config
-    calculator_mcp = app_config.server.calculator_mcp.model_copy(
-        update={"url": mcp_url}
-    )
-    server = app_config.server.model_copy(
-        update={"calculator_mcp": calculator_mcp}
-    )
-    return app_config.model_copy(update={"server": server})
+
+################################################################################
+# The following Public APIs define where and how the config is loaded.         #
+################################################################################
 
 
 @functools.cache
 def get_config() -> AppConfig:
-    """Return the application config, loaded once on first call."""
-    mapping = _merge_app_configuration(_read_yaml(_resolve_config_path()))
-    return _apply_env_overrides(AppConfig.model_validate(mapping))
+    """Return the application config, loaded once on first call.
+
+    With ``APP_CONFIG_ENDPOINT`` set, loads from Azure; else from YAML.
+    """
+    endpoint = os.environ.get(APP_CONFIG_ENDPOINT_ENV)
+    if endpoint:
+        logger.debug(
+            "Loading config from Azure App Configuration endpoint: %s", endpoint
+        )
+        return _load_azure_config(endpoint)
+    logger.debug("Loading config from YAML file: %s", _resolve_config_path())
+    return _load_config(_resolve_config_path())
 
 
 def configure_logging() -> None:

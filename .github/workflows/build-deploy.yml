@@ -6,15 +6,14 @@
 # the application and its container image, pushes the image to the ACR,
 # verifies the push, smoke-tests the image and purges the untagged manifests
 # it orphaned. Finally updates the container app to run the newly published
-# image with NVIDIA_API_KEY stored as a container app secret and
-# CALCULATOR_MCP_URL set.
+# image.
 #
 # This project's source code and documentation were generated with the
 # assistance of Artificial Intelligence (AI). For more information, please
 # refer to the `AI_DISCLAIMER.md` document located in the project's root
 # directory.
 # =============================================================================
-name: Build and Deploy to ACA
+name: ACA Create and Deploy Image Container App
 
 on:
   workflow_dispatch:
@@ -146,10 +145,6 @@ jobs:
       ARTIFACT_ID: math-ai-agent
       ENVIRONMENT: ${{ inputs.environment_name }}
       REGISTRY_NAME: ${{ needs.resolve-acr.outputs.acr_name }}
-      # Container app secret name holding NVIDIA_API_KEY.
-      NVIDIA_SECRET_NAME: nvidia-api-key
-      # ACA resolves an app name to its ingress within the same environment.
-      CALCULATOR_MCP_URL: http://ca-mathmcp-${{ inputs.environment_name }}/mcp
     steps:
       - name: Sign in to Azure
         uses: rubensgomes-org/azure-workflows/.github/actions/azure-login@v0
@@ -198,27 +193,6 @@ jobs:
           echo "image=${image}" >> "$GITHUB_OUTPUT"
           echo "Resolved image: ${image}"
 
-      # Terraform (azure-iac) resets the app's secrets and env vars on every
-      # aca-create run, so each deploy stores the key again.
-      - name: Store NVIDIA_API_KEY as a container app secret
-        env:
-          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-        run: |
-          echo "=============================================================="
-          echo " STEP: Store NVIDIA_API_KEY as a container app secret"
-          echo "=============================================================="
-          set -euo pipefail
-          if [ -z "$NVIDIA_API_KEY" ]; then
-            echo "The NVIDIA_API_KEY repository secret is not set." >&2
-            echo "Set it with scripts/initvars.sh." >&2
-            exit 1
-          fi
-          az containerapp secret set \
-            -g "$RESOURCE_GROUP" \
-            -n "$CONTAINER_APP" \
-            --secrets "${NVIDIA_SECRET_NAME}=${NVIDIA_API_KEY}" \
-            -o none
-
       - name: Update the container app with the new image
         env:
           IMAGE: ${{ steps.image.outputs.image }}
@@ -232,7 +206,4 @@ jobs:
           az containerapp update \
             -g "$RESOURCE_GROUP" \
             -n "$CONTAINER_APP" \
-            --image "$IMAGE" \
-            --set-env-vars \
-              "NVIDIA_API_KEY=secretref:${NVIDIA_SECRET_NAME}" \
-              "CALCULATOR_MCP_URL=${CALCULATOR_MCP_URL}"
+            --image "$IMAGE"
