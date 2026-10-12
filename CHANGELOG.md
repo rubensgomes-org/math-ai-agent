@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.46] - 2026-10-12
+
+### Added
+
 - `HTTPX_LOG_LEVEL` environment variable overrides the `httpx` logger
   level from config.yaml. `build-deploy.yml` sets it to `DEBUG` on the
   container app.
