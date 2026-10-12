@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Container logging (`config/config_docker.yaml`) is less verbose:
+  `math_ai_agent`, `fastmcp`, `mcp`, and `uvicorn` log at `INFO`;
+  `httpx` and `httpcore` at `WARNING`. The `tests` and `__main__` loggers
+  are removed.
+
 ### Fixed
 
 ## [0.0.42] - 2026-10-12

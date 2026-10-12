@@ -2,6 +2,8 @@
 # Container configuration used by the Docker image (see Dockerfile).
 # =============================================================================
 
+# "llm" section is ONLY loaded by local docker. ACA does not use this
+# section.  Instead ACA uses the "llm" settings from App Configuration.
 llm:
     #   "responses" -> POST /v1/responses         (primary OpenAI API)
     #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
@@ -13,14 +15,7 @@ llm:
     api_key_env: "NVIDIA_API_KEY"
     temperature: 0.2
 
-    # ---------- >>> OpenAI Paid LLM <<< ----------------------------
-#    model_base_url: "https://api.openai.com/v1"
-#    model: "gpt-6-luna"
-#    api_key_env: "OPENAI_API_KEY"
-    # temperature is an unsupported parameter for `gpt-6-luna`
-    #temperature:
-
-    # System prompt sent to the **stateless** LLM on every request.
+    # Seconds to wait for each LLM response before failing.
     timeout_seconds: 120
     # Concurrent prompts ≈ prompts per second × average seconds per prompt.
     max_concurrent_prompts: 10
@@ -28,6 +23,7 @@ llm:
     # items each turn via previous_response_id.
     is_stateful: false
 
+    # System prompt sent to the **stateless** LLM on every request.
     system_instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.
@@ -39,6 +35,8 @@ llm:
         Your answer is shown in a plain text box that cannot render
         formatting.
 
+# "server" section is ONLY loaded by local docker. ACA does not use this
+# section.  Instead ACA uses the "server" settings from App Configuration.
 server:
     calculator_mcp:
         # Calculator MCP Server running on the Docker host
@@ -49,18 +47,21 @@ server:
         # callback_port not needed when OAuth is not used.
         callback_port: 0
 
+# "web" section is ONLY loaded by local docker. ACA does not use this
+# section.  Instead ACA uses the "web" settings from App Configuration.
 web:
     # Listen on all interfaces so the published port is reachable.
     host: "0.0.0.0"
     # Azure Container Apps uses one target port (8080) for every app.
     port: 8080
 
+# "logging" section is loaded by both local docker and ACA.
 logging:
     version: 1
     disable_existing_loggers: false
     formatters:
-        # Colors level name and message; plain if stderr is not a TTY or NO_COLOR
-        # set environment variable NO_COLOR=true for plain text with no color.
+        # NO_COLOR=true is set in the docker image, so colorlog writes
+        # plain text with no ANSI color codes.
         standard:
             (): colorlog.ColoredFormatter
             fmt: "%(asctime)s %(log_color)s[%(levelname)s]%(reset)s %(fg_147)s%(name)s %(filename)s:%(lineno)d%(reset)s: %(log_color)s%(message)s%(reset)s"
@@ -82,7 +83,7 @@ logging:
         # ---------- >>> math_ai_agent <<< -------------------------#
         #############################################################
         math_ai_agent:
-            level: DEBUG
+            level: INFO
             handlers:
                 - console
             propagate: false
@@ -90,7 +91,7 @@ logging:
         # ---------- >>> fastmcp <<< -------------------------------#
         #############################################################
         fastmcp:
-            level: DEBUG
+            level: INFO
             handlers:
                 - console
             propagate: false
@@ -98,16 +99,16 @@ logging:
         # ---------- >>> mcp <<< -----------------------------------#
         #############################################################
         mcp:
-            level: DEBUG
+            level: INFO
             handlers:
                 - console
             propagate: false
         #############################################################
         # ---------- >>> httpx <<< ---------------------------------#
         #############################################################
-        # HTTP request/response summaries — set to DEBUG for detail
+        # HTTP request/response summaries — set to INFO to log them
         httpx:
-            level: INFO
+            level: WARNING
             handlers:
                 - console
             propagate: false
@@ -116,7 +117,7 @@ logging:
         #############################################################
         # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
         httpcore:
-            level: DEBUG
+            level: WARNING
             handlers:
                 - console
             propagate: false
@@ -128,23 +129,12 @@ logging:
             handlers:
                 - console
             propagate: false
-        # Integration tests (via pytest)
-        tests:
-            level: DEBUG
-            handlers:
-                - console
-            propagate: false
         #############################################################
         # ---------- >>> uvicorn <<< -------------------------------#
         #############################################################
         # Server: startup, shutdown, and errors
         uvicorn:
-            level: DEBUG
-            handlers:
-                - console
-            propagate: false
-        __main__:
-            level: DEBUG
+            level: INFO
             handlers:
                 - console
             propagate: false

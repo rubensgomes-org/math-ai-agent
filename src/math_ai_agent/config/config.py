@@ -132,6 +132,7 @@ def _load_config(path: Path) -> AppConfig:
     Raises:
         pydantic.ValidationError: If the file does not match the models.
     """
+    logger.debug("Loading config from YAML file: %s", path)
     return AppConfig.model_validate(_read_yaml(path))
 
 
@@ -146,7 +147,11 @@ def _load_azure_config(endpoint: str) -> AppConfig:
 
     Only ``logging`` comes from the YAML file.
     """
+    logger.debug("Loading config from Azure App Configuration endpoint: %s", endpoint)
     mapping = load_app_configuration(endpoint, _environment_label())
+    # Only the logging section comes from the YAML file.  The Dockerfile sets
+    # MATHAIAGENT_CONFIG=/etc/math-ai-agent/config.yaml and copies 
+    # config/config_docker.yaml to that path.
     mapping["logging"] = _read_yaml(_resolve_config_path())["logging"]
     context = {KEY_VAULT_URI_CONTEXT: _required_env(KEY_VAULT_URI_ENV)}
     return AppConfig.model_validate(mapping, context=context)
@@ -184,9 +189,6 @@ def get_config() -> AppConfig:
     """
     endpoint = os.environ.get(APP_CONFIG_ENDPOINT_ENV)
     if endpoint:
-        logger.debug(
-            "Loading config from Azure App Configuration endpoint: %s", endpoint
-        )
         return _load_azure_config(endpoint)
     logger.debug("Loading config from YAML file: %s", _resolve_config_path())
     return _load_config(_resolve_config_path())
