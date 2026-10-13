@@ -112,6 +112,8 @@ jobs:
       acr_name: ${{ needs.resolve-acr.outputs.acr_name }}
       apps: '["mathagent"]'
       health_probe_paths: '{"mathagent":"/health"}'
+      # VNet-reachable so azure-iac's Application Gateway can publish it.
+      ingress_external_apps: '["mathagent"]'
     secrets:
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
 

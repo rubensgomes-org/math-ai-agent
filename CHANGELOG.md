@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `build-deploy.yml` passes `ingress_external_apps: '["mathagent"]'` to
+  `azure-iac`'s `aca-create.yml`, making the app VNet-reachable for the
+  Application Gateway. Requires an `azure-iac` release with that input.
+
 ### Fixed
 
 ## [0.0.47] - 2026-10-12
