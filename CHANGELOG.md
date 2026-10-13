@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `agw-create.yml` and `agw-destroy.yml` workflows call `azure-iac`'s
+  reusable workflows to create or destroy the Application Gateway that
+  publishes the container app. AGW Create first checks the app is built,
+  deployed and VNet-reachable.
+
 ### Changed
 
 ### Fixed

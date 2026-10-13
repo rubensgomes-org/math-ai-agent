@@ -1,0 +1,52 @@
+# =============================================================================
+# AGW Destroy
+#
+# DESTRUCTIVE. Destroys the Application Gateway, its public IP and its NSG
+# rules by calling the reusable AGW Destroy workflow in the Terraform IaC
+# `azure-iac` repo. The mathagent container app and everything else are left
+# standing; the app is only no longer reachable from the internet.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: AGW Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Estate environment holding the gateway.'
+        required: true
+        type: choice
+        options:
+          - dev
+          - lab
+      confirm:
+        description: >
+          DESTROYS THE APPLICATION GATEWAY AND ITS PUBLIC IP ONLY. The
+          container app is NOT touched. Choose "Yes" to confirm.
+        required: true
+        type: choice
+        default: "No"
+        options:
+          - "No"
+          - "Yes"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agw-${{ inputs.environment_name }}
+  cancel-in-progress: false
+
+jobs:
+  destroy-agw:
+    name: Destroy the Application Gateway
+    uses: rubensgomes-org/azure-iac/.github/workflows/agw-destroy.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      confirm: ${{ inputs.confirm }}
+    secrets:
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}

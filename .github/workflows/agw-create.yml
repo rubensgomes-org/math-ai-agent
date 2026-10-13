@@ -1,0 +1,113 @@
+# =============================================================================
+# AGW Create
+#
+# Publishes the mathagent container app to the internet by calling the
+# reusable AGW Create workflow in the Terraform IaC `azure-iac` repo, which
+# provisions an Application Gateway v2 with a public IP. Fails first unless
+# the container app exists, runs an ACR image and has VNet-reachable ingress;
+# run "ACA Build and Deploy" to get there.
+#
+# This project's source code and documentation were generated with the
+# assistance of Artificial Intelligence (AI). For more information, please
+# refer to the `AI_DISCLAIMER.md` document located in the project's root
+# directory.
+# =============================================================================
+name: AGW Create
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Estate environment holding the container app.'
+        required: true
+        type: choice
+        options:
+          - dev
+          - lab
+      public_source_cidrs:
+        description: 'JSON array of client CIDRs allowed on HTTP, e.g. ["203.0.113.7/32"].'
+        required: false
+        default: '["0.0.0.0/0"]'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agw-${{ inputs.environment_name }}
+  cancel-in-progress: false
+
+env:
+  # Naming convention from azure-iac: rg-<workload>app-<env>, ca-<app>-<env>.
+  RESOURCE_GROUP: rg-${{ vars.TF_VAR_WORKLOAD }}app-${{ inputs.environment_name }}
+  CONTAINER_APP: ca-mathagent-${{ inputs.environment_name }}
+
+jobs:
+  check-aca:
+    name: Check the ACA container app is built and deployed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sign in to Azure
+        uses: rubensgomes-org/azure-workflows/.github/actions/azure-login@v0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check the container app image and ingress
+        run: |
+          echo "=============================================================="
+          echo " STEP: Check the container app image and ingress"
+          echo "=============================================================="
+          set -euo pipefail
+          if ! app="$(az containerapp show \
+              --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_APP" \
+              --query "{image: properties.template.containers[0].image,
+                        external: properties.configuration.ingress.external}" \
+              -o json 2>/dev/null)"; then
+            echo "FAIL: container app '${CONTAINER_APP}' not found in" \
+              "'${RESOURCE_GROUP}'. Run 'ACA Build and Deploy' first."
+            exit 1
+          fi
+
+          image="$(jq -r '.image // ""' <<< "$app")"
+          external="$(jq -r '.external // false' <<< "$app")"
+          echo "Image: ${image}"
+          echo "External (VNet-reachable) ingress: ${external}"
+
+          if [[ "$image" != *.azurecr.io/* ]]; then
+            echo "FAIL: '${CONTAINER_APP}' runs '${image}', not an ACR" \
+              "image. Run 'ACA Build and Deploy' first."
+            exit 1
+          fi
+          if [ "$external" != "true" ]; then
+            echo "FAIL: '${CONTAINER_APP}' ingress is internal to the" \
+              "environment; the gateway cannot reach it. Apply azure-iac" \
+              "module 12 with ingress_external_apps=[\"mathagent\"]."
+            exit 1
+          fi
+          echo "OK: '${CONTAINER_APP}' is built, deployed and reachable."
+
+  create-agw:
+    name: Create the Application Gateway
+    needs: [check-aca]
+    uses: rubensgomes-org/azure-iac/.github/workflows/agw-create.yml@v0
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      public_app: mathagent
+      public_source_cidrs: ${{ inputs.public_source_cidrs }}
+    secrets:
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+  summary:
+    name: Print the public URL
+    needs: [create-agw]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print the public URL
+        env:
+          PUBLIC_URL: ${{ needs.create-agw.outputs.agw_public_url }}
+        run: |
+          echo "mathagent public URL: ${PUBLIC_URL}"
+          echo "mathagent public URL: ${PUBLIC_URL}" >> "$GITHUB_STEP_SUMMARY"
