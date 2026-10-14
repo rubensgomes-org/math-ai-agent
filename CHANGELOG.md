@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.51] - 2026-10-14
+
+### Added
+
+### Changed
+
 - Bumped locked dependencies: `authlib` 1.9.1, `fastapi` 0.143.1,
   `filelock` 4.2.0, `more-itertools` 11.2.1, `openai` 3.31.0,
   `pydantic-settings` 2.16.0, `starlette` 1.8.0, `truststore` 0.10.5,
