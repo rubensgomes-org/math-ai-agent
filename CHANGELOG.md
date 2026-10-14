@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.50] - 2026-10-14
+
+### Added
+
 - `llm.is_azure` config setting: `true` when the model is hosted on
   Microsoft Foundry (the ACA dev and lab configs), else `false`. When
   `true`, the LLM client authenticates with auto-renewed Entra ID tokens
