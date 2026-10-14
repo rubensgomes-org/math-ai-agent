@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `llm.is_azure` config setting: `true` when the model is hosted on
+  Microsoft Foundry (the ACA dev and lab configs), else `false`. When
+  `true`, the LLM client authenticates with auto-renewed Entra ID tokens
+  instead of an API key. Adds the `aiohttp` dependency. Requires the ACA
+  managed identity to hold "Cognitive Services OpenAI User" on the
+  Foundry resource.
+
 ### Changed
+
+- `app_configuration` and `key_vault` moved to the
+  `math_ai_agent.config.ms` sub-package; the config models moved to
+  `math_ai_agent.config.models`.
+- `load_app_configuration(endpoint, logging_config)` returns the
+  validated Azure-mode `AppConfig`, replacing `config._load_azure_config`.
 
 ### Fixed
 

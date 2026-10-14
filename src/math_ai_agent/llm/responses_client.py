@@ -7,7 +7,7 @@ import mcp_types
 from openai import omit
 from openai.types.responses import Response
 
-from math_ai_agent.config.config import LLMConfig
+from math_ai_agent.config.models import LLMConfig
 from math_ai_agent.llm.llm_client import LLMClient
 from math_ai_agent.llm.utils import (
     function_definition,

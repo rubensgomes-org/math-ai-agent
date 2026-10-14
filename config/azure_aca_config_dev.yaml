@@ -1,5 +1,9 @@
 # "dev" environment configuration settings.
 llm:
+    # true if the model is hosted on MS Foundry
+    # false otherwise (e.g., OpenAI, NVIDIA, OpenRouter, Ollama)
+    is_azure: true
+
     #   "responses" -> POST /v1/responses         (primary OpenAI API)
     #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
     api_style: "responses"

@@ -5,6 +5,10 @@
 # "llm" section is ONLY loaded by local docker. ACA does not use this
 # section.  Instead ACA uses the "llm" settings from App Configuration.
 llm:
+    # true if the model is hosted on MS Foundry
+    # false otherwise (e.g., OpenAI, NVIDIA, OpenRouter, Ollama)
+    is_azure: false
+
     #   "responses" -> POST /v1/responses         (primary OpenAI API)
     #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
     api_style: "responses"

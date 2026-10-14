@@ -8,7 +8,7 @@ import yaml
 
 from math_ai_agent.agent import agent
 from math_ai_agent.config import config
-from math_ai_agent.config.config import AppConfig
+from math_ai_agent.config.models import AppConfig
 
 TEST_LLM_KEY_ENV = "TEST_LLM_KEY"
 TEST_LLM_KEY = "test-llm-key"

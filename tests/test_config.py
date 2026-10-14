@@ -9,7 +9,8 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from math_ai_agent.config import config
+from math_ai_agent.config import config, models
+from math_ai_agent.config.ms import app_configuration
 
 
 @pytest.fixture(autouse=True)
@@ -149,7 +150,7 @@ def test_load_config_empty_llm_value_raises(tmp_path, cfg, key):
 
 def test_load_config_load_limits_default(tmp_path, cfg):
     result = config._load_config(_write(tmp_path, cfg))
-    assert result.llm.timeout_seconds == config.DEFAULT_LLM_TIMEOUT_SECONDS
+    assert result.llm.timeout_seconds == models.DEFAULT_LLM_TIMEOUT_SECONDS
     assert result.llm.max_concurrent_prompts == 10
 
 
@@ -157,6 +158,14 @@ def test_load_config_is_stateful(tmp_path, cfg):
     assert config._load_config(_write(tmp_path, cfg)).llm.is_stateful is False
     cfg["llm"]["is_stateful"] = True
     assert config._load_config(_write(tmp_path, cfg)).llm.is_stateful is True
+
+
+def test_load_config_is_azure_skips_api_key(tmp_path, cfg, monkeypatch):
+    monkeypatch.delenv("TEST_LLM_KEY", raising=False)
+    cfg["llm"]["is_azure"] = True
+    llm = config._load_config(_write(tmp_path, cfg)).llm
+    assert llm.is_azure is True
+    assert llm.api_key == ""
 
 
 def test_load_config_temperature_defaults_to_none(tmp_path, cfg):
@@ -359,8 +368,8 @@ def azure(
     for name, value in AZURE_ENV.items():
         monkeypatch.setenv(name, value)
     monkeypatch.delenv("TEST_LLM_KEY", raising=False)
-    monkeypatch.setattr(config, "load_app_configuration", fake_store)
-    monkeypatch.setattr(config.key_vault, "read_secret", fake_vault)
+    monkeypatch.setattr(app_configuration, "_read_store", fake_store)
+    monkeypatch.setattr(models.key_vault, "read_secret", fake_vault)
     return calls
 
 
@@ -378,6 +387,12 @@ def test_get_config_azure_reads_api_key_from_vault(azure):
     assert azure["vault"] == [
         ("https://kv.vault.azure.net/", "ca-mathagent--FOUNDRY-API-KEY")
     ]
+
+
+def test_get_config_azure_is_azure_skips_vault(azure, store_mapping):
+    store_mapping["llm"]["is_azure"] = "true"
+    assert config.get_config().llm.api_key == ""
+    assert not azure["vault"]
 
 
 @pytest.mark.usefixtures("azure")

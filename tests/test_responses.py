@@ -17,7 +17,7 @@ from openai.types.responses import (
 from openai.types.responses.response_reasoning_item import Content, Summary
 
 from math_ai_agent.agent.agent import Agent
-from math_ai_agent.config.config import LLMConfig
+from math_ai_agent.config.models import LLMConfig
 from math_ai_agent.llm.llm_errors import (
     ContentFilterError,
     LLMRequestFailedError,

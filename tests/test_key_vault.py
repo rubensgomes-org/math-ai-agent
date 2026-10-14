@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`math_ai_agent.config.key_vault`.
+"""Unit tests for :mod:`math_ai_agent.config.ms.key_vault`.
 
 This project's source code and documentation were generated with the
 assistance of Artificial Intelligence (AI). For more information, please
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from math_ai_agent.config import key_vault
+from math_ai_agent.config.ms import key_vault
 
 VAULT_URI = "https://kv-test.vault.azure.net/"
 
