@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.52] - 2026-10-14
+
+### Added
+
+### Changed
+
 - The ACA dev and lab configs use Foundry model `gpt-5.2` instead of
   `gpt-5-nano`.
 
