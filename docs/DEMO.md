@@ -42,7 +42,7 @@ az containerapp revision list \
 az containerapp revision list \
   --name "ca-mathagent-${ENV}" \
   --resource-group "rg-rgomesapp-${ENV}" \
-  --output json
+  --output table
 ```
 
 3. Ensure at least 1 (one) replica running:
@@ -241,8 +241,8 @@ curl -s -X POST http://${HOST}/prompt/ \
 1. Health check:
 
 ```bash
-ENV=dev # rubens azure account
-#ENV=lab # 3cloud azure account
+#ENV=dev # rubens azure account
+ENV=lab # 3cloud azure account
 
 curl -v "http://ca-mathmcp-${ENV}/health"
 

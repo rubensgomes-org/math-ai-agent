@@ -56,3 +56,5 @@ web:
     # Port of the running ACA container
     port: 8080
 
+# ATTENTION: The "logging" section is loaded using the config_docker.yaml
+# which is part of the Dockerfile context.

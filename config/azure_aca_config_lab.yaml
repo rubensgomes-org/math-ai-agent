@@ -16,7 +16,7 @@ llm:
 
     # ---------- >>> MS Foundry LLM <<< ----------------------------
     # MS Foundry Azure OpenAI endpoint
-    model_base_url: "https://aif-rgomes-dev.services.ai.azure.com/openai/v1"
+    model_base_url: "https://aif-rgomes-lab.services.ai.azure.com/openai/v1"
     model: "gpt-5.2"
     api_key_env: "FOUNDRY_API_KEY"
     # temperature: 0.2

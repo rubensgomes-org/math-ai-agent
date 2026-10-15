@@ -87,7 +87,7 @@ logging:
         # ---------- >>> math_ai_agent <<< -------------------------#
         #############################################################
         math_ai_agent:
-            level: INFO
+            level: DEBUG
             handlers:
                 - console
             propagate: false
@@ -113,7 +113,7 @@ logging:
         # HTTP request/response summaries — set to INFO to log them.
         # The HTTPX_LOG_LEVEL environment variable overrides this level.
         httpx:
-            level: WARNING
+            level: INFO
             handlers:
                 - console
             propagate: false
@@ -122,7 +122,7 @@ logging:
         #############################################################
         # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
         httpcore:
-            level: WARNING
+            level: INFO
             handlers:
                 - console
             propagate: false
@@ -147,6 +147,6 @@ logging:
                 - console
             propagate: false
     root:
-        level: WARNING
+        level: INFO
         handlers:
             - console
