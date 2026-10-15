@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.53] - 2026-10-15
+
+### Added
+
+### Changed
+
 - `config_docker.yaml` logs `math_ai_agent` at `DEBUG`, and `httpx`,
   `httpcore`, and root at `INFO`.
 
