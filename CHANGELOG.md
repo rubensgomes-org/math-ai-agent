@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+## [0.0.54] - 2026-10-18
+
+### Added
+
+### Changed
+
 - `httpx2` moved from the `dev` group to runtime dependencies.
 - `poetry-core` build requirement capped at `<3`; `mypy` raised to `>=2.4`.
 - Project URLs point to the `rubensgomes-org` GitHub organization.
