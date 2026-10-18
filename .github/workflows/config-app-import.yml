@@ -1,9 +1,9 @@
 # =============================================================================
 # Import App Configuration
 #
-# Imports config/azure_aca_config_<env>.yaml into the environment's Azure App
-# Configuration store by calling the reusable config-app-import workflow in
-# the `azure-workflows` repo.
+# Imports a YAML file (default: config/azure_aca_config_<env>.yaml) into the
+# environment's Azure App Configuration store by calling the reusable
+# config-app-import workflow in the `azure-workflows` repo.
 # =============================================================================
 name: App Configuration Import
 
@@ -18,6 +18,16 @@ on:
         options:
           - dev
           - lab
+      config_path:
+        description: 'Config YAML path; defaults to config/azure_aca_config_<env>.yaml.'
+        required: false
+        default: ''
+        type: string
+      prefix:
+        description: 'Key prefix for the imported key-values.'
+        required: false
+        default: ca-mathagent/
+        type: string
 
 permissions:
   contents: read
@@ -33,10 +43,12 @@ jobs:
     uses: rubensgomes-org/azure-workflows/.github/workflows/config-app-import.yml@v0
     with:
       name: appcs-${{ vars.TF_VAR_WORKLOAD }}-${{ inputs.environment_name }}
-      path: config/azure_aca_config_${{ inputs.environment_name }}.yaml
+      path: >-
+        ${{ inputs.config_path || format('config/azure_aca_config_{0}.yaml',
+        inputs.environment_name) }}
       format: yaml
       label: ${{ inputs.environment_name }}
-      prefix: ca-mathagent/
+      prefix: ${{ inputs.prefix }}
       azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
       azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
       azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}

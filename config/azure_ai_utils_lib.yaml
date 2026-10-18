@@ -1,0 +1,63 @@
+# NOTE: THIS IS A TESTING CONFIGURATION ONLY!!!
+
+# ====================================================================
+# Microsoft Azure Configuration
+# ====================================================================
+azure:
+    # App Configuration prefix
+    app_config_prefix: "ai_utils_lib/"
+    # Key Vault prefix
+    secret_prefix: "ai-utils-lib--"
+
+# ====================================================================
+# Microsoft Foundry Configuration
+# ====================================================================
+foundry:
+    project_endpoint: "https://ai_utils_lib.services.ai.azure.com/api/projects/proj-rgomes-lab"
+
+# ====================================================================
+# MCP Configuration
+# ====================================================================
+mcp:
+    calculator:
+        #url: "http://127.0.0.1:8080/mcp"
+        url: "https://dummyurl.change.it/mcp"
+        #is_oauth: false
+        is_oauth: true
+        # location to store OAuth token in the local machine
+        token_dir: "~/.calculator_mcp"
+        # local port temporarily used by the OAuth callback
+        callback_port: 10000
+
+# ====================================================================
+# SLM or LLM Model Configuration
+# ====================================================================
+model:
+    # OpenAI API style:
+    #   "responses" -> POST /v1/responses         (newer and preferred)
+    #   "chat"      -> POST /v1/chat/completions  (legacy)
+    api_style: "responses"
+    base_url: "https://dummyurl.change.it/v1"
+    name: "dummy-model-name"
+    # environment variable holding the API key.
+    api_key_env: "DUMMY_API_KEY"
+    # system instructions being provided to the model.
+    instructions: >-
+        Dummy system instructions for the model.  Change it to your own instructions.
+    # Requires both Responses API and model support. It stores conversaiont history on the model server end, and send only new items each turn via
+    # previous_response_id.
+    is_stateful: false
+    # Concurrent prompts per second processed at once
+    max_concurrent_prompts: 10
+    # sampling temperature between 0 and 2.
+    temperature: 1.0
+    # Seconds to wait for each model response before failing.
+    timeout_seconds: 30
+
+# ====================================================================
+# Web App Configuration (e.g., used by FastAPI web app server)
+# ====================================================================
+web:
+    host: "0.0.0.0"
+    # ensure below port does not conflict with other services.
+    port: 9090
