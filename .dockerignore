@@ -2,11 +2,6 @@
 # Keeps the Docker build context minimal. pyproject.toml, poetry.lock,
 # README.md, LICENSE, src/ and config/config_docker.yaml are required by the
 # build and must stay.
-#
-# This project's source code and documentation were generated with the
-# assistance of Artificial Intelligence (AI). For more information, please
-# refer to the `AI_DISCLAIMER.md` document located in the project's root
-# directory.
 # =============================================================================
 
 # --- Version control ---------------------------------------------------------

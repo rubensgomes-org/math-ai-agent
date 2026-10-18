@@ -1,10 +1,4 @@
-"""Azure App Configuration loader for the config.yaml sections.
-
-This project's source code and documentation were generated with the
-assistance of Artificial Intelligence (AI). For more information, please
-refer to the `AI_DISCLAIMER.md` document located in the project's root
-directory.
-"""
+"""Azure App Configuration loader for the config.yaml sections."""
 
 import logging
 import os

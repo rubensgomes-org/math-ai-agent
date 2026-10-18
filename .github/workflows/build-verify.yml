@@ -5,11 +5,6 @@
 # analysis, and unit test coverage. Runs on push or manual dispatch; the
 # SonarCloud scan and quality gate run only when dispatched with run-sonar
 # checked.
-#
-# This project's source code and documentation were generated with the
-# assistance of Artificial Intelligence (AI). For more information, please
-# refer to the `AI_DISCLAIMER.md` document located in the project's root
-# directory.
 # =============================================================================
 name: Python Build and Verify
 

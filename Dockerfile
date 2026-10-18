@@ -13,11 +13,6 @@
 #         (expects calculator-mcp on Docker host port 8080; override the
 #         config with -v <file>:/etc/math-ai-agent/config.yaml:ro)
 # Verify: curl http://127.0.0.1:9090/health   ->   OK
-#
-# This project's source code and documentation were generated with the
-# assistance of Artificial Intelligence (AI). For more information, please
-# refer to the `AI_DISCLAIMER.md` document located in the project's root
-# directory.
 # =============================================================================
 
 # Both stages MUST use the identical base image. The runtime stage copies the

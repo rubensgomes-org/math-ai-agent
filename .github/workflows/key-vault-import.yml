@@ -4,11 +4,6 @@
 # Imports the secrets named in config/azure_kv_import.yaml into the
 # environment's Azure Key Vault, as "ca-mathagent--<name>", by calling the
 # reusable key-vault-import workflow in the `azure-workflows` repo.
-#
-# This project's source code and documentation were generated with the
-# assistance of Artificial Intelligence (AI). For more information, please
-# refer to the `AI_DISCLAIMER.md` document located in the project's root
-# directory.
 # =============================================================================
 name: KV Secrets Import
 

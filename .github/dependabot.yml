@@ -4,11 +4,6 @@
 # Daily pull requests for Poetry dependencies (`pip` reads `poetry.lock`)
 # and GitHub Actions. Security alerts and security update pull requests are
 # enabled separately under the repository's Settings.
-#
-# This project's source code and documentation were generated with the
-# assistance of Artificial Intelligence (AI). For more information, please
-# refer to the `AI_DISCLAIMER.md` document located in the project's root
-# directory.
 # =============================================================================
 version: 2
 

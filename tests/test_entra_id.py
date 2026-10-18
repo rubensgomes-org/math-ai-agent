@@ -1,10 +1,4 @@
-"""Unit tests for :mod:`math_ai_agent.config.ms.entra_id`.
-
-This project's source code and documentation were generated with the
-assistance of Artificial Intelligence (AI). For more information, please
-refer to the `AI_DISCLAIMER.md` document located in the project's root
-directory.
-"""
+"""Unit tests for :mod:`math_ai_agent.config.ms.entra_id`."""
 
 from unittest.mock import MagicMock
 

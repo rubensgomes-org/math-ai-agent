@@ -1,10 +1,4 @@
-"""Unit tests for :mod:`math_ai_agent.config.ms.key_vault`.
-
-This project's source code and documentation were generated with the
-assistance of Artificial Intelligence (AI). For more information, please
-refer to the `AI_DISCLAIMER.md` document located in the project's root
-directory.
-"""
+"""Unit tests for :mod:`math_ai_agent.config.ms.key_vault`."""
 
 from unittest.mock import MagicMock
 

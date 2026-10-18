@@ -7,11 +7,6 @@
 # verifies the push, smoke-tests the image and purges the untagged manifests
 # it orphaned. Finally updates the container app to run the newly published
 # image.
-#
-# This project's source code and documentation were generated with the
-# assistance of Artificial Intelligence (AI). For more information, please
-# refer to the `AI_DISCLAIMER.md` document located in the project's root
-# directory.
 # =============================================================================
 name: ACA Build and Deploy
 
