@@ -17,7 +17,7 @@ from key_value.aio.stores.filetree import (
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 
 # load_config must use the root package where config.yaml is found
-app_config: AppConfig = load_config(__package__.split(".")[0])
+app_config: AppConfig = load_config(__package__.split(".", maxsplit=1)[0])
 
 logger = logging.getLogger(__name__)
 
