@@ -38,12 +38,10 @@ def mock_agent():
     del app.state.agent
 
 
-@pytest.mark.asyncio
 async def test_app_is_fastapi_instance():
     assert app.title == "FastAPI"
 
 
-@pytest.mark.asyncio
 async def test_root_returns_html():
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -55,7 +53,6 @@ async def test_root_returns_html():
         assert "Math AI Agent" in response.text
 
 
-@pytest.mark.asyncio
 async def test_root_contains_form_elements():
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -68,7 +65,6 @@ async def test_root_contains_form_elements():
         assert "div-error-id" in response.text
 
 
-@pytest.mark.asyncio
 async def test_health_returns_ok():
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -79,7 +75,6 @@ async def test_health_returns_ok():
         assert response.text == "OK"
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_answer(mock_agent):
     mock_agent.run.return_value = "The answer is 4."
     transport = ASGITransport(app=app)
@@ -94,7 +89,6 @@ async def test_prompt_returns_answer(mock_agent):
     mock_agent.run.assert_awaited_once_with("What is 2+2?", True)
 
 
-@pytest.mark.asyncio
 async def test_prompt_passes_display_reasoning(mock_agent):
     mock_agent.run.return_value = "8"
     transport = ASGITransport(app=app)
@@ -108,7 +102,6 @@ async def test_prompt_passes_display_reasoning(mock_agent):
     mock_agent.run.assert_awaited_once_with("4+4?", False)
 
 
-@pytest.mark.asyncio
 async def test_prompt_strips_whitespace(mock_agent):
     mock_agent.run.return_value = "hello response"
     transport = ASGITransport(app=app)
@@ -121,7 +114,6 @@ async def test_prompt_strips_whitespace(mock_agent):
     mock_agent.run.assert_awaited_once_with("hello", True)
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_503_when_agent_busy(mock_agent):
     mock_agent.run.side_effect = AgentBusyError("Too many prompts")
     transport = ASGITransport(app=app)
@@ -133,7 +125,6 @@ async def test_prompt_returns_503_when_agent_busy(mock_agent):
         assert "busy" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_422_when_content_filtered(mock_agent):
     mock_agent.run.side_effect = ContentFilterError("blocked")
     transport = ASGITransport(app=app)
@@ -145,7 +136,6 @@ async def test_prompt_returns_422_when_content_filtered(mock_agent):
         assert "safety filter" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_502_when_token_limit_reached(mock_agent):
     mock_agent.run.side_effect = TokenLimitError("Token limit reached.")
     transport = ASGITransport(app=app)
@@ -157,7 +147,6 @@ async def test_prompt_returns_502_when_token_limit_reached(mock_agent):
         assert "token limit" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_502_when_llm_request_fails(mock_agent):
     mock_agent.run.side_effect = LLMRequestFailedError("failed", "server_error")
     transport = ASGITransport(app=app)
@@ -172,7 +161,6 @@ async def test_prompt_returns_502_when_llm_request_fails(mock_agent):
 _LLM_REQUEST = Request("POST", "https://llm.test/v1/responses")
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_llm_status_when_llm_server_fails(
     mock_agent, caplog
 ):
@@ -195,7 +183,6 @@ async def test_prompt_returns_llm_status_when_llm_server_fails(
     assert "Traceback" not in caplog.text
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "error",
     [
@@ -220,7 +207,6 @@ async def test_prompt_returns_502_when_llm_connection_fails(
     assert "Traceback" not in caplog.text
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_provider_message_when_llm_rejects(mock_agent):
     provider_message = "You have no credits remaining."
     mock_agent.run.side_effect = RateLimitError(
@@ -239,7 +225,6 @@ async def test_prompt_returns_provider_message_when_llm_rejects(mock_agent):
         )
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_500_on_unexpected_error(mock_agent, caplog):
     mock_agent.run.side_effect = ValueError("Non-supported finish_reason")
     transport = ASGITransport(app=app)
@@ -252,7 +237,6 @@ async def test_prompt_returns_500_on_unexpected_error(mock_agent, caplog):
     assert "Non-supported finish_reason" in caplog.text
 
 
-@pytest.mark.asyncio
 async def test_prompt_missing_question_field():
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -262,7 +246,6 @@ async def test_prompt_missing_question_field():
         assert response.status_code == 422
 
 
-@pytest.mark.asyncio
 async def test_prompt_invalid_content_type():
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -276,7 +259,6 @@ async def test_prompt_invalid_content_type():
         assert response.status_code == 422
 
 
-@pytest.mark.asyncio
 async def test_prompt_empty_body():
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -286,7 +268,6 @@ async def test_prompt_empty_body():
         assert response.status_code == 422
 
 
-@pytest.mark.asyncio
 async def test_prompt_wrong_type_for_question():
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -296,7 +277,6 @@ async def test_prompt_wrong_type_for_question():
         assert response.status_code == 422
 
 
-@pytest.mark.asyncio
 async def test_prompt_get_method_not_allowed():
     transport = ASGITransport(app=app)
     async with AsyncClient(

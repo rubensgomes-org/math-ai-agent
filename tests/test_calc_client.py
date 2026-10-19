@@ -107,7 +107,6 @@ def test_create_token_store_expands_home_and_creates_dir(monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_call_tool_delegates_to_parent():
     calc = _make_calc(call_result="5")
     result = await calc.call_tool("add", {"a": 2, "b": 3})
@@ -116,7 +115,6 @@ async def test_call_tool_delegates_to_parent():
     calc.call_tool.assert_awaited_once_with("add", {"a": 2, "b": 3})
 
 
-@pytest.mark.asyncio
 async def test_call_tool_with_empty_arguments():
     calc = _make_calc(call_result="ok")
     result = await calc.call_tool("noop", {})
@@ -130,7 +128,6 @@ async def test_call_tool_with_empty_arguments():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_full_round_trip():
     tools = [
         SimpleNamespace(name="multiply", description="Multiply"),

@@ -227,7 +227,6 @@ def test_format_tools_empty_list():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_response():
     """prompt returns the Response from the API."""
     fake_response = _make_response(output=[_make_message("The answer is 8")])
@@ -243,7 +242,6 @@ async def test_prompt_returns_response():
     assert result.output_text == "The answer is 8"
 
 
-@pytest.mark.asyncio
 async def test_prompt_sends_expected_arguments():
     """prompt sends input, tools, instructions and store=False."""
     fake_response = _make_response()
@@ -266,7 +264,6 @@ async def test_prompt_sends_expected_arguments():
     )
 
 
-@pytest.mark.asyncio
 async def test_prompt_stateful_sends_previous_response_id():
     """A stateful client stores and continues the previous response."""
     client = _make_client(is_stateful=True)
@@ -292,7 +289,6 @@ async def test_prompt_stateful_sends_previous_response_id():
     )
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("temperature", [0.0, 0.2])
 async def test_prompt_sends_temperature(temperature):
     """A set temperature is sent, including 0."""
@@ -305,7 +301,6 @@ async def test_prompt_sends_temperature(temperature):
     assert mock_create.await_args.kwargs["temperature"] == temperature
 
 
-@pytest.mark.asyncio
 async def test_prompt_with_function_call():
     """prompt handles a response with a function_call item."""
     fake_response = _make_response(output=[_make_function_call()])
@@ -363,7 +358,6 @@ def agent_env(app_config, request):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_agent_run_returns_output_text_on_completed(agent_env):
     """A "completed" status with no tool calls returns the output text."""
     agent_env.responses = [
@@ -372,14 +366,12 @@ async def test_agent_run_returns_output_text_on_completed(agent_env):
     assert await agent_env.agent.run("4+4?") == _answer("The answer is 8")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_shows_none_for_no_output(agent_env):
     """A "completed" status with no output items shows (none) everywhere."""
     agent_env.responses = [_make_response(output=[])]
     assert await agent_env.agent.run("4+4?") == _answer()
 
 
-@pytest.mark.asyncio
 async def test_agent_run_handles_missing_usage(agent_env):
     """A response without usage data is logged and does not raise."""
     agent_env.responses = [
@@ -388,7 +380,6 @@ async def test_agent_run_handles_missing_usage(agent_env):
     assert await agent_env.agent.run("4+4?") == _answer("8")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_sends_user_prompt_without_system_item(agent_env):
     """The first input carries only the user prompt, no system item."""
     agent_env.responses = [_make_response(output=[_make_message("8")])]
@@ -401,7 +392,6 @@ async def test_agent_run_sends_user_prompt_without_system_item(agent_env):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_agent_run_max_output_tokens_raises_token_limit_error(
     agent_env,
 ):
@@ -416,7 +406,6 @@ async def test_agent_run_max_output_tokens_raises_token_limit_error(
         await agent_env.agent.run("4+4?")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_content_filter_raises_content_filter_error(
     agent_env,
 ):
@@ -431,7 +420,6 @@ async def test_agent_run_content_filter_raises_content_filter_error(
         await agent_env.agent.run("4+4?")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_unknown_incomplete_reason_raises_value_error(
     agent_env,
 ):
@@ -446,7 +434,6 @@ async def test_agent_run_unknown_incomplete_reason_raises_value_error(
         await agent_env.agent.run("4+4?")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_missing_incomplete_details_raises_value_error(
     agent_env,
 ):
@@ -456,7 +443,6 @@ async def test_agent_run_missing_incomplete_details_raises_value_error(
         await agent_env.agent.run("4+4?")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_failed_raises_llm_request_failed_error(agent_env):
     """A "failed" status raises LLMRequestFailedError with its code."""
     agent_env.responses = [
@@ -470,7 +456,6 @@ async def test_agent_run_failed_raises_llm_request_failed_error(agent_env):
     assert info.value.code == "server_error"
 
 
-@pytest.mark.asyncio
 async def test_agent_run_failed_without_error_raises_llm_error(agent_env):
     """A "failed" status with no error object has no error code."""
     agent_env.responses = [_make_response(status="failed")]
@@ -479,7 +464,6 @@ async def test_agent_run_failed_without_error_raises_llm_error(agent_env):
     assert info.value.code is None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("status", ["wat", "queued", "in_progress"])
 async def test_agent_run_unknown_status_raises_value_error(agent_env, status):
     """A non-final or unrecognised response status raises ValueError."""
@@ -494,7 +478,6 @@ async def test_agent_run_unknown_status_raises_value_error(agent_env, status):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_agent_run_dispatches_tool_call(agent_env):
     """A function_call item dispatches to the MCP calculator."""
     agent_env.responses = [
@@ -505,7 +488,6 @@ async def test_agent_run_dispatches_tool_call(agent_env):
     agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
 
 
-@pytest.mark.asyncio
 async def test_agent_run_returns_tool_error_to_llm(agent_env):
     """A tool error is sent to the LLM as the tool output."""
     agent_env.call_tool.side_effect = ToolError(
@@ -521,7 +503,6 @@ async def test_agent_run_returns_tool_error_to_llm(agent_env):
     )
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "arguments, message",
     [
@@ -542,7 +523,6 @@ async def test_agent_run_returns_invalid_arguments_to_llm(
     assert message in agent_env.histories[1][-1]["output"]
 
 
-@pytest.mark.asyncio
 async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
     """Every function_call item in one response is dispatched in order."""
     agent_env.responses = [
@@ -564,7 +544,6 @@ async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
     ]
 
 
-@pytest.mark.asyncio
 async def test_agent_run_replays_output_items_and_tool_output(agent_env):
     """Output items are echoed back followed by function_call_output."""
     agent_env.responses = [
@@ -586,7 +565,6 @@ async def test_agent_run_replays_output_items_and_tool_output(agent_env):
     assert agent_env.previous_response_ids == [None, None]
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("agent_env", [True], ids=["stateful"], indirect=True)
 async def test_agent_run_stateful_sends_only_tool_output(agent_env):
     """A stateful turn sends only new items and continues the response."""
@@ -612,7 +590,6 @@ async def test_agent_run_stateful_sends_only_tool_output(agent_env):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_agent_run_includes_reasoning_from_every_turn(agent_env):
     """Reasoning text from all turns is joined in order."""
     agent_env.responses = [
@@ -634,7 +611,6 @@ async def test_agent_run_includes_reasoning_from_every_turn(agent_env):
     )
 
 
-@pytest.mark.asyncio
 async def test_agent_run_without_reasoning_returns_final_response(agent_env):
     """With display_reasoning False, only the final text is returned."""
     agent_env.responses = [
@@ -649,7 +625,6 @@ async def test_agent_run_without_reasoning_returns_final_response(agent_env):
     assert answer == "4 + 4 = 8"
 
 
-@pytest.mark.asyncio
 async def test_agent_run_strips_blank_lines_from_answer(agent_env):
     """Whitespace around each text adds no extra blank lines."""
     agent_env.responses = [
@@ -672,7 +647,6 @@ async def test_agent_run_strips_blank_lines_from_answer(agent_env):
     )
 
 
-@pytest.mark.asyncio
 async def test_agent_run_uses_summary_without_content(agent_env):
     """A reasoning item with only a summary shows the summary."""
     agent_env.responses = [

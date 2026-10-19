@@ -161,7 +161,6 @@ def test_to_json_dumps_sdk_objects_and_falls_back_to_str():
     ]
 
 
-@pytest.mark.asyncio
 async def test_async_with_closes_openai_client():
     """Leaving an ``async with`` block closes the client."""
     client = _make_client()
@@ -183,7 +182,6 @@ def test_init_uses_given_timeout():
     assert client.openai_client.timeout == 30
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("temperature", [0.0, 0.2])
 async def test_prompt_sends_temperature(temperature):
     """A set temperature is sent, including 0."""
@@ -251,7 +249,6 @@ def test_format_tools_empty_list():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_prompt_returns_completion():
     """prompt returns the ChatCompletion from the API."""
     fake_response = _make_chat_completion(content="The answer is 8")
@@ -275,7 +272,6 @@ async def test_prompt_returns_completion():
     )
 
 
-@pytest.mark.asyncio
 async def test_prompt_with_tool_calls():
     """prompt handles a response with tool_calls."""
     tool_call = SimpleNamespace(
@@ -306,7 +302,6 @@ async def test_prompt_with_tool_calls():
     assert result.choices[0].message.tool_calls[0].function.name == "add"
 
 
-@pytest.mark.asyncio
 async def test_prompt_with_none_content_no_tool_calls():
     """prompt handles None content without tool_calls."""
     fake_response = _make_chat_completion(
@@ -328,7 +323,6 @@ async def test_prompt_with_none_content_no_tool_calls():
     assert result.choices[0].message.tool_calls is None
 
 
-@pytest.mark.asyncio
 async def test_prompt_passes_all_messages():
     """prompt forwards the full message history."""
     fake_response = _make_chat_completion(content="done")
@@ -355,7 +349,6 @@ async def test_prompt_passes_all_messages():
     )
 
 
-@pytest.mark.asyncio
 async def test_prompt_multiple_tool_calls():
     """prompt handles multiple tool calls in one response."""
     tool_calls = [
@@ -428,7 +421,6 @@ def agent_env():
         yield env
 
 
-@pytest.mark.asyncio
 async def test_agent_context_manager_closes_llm_client(agent_env):
     with patch.object(
         ChatCompletionsClient,
@@ -447,21 +439,18 @@ async def test_agent_context_manager_closes_llm_client(agent_env):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_agent_run_returns_content_on_stop(agent_env):
     """A "stop" finish_reason returns the assistant message content."""
     agent_env.responses = [_make_chat_completion(content="The answer is 8")]
     assert await agent_env.agent.run("4+4?") == "The answer is 8"
 
 
-@pytest.mark.asyncio
 async def test_agent_run_returns_empty_string_for_none_content(agent_env):
     """A "stop" with no content returns an empty string, not None."""
     agent_env.responses = [_make_chat_completion(content=None)]
     assert await agent_env.agent.run("4+4?") == ""
 
 
-@pytest.mark.asyncio
 async def test_agent_run_handles_missing_usage(agent_env):
     """A response without usage data is logged and does not raise."""
     agent_env.responses = [_make_chat_completion(content="8", usage=None)]
@@ -473,7 +462,6 @@ async def test_agent_run_handles_missing_usage(agent_env):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_agent_run_length_raises_token_limit_error(agent_env):
     """A "length" finish_reason raises TokenLimitError."""
     agent_env.responses = [_make_chat_completion(finish_reason="length")]
@@ -481,7 +469,6 @@ async def test_agent_run_length_raises_token_limit_error(agent_env):
         await agent_env.agent.run("4+4?")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_content_filter_raises_content_filter_error(
     agent_env,
 ):
@@ -493,7 +480,6 @@ async def test_agent_run_content_filter_raises_content_filter_error(
         await agent_env.agent.run("4+4?")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_unknown_reason_raises_value_error(agent_env):
     """An unrecognised finish_reason raises ValueError."""
     agent_env.responses = [_make_chat_completion(finish_reason="wat")]
@@ -501,7 +487,6 @@ async def test_agent_run_unknown_reason_raises_value_error(agent_env):
         await agent_env.agent.run("4+4?")
 
 
-@pytest.mark.asyncio
 async def test_agent_run_none_reason_raises_value_error(agent_env):
     """A missing finish_reason raises ValueError."""
     agent_env.responses = [_make_chat_completion(finish_reason=None)]
@@ -514,7 +499,6 @@ async def test_agent_run_none_reason_raises_value_error(agent_env):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_agent_run_dispatches_tool_call(agent_env):
     """A tool_calls response dispatches to the MCP calculator."""
     agent_env.responses = [
@@ -529,7 +513,6 @@ async def test_agent_run_dispatches_tool_call(agent_env):
     agent_env.call_tool.assert_awaited_once_with("add", {"a": 4, "b": 4})
 
 
-@pytest.mark.asyncio
 async def test_agent_run_sends_configured_system_instructions(
     agent_env, app_config
 ):
@@ -542,7 +525,6 @@ async def test_agent_run_sends_configured_system_instructions(
     }
 
 
-@pytest.mark.asyncio
 async def test_agent_run_returns_tool_error_to_llm(agent_env):
     """A tool error is sent to the LLM as the tool message content."""
     agent_env.call_tool.side_effect = ToolError(
@@ -564,7 +546,6 @@ async def test_agent_run_returns_tool_error_to_llm(agent_env):
     }
 
 
-@pytest.mark.asyncio
 async def test_agent_run_returns_invalid_json_arguments_to_llm(agent_env):
     """Invalid JSON arguments are sent to the LLM without a tool call."""
     agent_env.responses = [
@@ -580,7 +561,6 @@ async def test_agent_run_returns_invalid_json_arguments_to_llm(agent_env):
     assert "invalid JSON arguments" in agent_env.histories[1][-1]["content"]
 
 
-@pytest.mark.asyncio
 async def test_agent_run_dispatches_multiple_tool_calls(agent_env):
     """Every tool call in one response is dispatched in order."""
     agent_env.responses = [
@@ -615,7 +595,6 @@ def fake_calc():
     return SimpleNamespace(list_tools=AsyncMock(return_value=_MCP_TOOLS))
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "client_type", [ChatCompletionsClient, ResponsesClient]
 )
@@ -636,7 +615,6 @@ async def test_agent_enter_selects_client_for_api_style(
     assert llm.temperature == app_config.llm.temperature
 
 
-@pytest.mark.asyncio
 async def test_agent_run_requires_entered_context(fake_calc):
     """Running an agent without an LLM client raises RuntimeError."""
     with pytest.raises(RuntimeError):
@@ -681,7 +659,6 @@ def single_slot_agent(app_config):
         yield agent, gate
 
 
-@pytest.mark.asyncio
 async def test_agent_run_rejects_prompt_when_slots_full(single_slot_agent):
     """A prompt beyond max_concurrent_prompts raises AgentBusyError."""
     agent, gate = single_slot_agent
@@ -693,7 +670,6 @@ async def test_agent_run_rejects_prompt_when_slots_full(single_slot_agent):
     assert await first == "done"
 
 
-@pytest.mark.asyncio
 async def test_agent_run_frees_slot_after_prompt(single_slot_agent):
     """A finished prompt frees its slot for the next one."""
     agent, gate = single_slot_agent
@@ -702,7 +678,6 @@ async def test_agent_run_frees_slot_after_prompt(single_slot_agent):
     assert await agent.run("2+2?") == "done"
 
 
-@pytest.mark.asyncio
 async def test_agent_run_frees_slot_after_error(single_slot_agent):
     """A failed prompt frees its slot for the next one."""
     agent, gate = single_slot_agent
