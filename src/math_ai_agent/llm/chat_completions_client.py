@@ -6,9 +6,9 @@ import logging
 from typing import Any, cast, final
 
 import mcp_types
+from ai_utils_lib.config.models import Model
 from openai.types.chat import ChatCompletion
 
-from math_ai_agent.config.models import LLMConfig
 from math_ai_agent.llm.llm_client import LLMClient
 from math_ai_agent.llm.utils import (
     function_definition,
@@ -23,10 +23,8 @@ logger = logging.getLogger(__name__)
 class ChatCompletionsClient(LLMClient[ChatCompletion]):
     """OpenAI ChatCompletions API (``POST /v1/chat/completions``)."""
 
-    def __init__(
-        self, llm_config: LLMConfig, tools: list[mcp_types.Tool]
-    ) -> None:
-        super().__init__(llm_config, self._format_tools(tools))
+    def __init__(self, model: Model, tools: list[mcp_types.Tool]) -> None:
+        super().__init__(model, self._format_tools(tools))
 
     @staticmethod
     def _format_tools(tools: list[mcp_types.Tool]) -> list[dict]:

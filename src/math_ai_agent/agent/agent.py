@@ -8,6 +8,8 @@ from types import TracebackType
 from typing import Any, Self
 
 import mcp_types
+from ai_utils_lib.config.config import load_config
+from ai_utils_lib.config.models import AppConfig
 from fastmcp.exceptions import ToolError
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.responses import Response, ResponseFunctionToolCall
@@ -18,7 +20,6 @@ from math_ai_agent.agent.utils import (
     reasoning_texts,
     tool_error,
 )
-from math_ai_agent.config.config import get_config
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.llm.llm_errors import (
     AgentBusyError,
@@ -29,6 +30,9 @@ from math_ai_agent.llm.llm_errors import (
 from math_ai_agent.llm.responses_client import ResponsesClient
 from math_ai_agent.llm.utils import to_json
 from math_ai_agent.mcp.calc_client import CalcMCPClient
+
+# load_config must use the root package where config.yaml is found
+app_config: AppConfig = load_config(__package__.split(".")[0])
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +56,7 @@ class Agent:
         # at once.
         self._exit_stack = AsyncExitStack()
         self._prompt_slots = asyncio.Semaphore(
-            get_config().llm.max_concurrent_prompts
+            app_config.model.max_concurrent_prompts
         )
 
     async def __aenter__(self) -> Self:
@@ -66,13 +70,12 @@ class Agent:
     async def _create_llm(self) -> ChatCompletionsClient | ResponsesClient:
         """Discover the MCP tools and build the configured LLM client."""
         tools: list[mcp_types.Tool] = await self._calc.list_tools()
-        llm_config = get_config().llm
         logger.info(
-            "Creating LLM client using api_style=%s", llm_config.api_style
+            "Creating LLM client using api_style=%s", app_config.model.api_style
         )
-        if llm_config.api_style == "responses":
-            return ResponsesClient(llm_config, tools)
-        return ChatCompletionsClient(llm_config, tools)
+        if app_config.model.api_style == "responses":
+            return ResponsesClient(app_config.model, tools)
+        return ChatCompletionsClient(app_config.model, tools)
 
     async def __aexit__(
         self,
@@ -207,7 +210,6 @@ class Agent:
                                 "content": result,
                             }
                         )
-                    continue
 
                 case "content_filter":
                     error = f"Content [{history}] blocked for safety reasons."
@@ -304,7 +306,6 @@ class Agent:
                     previous_response_id = (
                         response.id if llm.is_stateful else None
                     )
-                    continue
 
                 case "incomplete":
                     details = response.incomplete_details

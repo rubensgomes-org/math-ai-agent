@@ -4,6 +4,8 @@ import logging
 import os
 from pathlib import Path
 
+from ai_utils_lib.config.config import load_config
+from ai_utils_lib.config.models import AppConfig
 from cryptography.fernet import Fernet
 from fastmcp import Client
 from fastmcp.client.auth import OAuth
@@ -14,7 +16,8 @@ from key_value.aio.stores.filetree import (
 )
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 
-from math_ai_agent.config.config import get_config
+# load_config must use the root package where config.yaml is found
+app_config: AppConfig = load_config(__package__.split(".")[0])
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +27,7 @@ class CalcMCPClient(Client):
 
     def __init__(self) -> None:
         """Initializes the client from the ``calculator_mcp`` config."""
-        mcp_config = get_config().server.calculator_mcp
+        mcp_config = app_config.mcp["calculator"]
         self._server_url: str = mcp_config.url
         logger.debug("MCP server URL: %s", self._server_url)
         if not mcp_config.is_oauth:

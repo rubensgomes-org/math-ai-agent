@@ -4,7 +4,12 @@ import argparse
 import logging
 from importlib.metadata import metadata, version
 
-from math_ai_agent.config.config import configure_logging
+from ai_utils_lib.config.config import load_config
+from ai_utils_lib.config.file.config import configure_logging
+from ai_utils_lib.config.models import AppConfig
+
+app_config: AppConfig = load_config(__package__)
+configure_logging(app_config)
 
 _DISTRIBUTION_NAME = "math-ai-agent"
 
@@ -30,7 +35,6 @@ def main(argv: list[str] | None = None) -> int:
     # pylint: disable-next=import-outside-toplevel
     from math_ai_agent.app import run
 
-    configure_logging()
     logger = logging.getLogger(__name__)
     logger.info("Starting %s", _DISTRIBUTION_NAME)
     # run() connects to the MCP server, then serves until shutdown

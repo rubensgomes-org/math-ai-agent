@@ -5,13 +5,12 @@
 #             /opt/venv, builds the project wheel, and installs that wheel
 #             into the same virtual environment.
 #   runtime : the same base image, running as a non-root user, carrying only
-#             /opt/venv and config/config_docker.yaml.
+#             /opt/venv.
 #
 # Build:  docker build --build-arg APP_VERSION="$(poetry version -s)" \
 #             -t "math-ai-agent:$(poetry version -s)" -t math-ai-agent:latest .
 # Run:    docker run --rm -e NVIDIA_API_KEY -p 9090:8080 math-ai-agent
-#         (expects calculator-mcp on Docker host port 8080; override the
-#         config with -v <file>:/etc/math-ai-agent/config.yaml:ro)
+#         (expects calculator-mcp on Docker host port 8080)
 # Verify: curl http://127.0.0.1:9090/health   ->   OK
 # =============================================================================
 
@@ -73,7 +72,7 @@ RUN poetry build --format wheel
 RUN python -c "import glob, zipfile; \
 w = glob.glob('dist/*.whl')[0]; \
 names = zipfile.ZipFile(w).namelist(); \
-required = ['math_ai_agent/config/config.yaml', \
+required = ['math_ai_agent/config.yaml', \
             'math_ai_agent/static/index.html']; \
 missing = [n for n in required if n not in names]; \
 assert not missing, missing; \
@@ -104,7 +103,6 @@ LABEL org.opencontainers.image.title="math-ai-agent" \
       org.opencontainers.image.authors="Rubens Gomes <rubens.s.gomes@gmail.com>"
 
 # PYTHONFAULTHANDLER=1: prints a traceback on fatal signals (e.g. segfault).
-# MATHAIAGENT_CONFIG: the container config; mount a file here to override it.
 # NO_COLOR: disables ANSI color codes in log output.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -112,7 +110,6 @@ ENV PYTHONUNBUFFERED=1 \
     VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:$PATH \
     HOME=/home/app \
-    MATHAIAGENT_CONFIG=/etc/math-ai-agent/config.yaml \
     NO_COLOR=true
 
 # Non-root service account with a fixed uid/gid, stable for volume ownership
@@ -125,7 +122,6 @@ RUN groupadd --system --gid 1001 app \
 # Owned by root and readable by everyone: the application cannot mutate its
 # own dependencies or configuration.
 COPY --from=builder --chown=root:root /opt/venv /opt/venv
-COPY --chown=root:root config/config_docker.yaml /etc/math-ai-agent/config.yaml
 
 USER app
 WORKDIR /home/app

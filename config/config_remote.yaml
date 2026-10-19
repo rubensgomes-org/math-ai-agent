@@ -1,37 +1,49 @@
-# =============================================================================
-# LLM Configuration
-# =============================================================================
-llm:
-    # true if the model is hosted on MS Foundry
-    # false otherwise (e.g., OpenAI, NVIDIA, OpenRouter, Ollama)
-    is_azure: false
+# ====================================================================
+# Microsoft Azure Configuration
+# ====================================================================
+azure:
+    # App Configuration prefix
+    app_config_prefix: "ca-mathagent/"
+    # app configuration prefix separator
+    app_config_separator: "/"
+    # Key Vault prefix
+    secret_prefix: "ca-mathagent--"
 
-    #   "responses" -> POST /v1/responses         (primary OpenAI API)
-    #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
+
+# ====================================================================
+# Microsoft Foundry Configuration
+# ====================================================================
+foundry:
+    project_endpoint: "https://aif-rgomes-lab.services.ai.azure.com/api/projects/proj-rgomes-lab"
+
+
+# ====================================================================
+# MCP Configuration
+# ====================================================================
+mcp:
+    calculator:
+        url: "https://rubens-calculator-mcp.fastmcp.app/mcp"
+        is_oauth: true
+        # location to store OAuth token in the local machine
+        token_dir: "~/.calc-mcp-token"
+        # local port temporarily used by the OAuth callback
+        callback_port: 10000
+
+
+# ====================================================================
+# SLM or LLM Model Configuration
+# ====================================================================
+model:
+    # OpenAI API style:
+    #   "responses" -> POST /v1/responses         (newer and preferred)
+    #   "chat"      -> POST /v1/chat/completions  (legacy)
     api_style: "responses"
-
-    # ---------- >>> NVIDIA Open LLM <<< ----------------------------
-    model_base_url: "https://integrate.api.nvidia.com/v1"
-    model: "nvidia/nemotron-3-ultra-550b-a55b"
+    base_url: "https://integrate.api.nvidia.com/v1"
+    name: "nvidia/nemotron-3-ultra-550b-a55b"
+    # environment variable holding the API key.
     api_key_env: "NVIDIA_API_KEY"
-    temperature: 0.2
-
-    # ---------- >>> OpenAI Paid LLM <<< ----------------------------
-    # model_base_url: "https://api.openai.com/v1"
-    # model: "gpt-6-luna"
-    # api_key_env: "OPENAI_API_KEY"
-    # temperature is an unsupported parameter for `gpt-6-luna`
-    #temperature:
-
-    # System prompt sent to the **stateless** LLM on every request.
-    timeout_seconds: 120
-    # Concurrent prompts ≈ prompts per second × average seconds per prompt.
-    max_concurrent_prompts: 10
-    # Responses API: store responses on the server and send only new
-    # items each turn via previous_response_id.
-    is_stateful: false
-
-    system_instructions: >-
+    # system instructions being provided to the model.
+    instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.
         For every math operation, request a tool call to the calculator.
@@ -41,28 +53,25 @@ llm:
         parenthesis math delimiters. Write math inline, like 4 x 3 = 12.
         Your answer is shown in a plain text box that cannot render
         formatting.
+    # Requires both Responses API and model support. It stores conversaiont history on the model server end, and send only new items each turn via
+    # previous_response_id.
+    is_stateful: false
+    # Concurrent prompts per second processed at once
+    max_concurrent_prompts: 10
+    # sampling temperature between 0 and 2.
+    temperature: 0.2
+    # Seconds to wait for each model response before failing.
+    timeout_seconds: 30
 
-server:
-    calculator_mcp:
-        # URL of the Calculator MCP Server End-Point
-        # url: "http://127.0.0.1:8080/mcp"
-        # Hosted, deployed and running for free at Prefect
-        #   https://www.prefect.io/horizon
-        url: "https://rubens-calculator-mcp.fastmcp.app/mcp"
-        # is_oauth: false
-        # Prefect requires OAuth authentication. Currently only Rubens is able
-        # to authorize using his personal GitHub account.
-        is_oauth: true
-        # location to store OAuth token
-        token_dir: "~/.calc-mcp-token"
-        # local port temporarily used by the OAuth callback server during
-        # OAuth handshaking.
-        callback_port: 10202
 
+# ====================================================================
+# Web App Configuration (e.g., used by FastAPI web app server)
+# ====================================================================
 web:
     host: "0.0.0.0"
-    # ensure below port does not conflict with locally running MCP server.
+    # ensure below port does not conflict with other services.
     port: 9090
+
 
 logging:
     version: 1
@@ -81,12 +90,23 @@ logging:
                 ERROR: red
                 CRITICAL: bold_red
             stream: ext://sys.stderr
+
     handlers:
         console:
             class: logging.StreamHandler
             formatter: standard
             stream: ext://sys.stderr
+
     loggers:
+        #############################################################
+        # ---------- >>> ai_utils_lib <<< --------------------------#
+        #############################################################
+        ai_utils_lib:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+
         #############################################################
         # ---------- >>> math_ai_agent <<< -------------------------#
         #############################################################
@@ -95,6 +115,7 @@ logging:
             handlers:
                 - console
             propagate: false
+
         #############################################################
         # ---------- >>> fastmcp <<< -------------------------------#
         #############################################################
@@ -103,6 +124,7 @@ logging:
             handlers:
                 - console
             propagate: false
+
         #############################################################
         # ---------- >>> mcp <<< -----------------------------------#
         #############################################################
@@ -111,6 +133,7 @@ logging:
             handlers:
                 - console
             propagate: false
+
         #############################################################
         # ---------- >>> httpx <<< ---------------------------------#
         #############################################################
@@ -120,6 +143,7 @@ logging:
             handlers:
                 - console
             propagate: false
+
         #############################################################
         # ---------- >>> httpcore <<< ------------------------------#
         #############################################################
@@ -129,6 +153,7 @@ logging:
             handlers:
                 - console
             propagate: false
+
         #############################################################
         # ---------- >>> openai <<< --------------------------------#
         #############################################################
@@ -137,12 +162,7 @@ logging:
             handlers:
                 - console
             propagate: false
-        # Integration tests (via pytest)
-        tests:
-            level: DEBUG
-            handlers:
-                - console
-            propagate: false
+
         #############################################################
         # ---------- >>> uvicorn <<< -------------------------------#
         #############################################################
@@ -152,12 +172,7 @@ logging:
             handlers:
                 - console
             propagate: false
-        # Integration tests (run standalone)
-        __main__:
-            level: DEBUG
-            handlers:
-                - console
-            propagate: false
+
     root:
         level: WARNING
         handlers:

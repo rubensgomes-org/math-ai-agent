@@ -8,17 +8,21 @@ from contextlib import AsyncExitStack, contextmanager
 from pathlib import Path
 
 import uvicorn
+from ai_utils_lib.config.config import load_config
+from ai_utils_lib.config.file.config import configure_logging
+from ai_utils_lib.config.models import AppConfig
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, PlainTextResponse
 from openai import APIConnectionError, APIStatusError
 
 from math_ai_agent.agent import Agent
-from math_ai_agent.config.config import configure_logging, get_config
 from math_ai_agent.llm import AgentError
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 from math_ai_agent.payload import Payload
 
-configure_logging()
+app_config: AppConfig = load_config(__package__)
+configure_logging(app_config)
+
 logger = logging.getLogger(__name__)
 
 _INDEX_HTML = Path(__file__).parent / "static" / "index.html"
@@ -140,24 +144,30 @@ async def _serve() -> int:
         try:
             logger.info(
                 "Connecting to calculator MCP server %s",
-                get_config().server.calculator_mcp.url,
+                app_config.mcp["calculator"].url,
             )
             calc = await stack.enter_async_context(CalcMCPClient())
             logger.info(
                 "Initializing Agent to use LLM model: %s at url: %s",
-                get_config().llm.model,
-                get_config().llm.model_base_url,
+                app_config.model.name,
+                app_config.model.base_url,
             )
             agent = await stack.enter_async_context(Agent(calc))
         except Exception as error:  # pylint: disable=broad-exception-caught
             logger.error("Cannot start the application: %s", error)
             return 1
         app.state.agent = agent
-        web = get_config().web
-        config = uvicorn.Config(
-            app, host=web.host, port=web.port, log_config=None
+        uv_config = uvicorn.Config(
+            app,
+            host=app_config.web.host,
+            port=app_config.web.port,
+            log_config=None,
         )
-        logger.info("Starting web server on %s:%s", web.host, web.port)
-        await _GracefulServer(config).serve()
+        logger.info(
+            "Starting web server on %s:%s",
+            app_config.web.host,
+            app_config.web.port,
+        )
+        await _GracefulServer(uv_config).serve()
         logger.warning("Shutting down the application...")
     return 0

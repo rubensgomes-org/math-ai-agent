@@ -28,6 +28,12 @@ on:
         options:
           - "No"
           - "Yes"
+      prefix:
+        description: 'Key prefix for the imported key-values.'
+        required: false
+        default: ca-mathagent/
+        type: string
+
 
 permissions:
   contents: read
@@ -44,7 +50,7 @@ jobs:
     uses: rubensgomes-org/azure-workflows/.github/workflows/config-app-delete.yml@v0
     with:
       name: appcs-${{ vars.TF_VAR_WORKLOAD }}-${{ inputs.environment_name }}
-      prefix: ca-mathagent
+      prefix: ${{ inputs.prefix }}
       label: ${{ inputs.environment_name }}
       azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
       azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}

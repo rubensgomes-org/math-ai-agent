@@ -1,35 +1,51 @@
 # "dev" environment configuration settings.
-llm:
-    # true if the model is hosted on MS Foundry
-    # false otherwise (e.g., OpenAI, NVIDIA, OpenRouter, Ollama)
-    is_azure: true
+# ====================================================================
+# Microsoft Azure Configuration
+# ====================================================================
+azure:
+    # App Configuration prefix
+    app_config_prefix: "ca-mathagent/"
+    # app configuration prefix separator
+    app_config_separator: "/"
+    # Key Vault prefix
+    secret_prefix: "ca-mathagent--"
 
-    #   "responses" -> POST /v1/responses         (primary OpenAI API)
-    #   "chat"      -> POST /v1/chat/completions  (legacy, still supported)
+
+# ====================================================================
+# Microsoft Foundry Configuration
+# ====================================================================
+foundry:
+    project_endpoint: "https://aif-rgomes-dev.services.ai.azure.com/api/projects/proj-rgomes-dev"
+
+
+# ====================================================================
+# MCP Configuration
+# ====================================================================
+mcp:
+    calculator:
+        url: "http://ca-mathmcp-dev/mcp"
+        is_oauth: false
+        # location to store OAuth token in the local machine
+        token_dir: ""
+        # local port temporarily used by the OAuth callback
+        callback_port: 10000
+
+
+# ====================================================================
+# SLM or LLM Model Configuration
+# ====================================================================
+model:
+    # OpenAI API style:
+    #   "responses" -> POST /v1/responses         (newer and preferred)
+    #   "chat"      -> POST /v1/chat/completions  (legacy)
     api_style: "responses"
-
-    # ---------- >>> NVIDIA Open LLM <<< ----------------------------
-    # model_base_url: "https://integrate.api.nvidia.com/v1"
-    # model: "nvidia/nemotron-3-ultra-550b-a55b"
-    # api_key_env: "NVIDIA_API_KEY"
-    # temperature: 0.8
-
-    # ---------- >>> MS Foundry LLM <<< ----------------------------
-    # MS Foundry Azure OpenAI endpoint
-    model_base_url: "https://aif-rgomes-dev.services.ai.azure.com/openai/v1"
-    model: "gpt-5.2"
-    api_key_env: "FOUNDRY_API_KEY"
-    # temperature: 0.2
-
-    # Seconds to wait for each LLM response before failing.
-    timeout_seconds: 120
-    # Concurrent prompts ≈ prompts per second × average seconds per prompt.
-    max_concurrent_prompts: 10
-    # Responses API: store responses on the server and send only new
-    # items each turn via previous_response_id.
-    is_stateful: false
-
-    system_instructions: >-
+    base_url: "https://aif-rgomes-dev.services.ai.azure.com/openai/v1"
+    name: "gpt-4.1-nano"
+    # environment variable holding the API key.
+    # we should use Azure credentials for Foundry models.
+    api_key_env: ""
+    # system instructions being provided to the model.
+    instructions: >-
         You are a careful math assistant tutor helping solve math problems.
         Always write a short plan first. Do NOT do arithmetic in your head.
         For every math operation, request a tool call to the calculator.
@@ -39,22 +55,21 @@ llm:
         parenthesis math delimiters. Write math inline, like 4 x 3 = 12.
         Your answer is shown in a plain text box that cannot render
         formatting.
+    # Requires both Responses API and model support. It stores conversaiont history on the model server end, and send only new items each turn via
+    # previous_response_id.
+    is_stateful: false
+    # Concurrent prompts per second processed at once
+    max_concurrent_prompts: 10
+    # sampling temperature between 0 and 2.
+    temperature: 1.0
+    # Seconds to wait for each model response before failing.
+    timeout_seconds: 30
 
-server:
-    calculator_mcp:
-        # URL of the Calculator MCP Server ACA living in the same CAE
-        url: "http://ca-mathmcp-dev/mcp"
-        is_oauth: false
-        # token_dir not needed when OAuth is not used.
-        token_dir: ""
-        # callback_port not needed when OAuth is not used.
-        callback_port: 0
 
+# ====================================================================
+# Web App Configuration (e.g., used by FastAPI web app server)
+# ====================================================================
 web:
-    # IP of the running ACA container
     host: "0.0.0.0"
-    # Port of the running ACA container
+    # ensure below port does not conflict with other services.
     port: 8080
-
-# ATTENTION: The "logging" section is loaded using the config_docker.yaml
-# which is part of the Dockerfile context.

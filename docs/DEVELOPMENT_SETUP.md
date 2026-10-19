@@ -132,6 +132,12 @@ care of running commands in its own virtual environment.
     poetry env remove --all
     ```
 
+- Clean up old cached copy of PyPI's package list
+
+    ```bash
+    poetry cache clear PyPI --all -n
+    ```
+
 ## Common Development Commands
 
 **NOTE:** we are using `poetry` to run all commands. That's because all the
@@ -202,42 +208,34 @@ in its own virtual environment.
 **NOTE:** requires the `calculator_mcp` running locally as per instructions at
 [calculator-mcp](https://github.com/rubensgomes-org/calculator-mcp)
 
-1. Make a copy of
-   [config_local.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_local.yaml)
-   to a local home directory (e.g.,
-   `${HOME}/cfg/math-ai-agent/config_local.yaml`).
-
-2. Launch `math-ai-agent` from the local Git repo folder
+1. Launch `math-ai-agent` from the local Git repo folder
 
 ```bash
 # On my machine the project is installed here:
 pushd ~/github/rubens/dev/python/math-ai-agent/
 # ensure we are at the project git local root folder
 cd $(git rev-parse --show-toplevel) || exit
-# config_local.yaml placed in my home folder
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
 # ensure below port does not conflict with locally running MCP server.
 poetry run math-ai-agent
 ```
 
-3. Health check
+2. Health check
 
 ```bash
 curl -v http://localhost:9090/health
 # Expect: OK
 ```
 
-4. To stop, go to the running terminal and press `Ctrl+C`
+3. To stop, go to the running terminal and press `Ctrl+C`
 
 ### Calculator MCP Server Running Remotely - OAuth Authentication
 
 **NOTE:** requires OAuth authentication which currently only Rubens is able to
 authorize using his personal GitHub account.
 
-1. Make a copy of
+1. Copy the settings in
    [config_remote.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_remote.yaml)
-   to a local home directory (e.g.,
-   `${HOME}/cfg/math-ai-agent/config_remote.yaml`).
+   into `src/math_ai_agent/config.yaml`.
 
 2. Launch `math-ai-agent` from the local Git repo folder
 
@@ -246,8 +244,6 @@ authorize using his personal GitHub account.
 pushd ~/github/rubens/dev/python/math-ai-agent/
 # ensure we are at the project git local root folder
 cd $(git rev-parse --show-toplevel) || exit
-# config_remote.yaml placed in my home folder
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
 # clean up previously created OAuth tokens
 rm -fr ~/.calc-mcp-token
 poetry run math-ai-agent

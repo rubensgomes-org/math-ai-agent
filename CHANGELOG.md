@@ -12,8 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `config-app-import` workflow inputs `config_path` (default
   `config/azure_aca_config_<env>.yaml`) and `prefix` (default
   `ca-mathagent/`).
+- `config-app-delete` workflow input `prefix` (default `ca-mathagent/`).
+- `ai-utils-lib` runtime dependency.
 
 ### Changed
+
+- Configuration loading, logging setup, and Entra ID token provider moved
+  to `ai-utils-lib`; the `math_ai_agent.config` package was removed.
+- Settings are read from the packaged `math_ai_agent/config.yaml`;
+  `MATHAIAGENT_CONFIG` is no longer supported.
+- Config schema: `llm` renamed to `model` (`model_base_url` -> `base_url`,
+  `model` -> `name`, `system_instructions` -> `instructions`),
+  `server.calculator_mcp` renamed to `mcp.calculator`, and `azure` and
+  `foundry` sections added.
+- Azure credentials are used when no model API key is set, replacing
+  `is_azure`.
+- ACA dev config uses Foundry model `gpt-4.1-nano`.
+- The Docker image no longer bundles `config_docker.yaml`.
+
+### Removed
+
+- `config/config_docker.yaml` and `config/azure_ai_utils_lib.yaml`.
 
 ### Fixed
 

@@ -83,17 +83,9 @@ pip cache purge
 
 ## Configuration
 
+Settings are read from the packaged `src/math_ai_agent/config.yaml`.
+
 ### `calculator-mcp` Running Locally
-
-- Copy the file
-  [config_local.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_local.yaml)
-  to `${HOME}/cfg/math-ai-agent/config_local.yaml`
-
-- Set `MATHAIAGENT_CONFIG` for `calculator-mcp` running locally
-
-```bash
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
-```
 
 - Launch `calculator-mcp` locally following the instructions at
   [calculator-mcp](https://github.com/rubensgomes-org/calculator-mcp)
@@ -103,15 +95,9 @@ export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_local.yaml"
 **Note**: This requires OAuth authentication using a GitHub account. Currently,
 only the project author is authorized.
 
-- Copy the file
+- Copy the settings in
   [config_remote.yaml](https://github.com/rubensgomes-org/math-ai-agent/blob/main/config/config_remote.yaml)
-  to `${HOME}/cfg/math-ai-agent/config_remote.yaml`
-
-- Set `MATHAIAGENT_CONFIG` for `calculator-mcp` running remotely
-
-```bash
-export MATHAIAGENT_CONFIG="${HOME}/cfg/math-ai-agent/config_remote.yaml"
-```
+  into `src/math_ai_agent/config.yaml`
 
 ## Usage
 

@@ -4,10 +4,10 @@ import logging
 from typing import Any, cast, final
 
 import mcp_types
+from ai_utils_lib.config.models import Model
 from openai import omit
 from openai.types.responses import Response
 
-from math_ai_agent.config.models import LLMConfig
 from math_ai_agent.llm.llm_client import LLMClient
 from math_ai_agent.llm.utils import (
     function_definition,
@@ -22,11 +22,9 @@ logger = logging.getLogger(__name__)
 class ResponsesClient(LLMClient[Response]):
     """OpenAI Responses API (``POST /v1/responses``)."""
 
-    def __init__(
-        self, llm_config: LLMConfig, tools: list[mcp_types.Tool]
-    ) -> None:
-        super().__init__(llm_config, self._format_tools(tools))
-        self.is_stateful = llm_config.is_stateful
+    def __init__(self, model: Model, tools: list[mcp_types.Tool]) -> None:
+        super().__init__(model, self._format_tools(tools))
+        self.is_stateful = model.is_stateful
 
     @staticmethod
     def _format_tools(tools: list[mcp_types.Tool]) -> list[dict]:

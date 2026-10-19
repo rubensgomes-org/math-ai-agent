@@ -20,7 +20,7 @@ Server as a client.
 | Published port  | `9090` on the host (maps to `8080`)            |
 | Web page        | `http://<host>:9090/`                          |
 | Health endpoint | `http://<host>:9090/health` (returns `OK`)     |
-| Config file     | `/etc/math-ai-agent/config.yaml`               |
+| Config file     | `config.yaml` in the installed package root    |
 | MCP server      | `http://host.docker.internal:8080/mcp`         |
 | User            | non-root, `uid=1001 gid=1001` (`app`)          |
 | Image size      | ~346 MB                                        |
@@ -80,14 +80,6 @@ Server as a client.
 
     # Verify - expect OK
     curl http://127.0.0.1:9090/health
-    ```
-
-- To use another config, mount it over the bundled one:
-
-    ```bash
-    docker run -d --name math-ai-agent -e NVIDIA_API_KEY -p 9090:8080 \
-        -v "$PWD/my-config.yaml:/etc/math-ai-agent/config.yaml:ro" \
-        "math-ai-agent:$(poetry version -s)"
     ```
 
 - To stop the running container:

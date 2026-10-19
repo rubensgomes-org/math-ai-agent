@@ -1,0 +1,205 @@
+# ====================================================================
+# Microsoft Azure Configuration
+# ====================================================================
+azure:
+    # App Configuration prefix
+    app_config_prefix: "ca-mathagent/"
+    # app configuration prefix separator
+    app_config_separator: "/"
+    # Key Vault prefix
+    secret_prefix: "ca-mathagent--"
+
+
+# ====================================================================
+# Microsoft Foundry Configuration
+# ====================================================================
+foundry:
+    project_endpoint: "https://aif-rgomes-lab.services.ai.azure.com/api/projects/proj-rgomes-lab"
+
+
+# ====================================================================
+# MCP Configuration
+# ====================================================================
+mcp:
+    calculator:
+        url: "http://127.0.0.1:8080/mcp"
+        is_oauth: false
+        # location to store OAuth token in the local machine
+        token_dir: "~/.mathaiagent"
+        # local port temporarily used by the OAuth callback
+        callback_port: 10000
+
+
+# ====================================================================
+# SLM or LLM Model Configuration
+# ====================================================================
+model:
+    # OpenAI API style:
+    #   "responses" -> POST /v1/responses         (newer and preferred)
+    #   "chat"      -> POST /v1/chat/completions  (legacy)
+    api_style: "responses"
+    base_url: "https://integrate.api.nvidia.com/v1"
+    name: "nvidia/nemotron-3-ultra-550b-a55b"
+    # environment variable holding the API key.
+    api_key_env: "NVIDIA_API_KEY"
+    # system instructions being provided to the model.
+    instructions: >-
+        You are a careful math assistant tutor helping solve math problems.
+        Always write a short plan first. Do NOT do arithmetic in your head.
+        For every math operation, request a tool call to the calculator.
+        After tool results, continue. Provide final answer with explanation.
+        Respond in plain text only. Do NOT use LaTeX, Markdown, or any other
+        special formatting: no backslashes, no asterisks, no dollar-sign or
+        parenthesis math delimiters. Write math inline, like 4 x 3 = 12.
+        Your answer is shown in a plain text box that cannot render
+        formatting.
+    # Requires both Responses API and model support. It stores conversaiont history on the model server end, and send only new items each turn via
+    # previous_response_id.
+    is_stateful: false
+    # Concurrent prompts per second processed at once
+    max_concurrent_prompts: 10
+    # sampling temperature between 0 and 2.
+    temperature: 1.0
+    # Seconds to wait for each model response before failing.
+    timeout_seconds: 30
+
+
+# ====================================================================
+# Web App Configuration (e.g., used by FastAPI web app server)
+# ====================================================================
+web:
+    host: "0.0.0.0"
+    # ensure below port does not conflict with other services.
+    port: 9090
+
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logging:
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+        # Colors level name and message when logs are being directly
+        # sent to computer TTY console.  For plain (no colors) when
+        # logs are being sent over the network, set the NO_COLOR
+        # environment variable as NO_COLOR=true.
+        standard:
+            (): colorlog.ColoredFormatter
+            fmt: "%(asctime)s %(log_color)s[%(levelname)s]%(reset)s %(fg_147)s%(name)s %(filename)s:%(lineno)d%(reset)s: %(log_color)s%(message)s%(reset)s"
+            datefmt: "%H:%M:%S"
+            log_colors:
+                DEBUG: cyan
+                INFO: light_green
+                WARNING: yellow
+                ERROR: red
+                CRITICAL: bold_red
+            stream: ext://sys.stderr
+
+    handlers:
+        console:
+            class: logging.StreamHandler
+            formatter: standard
+            stream: ext://sys.stderr
+
+    loggers:
+        #############################################################
+        # ---------- >>> ai_utils_lib <<< --------------------------#
+        #############################################################
+        ai_utils_lib:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+
+        #############################################################
+        # ---------- >>> math_ai_agent <<< -------------------------#
+        #############################################################
+        math_ai_agent:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+
+        #############################################################
+        # ---------- >>> fastmcp <<< -------------------------------#
+        #############################################################
+        fastmcp:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+#        # FastMCP OAuth client (fastmcp/client/auth/oauth.py)
+#        fastmcp.client.auth.oauth:
+#        # FastMCP client tool calls (fastmcp/client/mixins/tools.py)
+#        fastmcp.client.mixins.tools:
+#        # FastMCP client core (fastmcp/client/client.py)
+#        fastmcp.client.client:
+
+        #############################################################
+        # ---------- >>> mcp <<< -----------------------------------#
+        #############################################################
+        mcp:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+#        # MCP protocol tracing — set to DEBUG to see full JSON-RPC messages
+#        mcp.client.streamable_http:
+
+        #############################################################
+        # ---------- >>> httpx <<< ---------------------------------#
+        #############################################################
+        # HTTP request/response summaries — set to DEBUG for detail
+        httpx:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+
+        #############################################################
+        # ---------- >>> httpcore <<< ------------------------------#
+        #############################################################
+        # HTTP wire-level tracing (headers, TCP) — set to DEBUG for detail
+        httpcore:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+
+        #############################################################
+        # ---------- >>> openai <<< --------------------------------#
+        #############################################################
+        openai:
+            level: INFO
+            handlers:
+                - console
+            propagate: false
+        # Integration tests (via pytest)
+        tests:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+
+        #############################################################
+        # ---------- >>> uvicorn <<< -------------------------------#
+        #############################################################
+        # Server: startup, shutdown, and errors
+        uvicorn:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+#        # Server: HTTP request lines (method, path, status)
+#        uvicorn.access:
+
+        __main__:
+            level: DEBUG
+            handlers:
+                - console
+            propagate: false
+    root:
+        level: WARNING
+        handlers:
+            - console
