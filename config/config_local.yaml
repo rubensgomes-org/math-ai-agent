@@ -7,7 +7,10 @@ azure:
     # app configuration prefix separator
     app_config_separator: "/"
     # Key Vault prefix
-    secret_prefix: "ca-mathagent--"
+    secret_prefix: "ca-mathagent"
+    # Key Vault secret separator
+    secret_separator: "--"
+
 
 
 # ====================================================================

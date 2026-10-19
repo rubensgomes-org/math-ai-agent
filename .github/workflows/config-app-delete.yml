@@ -1,10 +1,10 @@
 # =============================================================================
 # Delete App Configuration
 #
-# DESTRUCTIVE. Deletes this app's key-values (prefix "ca-mathagent", label
-# <environment_name>) from the environment's Azure App Configuration store by
-# calling the reusable config-app-delete workflow in the `azure-workflows`
-# repo.
+# DESTRUCTIVE. Deletes every key-value matching the given prefix and the
+# <environment_name> label from the environment's Azure App Configuration
+# store by calling the reusable config-app-delete workflow in the
+# `azure-workflows` repo.
 # =============================================================================
 name: App Configuration Delete
 
@@ -29,11 +29,10 @@ on:
           - "No"
           - "Yes"
       prefix:
-        description: 'Key prefix for the imported key-values.'
-        required: false
+        description: 'Key prefix of the key-values to delete.'
+        required: true
         default: ca-mathagent/
         type: string
-
 
 permissions:
   contents: read

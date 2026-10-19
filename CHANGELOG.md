@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `is_azure`.
 - ACA dev config uses Foundry model `gpt-4.1-nano`.
 - The Docker image no longer bundles `config_docker.yaml`.
+- Config `azure.secret_prefix` is now `ca-mathagent`; the `--` moved to
+  the new `secret_separator` key.
+- `config-app-delete` workflow input `prefix` is required.
+- `config/azure_kv_delete.yaml` lists the `FOUNDRY-`, `NVIDIA-`, and
+  `OPENAI-API-KEY` secrets.
 
 ### Removed
 

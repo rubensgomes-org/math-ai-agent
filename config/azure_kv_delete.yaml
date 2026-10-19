@@ -1,3 +1,3 @@
-# Following is just a sample.  Replace the keys below with your own actual keys.  Do not commit your keys to source control.
-- REMOVE-API-KEY-01
-- REMOVE-API-KEY-02
+- FOUNDRY-API-KEY
+- NVIDIA-API-KEY
+- OPENAI-API-KEY
