@@ -5,6 +5,7 @@ connect to the MCP server or start OAuth.
 """
 
 import asyncio
+import logging
 import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -261,6 +262,7 @@ async def test_prompt_logs_provider_message(app, mock_agent, caplog):
 
 
 async def test_prompt_returns_500_on_unexpected_error(app, mock_agent, caplog):
+    caplog.set_level(logging.INFO, logger="math_ai_agent.app")
     mock_agent.run.side_effect = ValueError("Non-supported finish_reason")
     transport = ASGITransport(app=app)
     async with AsyncClient(
