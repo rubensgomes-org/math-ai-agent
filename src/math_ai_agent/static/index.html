@@ -74,9 +74,11 @@
         <div class="col-12">
             <label for="textarea-question-id"
                    class="form-label">Math question:</label>
+            <!-- maxlength matches MAX_PROMPT_CHARS in schemas.py -->
             <textarea id="textarea-question-id"
                       name="question"
                       class="form-control"
+                      maxlength="4000"
                       rows="3"></textarea>
             <div class="invalid-feedback">
                 Please enter a math question.
@@ -177,6 +179,14 @@
 
     // Returns the FastAPI "detail" message, or the HTTP status when the
     // body is not JSON (for example, a proxy error page).
+    function formatAnswer(data, showReasoning) {
+        if (!showReasoning) {
+            return data.answer;
+        }
+        return `reasoning:\n${data.reasoning || "(none)"}\n\n`
+            + `final response:\n${data.answer || "(none)"}`;
+    }
+
     async function errorDetail(res) {
         try {
             const data = await res.json();
@@ -201,14 +211,15 @@
         setBusy(true);
         clearError();
         responseTextarea.value = "";
+        const showReasoning = document.getElementById(
+            "radio-display-reasoning-yes-id").checked;
         try {
-            const res = await fetch("/prompt/", {
+            const res = await fetch("/prompt", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
                     text: prompt,
-                    display_reasoning: document.getElementById(
-                        "radio-display-reasoning-yes-id").checked
+                    display_reasoning: showReasoning
                 })
             });
             if (!res.ok) {
@@ -216,7 +227,7 @@
                 return;
             }
             const data = await res.json();
-            responseTextarea.value = data.answer;
+            responseTextarea.value = formatAnswer(data, showReasoning);
         } catch (error) {
             console.error("Prompt request failed", error);
             showError(`Could not get a response (${error.message}).`);

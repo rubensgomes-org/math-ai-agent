@@ -1,33 +1,24 @@
-"""Helpers for building and logging LLM requests."""
+"""Helpers for LLM requests and logging."""
 
 import json
 from typing import Any
 
-import mcp_types
-from openai import omit
+from openai import Omit, omit
+
+_MAX_LOG_JSON_CHARS = 20_000
 
 
-def function_definition(tool: mcp_types.Tool) -> dict[str, Any]:
-    """Return the MCP tool's ``name``, optional ``description``, and
-    ``parameters`` (its input schema)."""
-    definition: dict[str, Any] = {"name": tool.name}
-    if tool.description:
-        definition["description"] = tool.description
-    definition["parameters"] = tool.input_schema
-    return definition
-
-
-def omit_if_none(value: Any) -> Any:
-    """Return ``omit``, which leaves the field out of the request, for
-    ``None``; otherwise return ``value``."""
+def omit_if_none[T](value: T | None) -> T | Omit:
+    """Return ``omit`` for ``None``, else ``value``."""
     return omit if value is None else value
 
 
-def to_json(value: Any) -> str:
-    """Format a request payload as indented JSON for logging.
+def json_for_log(value: Any) -> str:
+    """Format ``value`` as indented JSON for logs only, never requests.
 
-    SDK objects, such as ``ChatCompletionMessage``, are converted with
-    ``model_dump``; anything else that JSON cannot encode uses ``str``.
+    Any object with ``model_dump``, such as an SDK model, is dumped;
+    anything else JSON cannot encode uses ``str``.  Output longer than
+    ``_MAX_LOG_JSON_CHARS`` is truncated.
     """
 
     def _encode(item: Any) -> Any:
@@ -35,4 +26,8 @@ def to_json(value: Any) -> str:
             return item.model_dump(exclude_none=True)
         return str(item)
 
-    return json.dumps(value, indent=2, ensure_ascii=False, default=_encode)
+    text = json.dumps(value, indent=2, ensure_ascii=False, default=_encode)
+    if len(text) <= _MAX_LOG_JSON_CHARS:
+        return text
+    dropped = len(text) - _MAX_LOG_JSON_CHARS
+    return f"{text[:_MAX_LOG_JSON_CHARS]}... ({dropped} characters truncated)"

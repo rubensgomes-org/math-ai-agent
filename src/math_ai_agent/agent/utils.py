@@ -1,6 +1,5 @@
 """Helpers for the agent loop."""
 
-import logging
 from typing import Any
 
 from openai.types.responses import (
@@ -8,10 +7,6 @@ from openai.types.responses import (
     ResponseOutputItem,
     ResponseReasoningItem,
 )
-
-logger = logging.getLogger(__name__)
-
-_EMPTY_SECTION = "(none)"
 
 
 def reasoning_texts(response: Response) -> list[str]:
@@ -29,48 +24,25 @@ def reasoning_texts(response: Response) -> list[str]:
     ]
 
 
-def next_turn_input(
-    stateful: bool,
+def replay_input(
     history: list[Any],
     response_outputs: list[ResponseOutputItem],
     tool_outputs: list[Any],
 ) -> list[Any]:
-    """Return the input items for the next turn.
+    """Return the whole conversation as the next stateless turn's input.
 
-    Stateful turns send only the tool outputs and continue the stored
-    response.  Stateless turns replay the whole conversation,
-    including reasoning items, so the model keeps its context.
+    Reasoning items are replayed too, so the model keeps its context.
     """
-    if stateful:
-        logger.debug("LLM model is operating in stateful mode")
-        return tool_outputs
-    logger.debug("LLM model is operating in stateless mode.")
     output_items = [
         item.model_dump(exclude_none=True) for item in response_outputs
     ]
     return [*history, *output_items, *tool_outputs]
 
 
-def format_answer(reasoning: list[str], final_response: str) -> str:
-    """Format the answer as reasoning and final response sections.
+def join_reasoning(reasoning: list[str]) -> str | None:
+    """Join the stripped, non-blank reasoning texts by line breaks.
 
-    Surrounding whitespace is stripped from each text, so sections are
-    separated by exactly one blank line and turns by a line break.  Each
-    section shows ``(none)`` when the LLM returned no text for it.
+    Returns None when the LLM returned no reasoning text.
     """
-    sections = {
-        "reasoning": "\n".join(
-            text.strip() for text in reasoning if text.strip()
-        ),
-        "final response": final_response.strip(),
-    }
-    return "\n\n".join(
-        f"{heading}:\n{text or _EMPTY_SECTION}"
-        for heading, text in sections.items()
-    )
-
-
-def tool_error(tool_name: str, message: str) -> str:
-    """Log a failed tool call and return the error text for the LLM."""
-    logger.warning("Calculator MCP tool %s failed: %s", tool_name, message)
-    return message
+    stripped = (text.strip() for text in reasoning)
+    return "\n".join(text for text in stripped if text) or None

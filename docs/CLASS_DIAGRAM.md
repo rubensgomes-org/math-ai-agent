@@ -2,36 +2,41 @@
 
 ```text
 
-payload.py                       agent/agent.py
-┌──────────────────────┐         ┌──────────────────────────────────┐
-│ Payload              │         │ Agent                            │
-│  ──▷ [BaseModel]     │         │  _calc  ◆── CalcMCPClient        │
-│  text                │         │  _llm   ◆── ChatCompletionsClient│
-│  display_reasoning   │         │             | ResponsesClient    │
-└──────────────────────┘         │  _prompt_slots ◆── [Semaphore]   │
-llm/llm_errors.py                │  create() ···> AppConfig.llm     │
-┌──────────────────────┐         │  run() raises AgentBusyError     │
-│ AgentBusyError       │         │    TokenLimitError               │
-│ TokenLimitError      │         │    ContentFilterError            │
-│ ContentFilterError   │         │    LLMRequestFailedError         │
-│ LLMRequestFailedError│         └──────────────────────────────────┘
-│  ──▷ [RuntimeError]  │
-└──────────────────────┘
+schemas.py                       agent/agent.py
+┌──────────────────────────┐     ┌──────────────────────────────────┐
+│ PromptRequest            │     │ Agent                            │
+│  ──▷ [BaseModel]         │     │  _calc  ◆── CalcMCPClient        │
+│  text                    │     │  _llm   ◆── ChatCompletionsClient│
+│  display_reasoning       │     │             | ResponsesClient    │
+└──────────────────────────┘     │  _model ◆── Model                │
+agent/errors.py                  │  _prompt_slots ◆── [Semaphore]   │
+┌──────────────────────────┐     │  run() raises AgentError         │
+│ AgentError               │     └──────────────────────────────────┘
+│  ──▷ [RuntimeError]      │
+│ ──▷ AgentError           │
+│  AgentBusyError          │
+│  TokenLimitError         │
+│  ContentFilterError      │
+│  LLMRequestFailedError   │
+│  MaxTurnsExceededError   │
+│  UnexpectedResponseError │
+│ ──▷ LLMRequestFailedError│
+│  LLMRateLimitedError     │
+└──────────────────────────┘
 
 llm/llm_client.py, llm/chat_completions_client.py, llm/responses_client.py
                   ┌──────────────────────────────┐
                   │ «abstract» LLMClient         │
                   │  openai_client ◆── [AsyncOpenAI]
-                  │  model, tools, temperature   │
-                  │  format_tools()              │
-                  │  prompt()                    │
-                  │  report_usage()              │
+                  │  model_name, tools           │
+                  │  log_token_usage()           │
+                  │  _token_usage()              │
                   └──────────────▲───────────────┘
                    ┌─────────────┴──────────────┐
       ┌────────────┴────────────┐   ┌───────────┴─────────────┐
       │ ChatCompletionsClient   │   │ ResponsesClient         │
-      │  format_tools()         │   │  format_tools()         │
-      │  prompt()               │   │  stateful               │
+      │  _format_tools()        │   │  _format_tools()        │
+      │  prompt()               │   │  is_stateful            │
       │  → /v1/chat/completions │   │  prompt()               │
       └─────────────────────────┘   │  → /v1/responses        │
   Chat Completions API: March 2023  └─────────────────────────┘
@@ -42,9 +47,8 @@ mcp/calc_client.py
 │ CalcMCPClient                     │
 │  ──▷ [fastmcp.Client]             │
 │  auth ◆── [OAuth] (optional)      │
-│  __init__ ···> AppConfig          │
-│            .server.calculator_mcp │
-│  tools_definitions()              │
+│  __init__(config: MCP)            │
+│  timeout, init_timeout            │
 └───────────────────────────────────┘
 ```
 ## MCP Client Layers

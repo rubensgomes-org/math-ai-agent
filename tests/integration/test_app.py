@@ -11,14 +11,15 @@ From the project root folder run:
 import logging
 from pathlib import Path
 
+from ai_utils_lib.config.config import load_config
+from ai_utils_lib.config.file_load_config import configure_logging
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from math_ai_agent.config.config import configure_logging
-from math_ai_agent.payload import Payload
+from math_ai_agent.schemas import PromptRequest
 
-configure_logging()
+configure_logging(load_config("math_ai_agent"))
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).parent.parent.parent / "src/math_ai_agent/static"
@@ -43,7 +44,7 @@ async def root() -> str:
 
 
 @app.post("/prompt/")
-async def prompt(payload: Payload) -> dict[str, str]:
+async def prompt(payload: PromptRequest) -> dict[str, str]:
     """Accept a prompt text from the user and return an answer.
 
     Args:

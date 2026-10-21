@@ -12,42 +12,42 @@ OpenAI API.  Run standalone with::
 import logging
 import time
 
+from ai_utils_lib.config.config import load_config
+from ai_utils_lib.config.file_load_config import configure_logging
 from openai import OpenAI, OpenAIError
 
-from math_ai_agent.config.config import (
-    configure_logging,
-    get_config,
-)
+_PACKAGE = "math_ai_agent"
 
 logger = logging.getLogger(__name__)
 
 _SYSTEM_INSTRUCTIONS = "You are a Python expert programmer.\n"
 
 # The active endpoint, model, and API key env var now come from the
-# `llm:` block in config.yaml at the project root (GitHub Marketplace
+# `model:` block in config.yaml at the project root (GitHub Marketplace
 # Model by default).  Edit config.yaml to switch providers; the
 # alternatives below are kept for reference.
 #
 # OpenAI API key stored in my secrets. (NOT FREE)
-#   model_base_url: "https://api.openai.com/v1"
-#   model: "gpt-5.2"
+#   base_url: "https://api.openai.com/v1"
+#   name: "gpt-5.2"
 #   api_key_env: "OPENAI_API_KEY"
 #
 # Ollama locally running server. Any string works for local Ollama. (FREE)
-#   model_base_url: "http://localhost:11434/v1"
-#   model: "llama2"  # Meta Open-Source 7B size
-#   model: "qwen3.5"  # https://ollama.com/library/qwen3.5
-#   model: "phi"  # https://ollama.com/library/phi
+#   base_url: "http://localhost:11434/v1"
+#   name: "llama2"  # Meta Open-Source 7B size
+#   name: "qwen3.5"  # https://ollama.com/library/qwen3.5
+#   name: "phi"  # https://ollama.com/library/phi
 
 
 def run_client() -> None:
     """Connect to LLM and send a prompt."""
-    base_url = get_config().llm.model_base_url
-    model = get_config().llm.model
+    config = load_config(_PACKAGE).model
+    base_url = str(config.base_url)
+    model = config.name
     logger.info("Connecting to %s using model %s", base_url, model)
     prompt = "How do I check if a Python object is an instance of a class?"
     with OpenAI(
-        api_key=get_config().llm.api_key,
+        api_key=config.api_key,
         base_url=base_url,
     ) as client:
         logger.debug("========== %s API CALL (BEGIN) ==========", "NEW")
@@ -84,5 +84,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    configure_logging()
+    configure_logging(load_config(_PACKAGE))
     main()

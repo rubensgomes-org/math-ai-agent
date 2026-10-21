@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ca-mathagent/`).
 - `config-app-delete` workflow input `prefix` (default `ca-mathagent/`).
 - `ai-utils-lib` runtime dependency.
+- `/prompt` limits: 10 prompts per minute per client (429 with
+  `Retry-After`; behind proxies, list them in `FORWARDED_ALLOW_IPS`),
+  10 LLM turns (502), 300 seconds per prompt (504), and 64 KiB request
+  bodies (413).
+- Calculator MCP calls time out after 30 seconds (10 to connect).
+- `fastmcp-slim[server]` test dependency.
 
 ### Changed
 
@@ -25,21 +31,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `model` -> `name`, `system_instructions` -> `instructions`),
   `server.calculator_mcp` renamed to `mcp.calculator`, and `azure` and
   `foundry` sections added.
-- Azure credentials are used when no model API key is set, replacing
-  `is_azure`.
+- Azure credentials are used when `model.api_key_env` is unset or empty,
+  replacing `is_azure`; a set but missing variable fails at startup.
 - ACA dev config uses Foundry model `gpt-4.1-nano`.
+- `/prompt/` LLM API errors return 502 (429 when rate limited, 504 on
+  timeout) with a generic message; provider details are only logged.
+- `/prompt/` rejects blank prompts and prompts over 4000 characters with
+  422.
 - The Docker image no longer bundles `config_docker.yaml`.
 - Config `azure.secret_prefix` is now `ca-mathagent`; the `--` moved to
   the new `secret_separator` key.
 - `config-app-delete` workflow input `prefix` is required.
 - `config/azure_kv_delete.yaml` lists the `FOUNDRY-`, `NVIDIA-`, and
   `OPENAI-API-KEY` secrets.
+- `/prompt` returns reasoning in `reasoning` instead of formatting it into
+  `answer`; it also accepts the path without the trailing slash, and
+  rejects unknown fields and a non-boolean `display_reasoning` with 422.
+- Agent errors: token limit returns 500 (was 502); provider rate limiting
+  returns 429; 503 and 429 responses include `Retry-After`. The errors
+  moved to `math_ai_agent.agent` and are no longer exported by
+  `math_ai_agent.llm`.
+- `payload.py` renamed to `schemas.py` (`PromptRequest`, `PromptResponse`).
+- Responses API tools are sent with `strict: false`; stateless requests
+  include `reasoning.encrypted_content`.
+- The Chat Completions client sends the system message itself;
+  `is_stateful: true` with `api_style: chat` fails at startup.
+- OAuth token directory is owner-only; a missing or invalid
+  `OAUTH_STORAGE_ENCRYPTION_KEY` fails with a clear error.
+- `uvicorn` pinned to `0.54.x`.
 
 ### Removed
 
 - `config/config_docker.yaml` and `config/azure_ai_utils_lib.yaml`.
 
 ### Fixed
+
+- MCP tool results without structured data reach the LLM as text, not
+  `None`.
+- Unexpected `/prompt` errors no longer log the prompt text.
 
 ## [0.0.54] - 2026-10-18
 

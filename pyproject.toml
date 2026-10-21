@@ -34,7 +34,7 @@ dependencies = [
     "pydantic (>=2.13.5,<3)",
     "pyyaml (>=6.0.3,<7)",
     "py-key-value-aio (>=0.4.6,<1)",
-    "uvicorn (>=0.53.0,<1)",
+    "uvicorn (>=0.54.0,<0.55)",
     "websockets (>=17.2,<18)",
     # Azure dependencies
     "azure-appconfiguration-provider (>=2.5,<3)",
@@ -69,6 +69,7 @@ test = [
     "pytest (>=9.1,<10)",
     "pytest-asyncio (>=1.4,<2)",
     "pytest-cov (>=7.1,<8)",
+    "fastmcp-slim[server] (>=4.0.11,<5)",
 ]
 
 [project.urls]

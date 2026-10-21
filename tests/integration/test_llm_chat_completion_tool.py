@@ -11,37 +11,28 @@ import asyncio
 import json
 import logging
 
-from math_ai_agent.config.config import (
-    configure_logging,
-    get_config,
-)
+import mcp_types
+from ai_utils_lib.config.config import load_config
+from ai_utils_lib.config.file_load_config import configure_logging
+
 from math_ai_agent.llm.chat_completions_client import ChatCompletionsClient
 from math_ai_agent.mcp.calc_client import CalcMCPClient
 
+_PACKAGE = "math_ai_agent"
+
 logger = logging.getLogger(__name__)
 
-# LLM endpoint, model, and API key env var come from config.yaml.
-
-_SYSTEM_INSTRUCTIONS = """
-You are a careful math assistant tutor helping solve math problems. Always
-write a short plan first. Do NOT do arithmetic in your head. For every
-math operation, request a tool call to the calculator. After tool results,
-continue. Provide final answer with explanation.
-"""
+# LLM endpoint, model, API key env var and instructions come from
+# config.yaml.
 
 
-async def get_mcp_tools() -> list[dict]:
-    """Connect to the Calculator MCP server and list the tools.
-
-    Returns:
-        OpenAI-format tool definitions discovered from the
-        MCP server.
-    """
+async def get_mcp_tools() -> list[mcp_types.Tool]:
+    """Return the tools discovered from the Calculator MCP server."""
     logger.info("Connecting to Calculator MCP server")
-    async with CalcMCPClient() as calcmcp_client:
-        tools = ChatCompletionsClient.format_tools(
-            await calcmcp_client.list_tools()
-        )
+    async with CalcMCPClient(
+        load_config(_PACKAGE).mcp["calculator"]
+    ) as calcmcp_client:
+        tools = await calcmcp_client.list_tools()
         logger.info("Discovered %d MCP tool(s)", len(tools))
         return tools
 
@@ -56,7 +47,9 @@ async def call_tool(tool_name: str, args: dict) -> str:
     Returns:
         The string representation of the tool result.
     """
-    async with CalcMCPClient() as calcmcp_client:
+    async with CalcMCPClient(
+        load_config(_PACKAGE).mcp["calculator"]
+    ) as calcmcp_client:
         logger.info(
             "Calling calculator MCP tool %s with %s",
             tool_name,
@@ -80,13 +73,12 @@ async def prompt_llm() -> None:
     until the LLM produces a final text response.
     """
     logger.info("Starting LLM prompt test")
-    messages = [{"role": "system", "content": _SYSTEM_INSTRUCTIONS}]
     tools = await get_mcp_tools()
     user_input = input("User: ")
-    messages.append({"role": "user", "content": user_input})
+    messages = [{"role": "user", "content": user_input}]
     logger.debug("Sending user prompt: %s", user_input)
 
-    async with ChatCompletionsClient(get_config().llm, tools) as llm:
+    async with ChatCompletionsClient(load_config(_PACKAGE).model, tools) as llm:
         # -------------------------
         # Agent Loop
         # -------------------------
@@ -140,5 +132,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    configure_logging()
+    configure_logging(load_config(_PACKAGE))
     asyncio.run(main())
