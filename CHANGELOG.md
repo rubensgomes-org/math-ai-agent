@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.0.55] - 2026-10-21
+
+### Added
+
 - `config-app-import` workflow inputs `config_path` (default
   `config/azure_aca_config_<env>.yaml`) and `prefix` (default
   `ca-mathagent/`).
