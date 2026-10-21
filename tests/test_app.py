@@ -135,7 +135,7 @@ async def test_prompt_rejects_oversized_body(app, mock_agent):
         transport=transport, base_url="http://test"
     ) as client:
         response = await client.post(
-            "/prompt", content=b"x" * (app_module._MAX_BODY_BYTES + 1)
+            "/prompt", content=b"x" * (app_module.MAX_BODY_BYTES + 1)
         )
     assert response.status_code == 413
     mock_agent.run.assert_not_awaited()

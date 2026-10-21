@@ -166,7 +166,7 @@ async def test_agent_run_failed_raises_llm_request_failed_error(agent_env):
     ]
     with pytest.raises(LLMRequestFailedError, match="upstream 502") as info:
         await agent_env.agent.run("4+4?")
-    assert type(info.value) is LLMRequestFailedError
+    assert info.type is LLMRequestFailedError
     assert "code=server_error" in str(info.value)
 
 

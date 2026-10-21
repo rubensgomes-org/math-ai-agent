@@ -24,7 +24,7 @@ _INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
 _PROMPT_TIMEOUT_SECONDS = 300
 # Far above a MAX_PROMPT_CHARS prompt, even with 4-byte characters.
-_MAX_BODY_BYTES = 64 * 1024
+MAX_BODY_BYTES = 64 * 1024
 _PROMPTS_PER_CLIENT = 10
 _RATE_LIMIT_WINDOW_SECONDS = 60
 
@@ -53,7 +53,7 @@ def create_app(
     app.state.rate_limiter = rate_limiter or SlidingWindowRateLimiter(
         _PROMPTS_PER_CLIENT, _RATE_LIMIT_WINDOW_SECONDS
     )
-    app.add_middleware(BodySizeLimitMiddleware, max_bytes=_MAX_BODY_BYTES)
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
     app.include_router(_router)
     app.add_exception_handler(AgentError, _agent_error_handler)
     app.add_exception_handler(APIStatusError, _llm_api_error_handler)
@@ -125,7 +125,7 @@ def _check_rate_limit(request: Request) -> None:
 # Exception handlers
 # -------------------------------------------------
 async def _agent_error_handler(
-    request: Request, error: Exception
+    unused_request: Request, error: Exception
 ) -> JSONResponse:
     """Return an ``AgentError``'s status, client message and Retry-After."""
     assert isinstance(error, AgentError)
@@ -139,7 +139,7 @@ async def _agent_error_handler(
 
 
 async def _llm_api_error_handler(
-    request: Request, error: Exception
+    unused_request: Request, error: Exception
 ) -> JSONResponse:
     """Map an LLM API error to a response safe for the client."""
     assert isinstance(error, (APIStatusError, APIConnectionError))
@@ -163,7 +163,7 @@ async def _llm_api_error_handler(
 
 
 async def _prompt_timeout_handler(
-    request: Request, error: Exception
+    unused_request: Request, error: Exception
 ) -> JSONResponse:
     """Return 504 when a prompt exceeds its total time limit."""
     logger.error(

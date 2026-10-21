@@ -87,7 +87,8 @@ def test_create_token_store_makes_dir_owner_only(tmp_path):
     assert stat.S_IMODE(directory.stat().st_mode) == 0o700
 
 
-async def test_exit_closes_the_client(app_config, client_init):
+@pytest.mark.usefixtures("client_init")
+async def test_exit_closes_the_client(app_config):
     calc = CalcMCPClient(app_config.mcp["calculator"])
     calc._server_url = _URL
     with patch.object(Client, "__aexit__", return_value=None) as client_exit:
