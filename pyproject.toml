@@ -34,7 +34,7 @@ dependencies = [
     "pyyaml (>=6.0.3,<7)",
     "py-key-value-aio (>=0.4.6,<1)",
     "uvicorn (>=0.53.0,<1)",
-    "websockets (>=17.2,<18)",
+    "websockets (>=17.3,<18)",
     # Azure dependencies
     "azure-appconfiguration-provider (>=2.5,<3)",
     "azure-identity (>=1.26,<2)",
